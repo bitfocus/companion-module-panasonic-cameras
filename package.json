@@ -1,0 +1,35 @@
+{
+	"name": "panasonic-cameras",
+	"version": "1.0.0",
+	"main": "src/index.js",
+	"type": "module",
+	"scripts": {
+		"format": "prettier --write .",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/bitfocus/companion-module-panasonic-cameras.git"
+	},
+	"dependencies": {
+		"@companion-module/base": "~1.0.2",
+		"got": "^12.5.3",
+		"jimp": "^0.22.12",
+		"yarn": "^1.22.21"
+	},
+	"devDependencies": {
+		"@companion-module/tools": "^0.5.1",
+		"prettier": "^3.2.5"
+	},
+	"prettier": {
+		"arrowParens": "always",
+		"bracketSpacing": true,
+		"printWidth": 360,
+		"semi": false,
+		"singleQuote": true,
+		"useTabs": true,
+		"endOfLine": "lf",
+		"trailingComma": "es5"
+	}
+}
