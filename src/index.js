@@ -299,26 +299,28 @@ class PanasonicCameraInstance extends InstanceBase {
 	}
 
 	async getThumbnail(id) {
-		const n = id + 1
-		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/get_preset_thumbnail?preset_number=${n}`
+		if (this.SERIES.capabilities.presetThumbnails) {
+			const n = id + 1
+			const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/get_preset_thumbnail?preset_number=${n}`
 
-		if (this.config.debug) {
-			this.log('info', 'Thumbnail request: ' + url)
-		}
+			if (this.config.debug) {
+				this.log('info', 'Thumbnail request: ' + url)
+			}
 
-		try {
-			const response = await got.get(url, { timeout: { request: this.config.timeout } })
+			try {
+				const response = await got.get(url, { timeout: { request: this.config.timeout } })
 
-			const img = await Jimp.read(response.rawBody)
-			const png64 = await img.scaleToFit(288, 288).getBase64Async('image/png')
+				const img = await Jimp.read(response.rawBody)
+				const png64 = await img.scaleToFit(288, 288).getBase64Async('image/png')
 
-			this.data.presetThumbnails[id] = png64
+				this.data.presetThumbnails[id] = png64
 
-			this.checkFeedbacks()
+				this.checkFeedbacks()
 
-			this.updateStatus(InstanceStatus.Ok)
-		} catch (err) {
-			this.log('error', 'Thumbnail request ' + url + ' failed: ' + String(err))
+				this.updateStatus(InstanceStatus.Ok)
+			} catch (err) {
+				this.log('error', 'Thumbnail request ' + url + ' failed: ' + String(err))
+			}
 		}
 	}
 
