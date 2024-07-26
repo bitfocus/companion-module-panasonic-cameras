@@ -150,7 +150,8 @@ export const ConfigFields = [
 		type: 'static-text',
 		id: 'debugInfo',
 		width: 11,
-		label: 'Debug To Log Window',
-		value: 'This will allow you to see what is being sent from the module and what is being received from the camera.',
+		label: 'Debug Mode',
+		value:
+			'This allows you to output the communication between this module instance and the camera in detail. Do not enable this unless you have protocol-level issues that you want to investigate. It will cause the log to be flooded with a lot of data, but it can also cause operational delays and a general slowdown of the system. DO NOT ENABLE THIS IN PRODUCTION!',
 	},
 ]
