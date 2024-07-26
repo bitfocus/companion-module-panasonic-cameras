@@ -66,9 +66,9 @@ export const ConfigFields = [
 		id: 'timeout',
 		label: 'Timeout (ms)',
 		width: 3,
-		default: 1000,
+		default: 2000,
 		min: 100,
-		max: 2500,
+		max: 5000,
 	},
 	{
 		type: 'static-text',
@@ -89,7 +89,8 @@ export const ConfigFields = [
 		id: 'pollInfo',
 		width: 9,
 		label: 'Polling',
-		value: 'Allows periodic querying of data that is not automatically updated by the camera. It is mandatory to obtain updated operational data from camera models that do not support any update notification subscription. Additionally allows operating status values ​​to be kept in sync that never have an update notification. The delay setting specifies the waiting time between individual requests to the camera.',
+		value:
+			'Allows periodic querying of data that is not automatically updated by the camera. It is mandatory to obtain updated operational data from camera models that do not support any update notification subscription. Additionally allows operating status values ​​to be kept in sync that never have an update notification. The delay setting specifies the waiting time between individual requests to the camera.',
 	},
 	{
 		type: 'number',
@@ -112,7 +113,8 @@ export const ConfigFields = [
 		id: 'subscriptionInfo',
 		width: 11,
 		label: 'Subscription',
-		value: 'Enables the event update subscription channel setup from the camera to this module instance on camera models that support this feature. If this option is disabled, the camera will always be polled for states on a regular basis (if polling is permitted). May be disabled for network constellations where the camera cannot establish a TCP connection to this instance, for example due to an intermediate NAT router, a firewall or a faulty IP configuration.',
+		value:
+			'Enables the event update subscription channel setup from the camera to this module instance on camera models that support this feature. If this option is disabled, the camera will always be polled for states on a regular basis (if polling is permitted). May be disabled for network constellations where the camera cannot establish a TCP connection to this instance, for example due to an intermediate NAT router, a firewall or a faulty IP configuration.',
 	},
 	{
 		type: 'checkbox',
