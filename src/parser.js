@@ -22,6 +22,7 @@ export function parseUpdate(self, str) {
 		self.data.panPosition = parseInt(str[0].substring(3, 7), 16) - 0x8000
 		self.data.tiltPosition = parseInt(str[0].substring(7, 11), 16) - 0x8000
 	}
+
 	if (str[0].substring(0, 2) === 'ax') {
 		switch (str[0].substring(2, 3)) {
 			case 'z':
@@ -35,6 +36,7 @@ export function parseUpdate(self, str) {
 				break
 		}
 	}
+
 	if (str[0].substring(0, 3) === 'lPI') {
 		self.data.zoomPosition = parseInt(str[0].substring(3, 6), 16) - 0x555
 		self.data.focusPosition = parseInt(str[0].substring(6, 9), 16) - 0x555
@@ -95,6 +97,31 @@ export function parseUpdate(self, str) {
 
 	if (str[0].substring(0, 3) === 'pST') {
 		self.data.presetSpeedTable = str[0].substring(3)
+	}
+
+	if (str[0].substring(0, 3) === 'pTD') {
+		//self.data.panPosition = parseInt(str[0].substring(3, 7), 16)
+		//self.data.tiltPosition = parseInt(str[0].substring(7, 11), 16)
+		//self.data.zoom999Position = parseInt(str[0].substring(11, 14), 16)
+		//self.data.focus99Position = parseInt(str[0].substring(14, 16), 16)
+		self.data.irisLabel = str[0].substring(16, 18) === 'FF' ? 'CLOSE' : 'f/' + (parseInt(str[0].substring(16, 18), 16) / 10).toFixed(1)
+	}
+
+	if (str[0].substring(0, 3) === 'pTG') {
+		self.data.gain = str[0].substring(3, 5)
+		self.data.colorTempLabel = parseInt(str[0].substring(5, 10), 16).toString() + 'K'
+		self.data.shutter = str[0].substring(10, 11)
+		self.data.shutterStepLabel = '1/' + parseInt(str[0].substring(11, 15), 16).toString()
+		//self.data.shutterSynchroLabel = (parseInt(str[0].substring(15, 20), 16) / 10).toFixed(1) + 'Hz'
+		self.data.filter = str[0].substring(20, 21)
+	}
+
+	if (str[0].substring(0, 3) === 'pTV') {
+		self.data.panPosition = parseInt(str[0].substring(3, 7), 16) - 0x8000
+		self.data.tiltPosition = parseInt(str[0].substring(7, 11), 16) - 0x8000
+		self.data.zoomPosition = parseInt(str[0].substring(11, 14), 16) - 0x555
+		self.data.focusPosition = parseInt(str[0].substring(14, 17), 16) - 0x555
+		self.data.irisPosition = parseInt(str[0].substring(17, 20), 16) - 0x555
 	}
 
 	if (str[0].substring(0, 4) === 'uPVS') {
@@ -358,7 +385,8 @@ export function parseWeb(self, str, cmd) {
 }
 
 export function parseWebCode(self, code, cmd) {
-	if (code === 204 || code === 503) { // no content
+	if (code === 204 || code === 503) {
+		// no content
 		switch (cmd) {
 			case 'srt_ctrl?cmd=start':
 				self.data.srt = '1'

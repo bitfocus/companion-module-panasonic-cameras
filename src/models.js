@@ -68,7 +68,6 @@ export const MODELS = [
 // UE150
 // UE160
 
-
 export const SERIES_SPECS = [
 	{
 		// Basic set of common features. Use this as base when integrating new camera models.
@@ -788,7 +787,7 @@ export const SERIES_SPECS = [
 			presetSpeed: { dropdown: e.ENUM_PRESET_SPEED_TABLE_2 },
 			presetThumbnails: true,
 			presetTime: true,
-			pull: false,
+			pull: { ptz: ['O', 'PE00', 'PE01', 'PE02', 'D6', 'INS', 'PST', 'PTD', 'PTG', 'PTV', 'RER', 'S', 'TAA', 'UPVS'], cam: ['QAF', 'QAW', 'QBR', 'QBP', 'QIS', 'QRP', 'QRS', 'QSE:71', 'QSG:39', 'QSG:3A', 'QSJ:0F', 'QSJ:10', 'QSJ:29'], web: false },
 			recordSD: false,
 			restart: true,
 			shutter: { cmd: 'OSJ:03', inc: 'OSJ:04', dec: 'OSJ:05', dropdown: e.ENUM_SHUTTER_ADV },
