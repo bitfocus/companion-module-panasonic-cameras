@@ -388,7 +388,9 @@ export function getActionDefinitions(self) {
 				await self.getPTZ('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
 			},
 		}
+	}
 
+	if (SERIES.capabilities.irisAuto) {
 		actions.irisMode = {
 			name: 'Exposure - Iris Mode',
 			options: optSetToggle(e.ENUM_MAN_AUTO),

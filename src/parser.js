@@ -303,6 +303,9 @@ export function parseUpdate(self, str) {
 		case 'ORS':
 			self.data.irisMode = str[1]
 			break
+		// case 'ORV':
+		// 	self.data.irisPosition = parseInt(str[1], 16)
+		// 	break
 		case 'OTD':
 			self.data.masterPedValue = parseInt(str[1], 16) - 0x1e
 			break
