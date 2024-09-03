@@ -519,7 +519,7 @@ export function getActionDefinitions(self) {
 		}
 	}
 
-	if (SERIES.capabilities.whiteBalance) {
+	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
 		actions.whiteBalanceMode = {
 			name: 'Image - White Balance Mode',
 			options: optSetToggleNextPrev(SERIES.capabilities.whiteBalance.dropdown),
@@ -527,7 +527,9 @@ export function getActionDefinitions(self) {
 				await self.getCam('OAW:' + cmdEnum(action, SERIES.capabilities.whiteBalance.dropdown, self.data.whiteBalance))
 			},
 		}
+	}
 
+	if (SERIES.capabilities.whiteBalance) {
 		actions.whiteBalanceExecAWB = {
 			name: 'Image - Execute AWC/AWB',
 			options: [],

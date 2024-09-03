@@ -498,7 +498,7 @@ export const SERIES_SPECS = [
 			focusPushAuto: false,
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
 			install: false,
-			iris: false,
+			iris: false, // special implementation req. 'ORV:xxx' (000-3FF)
 			irisAuto: true,
 			irisF: true,
 			night: false,
@@ -524,8 +524,8 @@ export const SERIES_SPECS = [
 			tally: true,
 			trackingAuto: false,
 			version: false,
-			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_SET },
-			zoom: false,
+			whiteBalance: true, // no white balance mode
+			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZS:xx'
 		},
 	},
 
