@@ -388,7 +388,20 @@ export function getActionDefinitions(self) {
 				await self.getPTZ('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
 			},
 		}
+	}
 
+	// special case for UB300
+	if (SERIES.capabilities.iris && SERIES.id === 'UB300') {
+		actions.iris = {
+			name: 'Exposure - Iris',
+			options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
+			callback: async (action) => {
+				await self.getCam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
+			},
+		}
+	}
+
+	if (SERIES.capabilities.irisAuto) {
 		actions.irisMode = {
 			name: 'Exposure - Iris Mode',
 			options: optSetToggle(e.ENUM_MAN_AUTO),
@@ -517,7 +530,7 @@ export function getActionDefinitions(self) {
 		}
 	}
 
-	if (SERIES.capabilities.whiteBalance) {
+	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
 		actions.whiteBalanceMode = {
 			name: 'Image - White Balance Mode',
 			options: optSetToggleNextPrev(SERIES.capabilities.whiteBalance.dropdown),
@@ -525,7 +538,9 @@ export function getActionDefinitions(self) {
 				await self.getCam('OAW:' + cmdEnum(action, SERIES.capabilities.whiteBalance.dropdown, self.data.whiteBalance))
 			},
 		}
+	}
 
+	if (SERIES.capabilities.whiteBalance) {
 		actions.whiteBalanceExecAWB = {
 			name: 'Image - Execute AWC/AWB',
 			options: [],

@@ -231,7 +231,6 @@ export function getFeedbackDefinitions(self) {
 			callback: function (feedback) {
 				return self.data.autotrackingAngle === feedback.options.option
 			},
-
 		}
 
 		feedbacks.autotrackingStatus = {
@@ -279,7 +278,7 @@ export function getFeedbackDefinitions(self) {
 				return self.data.presetSpeed === feedback.options.option
 			},
 		}
-		
+
 		feedbacks.presetRecallScope = {
 			type: 'boolean',
 			name: 'Preset - Recall Scope',
@@ -478,7 +477,7 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
-	if (SERIES.capabilities.whiteBalance) {
+	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
 		feedbacks.whiteBalance = {
 			type: 'boolean',
 			name: 'Image - White Balance',

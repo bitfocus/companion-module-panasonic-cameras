@@ -105,7 +105,7 @@ export async function getAllCameraStatus(self) {
 			'QGR', // R Gain
 			'QRD', // R Pedestal
 			'QRS', // Iris Mode
-			//'QRV', // Iris Control (0x0-0x3FF)
+			'QRV', // Iris Volume (0x0-0x3FF)
 			'QSH', // Shutter
 			'QSV', // Software Version
 			'QTD', // T Pedestal
