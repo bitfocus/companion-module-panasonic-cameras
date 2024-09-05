@@ -352,7 +352,6 @@ class PanasonicCameraInstance extends InstanceBase {
 			focusMode: null,
 			gain: null,
 			installMode: null,
-			iris: null,
 			irisMode: null,
 			nightMode: null,
 			ois: null,
@@ -380,6 +379,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			// numeric unsigned values
 			focusPosition: null,
 			irisPosition: null,
+			irisVolume: null,
 			panPosition: null,
 			tiltPosition: null,
 			zoomPosition: null,

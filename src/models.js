@@ -498,7 +498,7 @@ export const SERIES_SPECS = [
 			focusPushAuto: false,
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
 			install: false,
-			iris: false, // special implementation req. 'ORV:xxx' (000-3FF)
+			iris: true, // special implementation 'ORV:xxx' (000-3FF)
 			irisAuto: true,
 			irisF: true,
 			night: false,

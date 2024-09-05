@@ -92,6 +92,7 @@ export function setVariables(self) {
 		variables.push({ variableId: 'irisPosition', name: 'Iris Position' })
 		variables.push({ variableId: 'irisPositionPct', name: 'Iris Position %' })
 		variables.push({ variableId: 'irisPositionBar', name: 'Iris Position' })
+		variables.push({ variableId: 'irisVolume', name: 'Iris Volume' })
 	}
 	if (SERIES.capabilities.irisAuto) {
 		variables.push({ variableId: 'irisMode', name: 'Iris Mode' })
@@ -145,11 +146,11 @@ export function checkVariables(self) {
 	const SERIES = getAndUpdateSeries(self)
 
 	const autotrackingAngle = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_AUTOTRACKING_ANGLE, self.data.autotrackingAngle) : null
-	
+
 	const autotrackingMode = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_OFF_ON, self.data.autotrackingMode) : null
 
 	const autotrackingStatus = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_AUTOTRACKING_STATUS, self.data.autotrackingStatus) : null
-	
+
 	const colorbar = SERIES.capabilities.colorbar ? getLabel(e.ENUM_OFF_ON, self.data.colorbar) : null
 
 	const colorTemperature = SERIES.capabilities.colorTemperature.index ? getLabel(SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature) : null
@@ -236,6 +237,8 @@ export function checkVariables(self) {
 		zoomPositionBar: progressBar(normalizePct(self.data.zoomPosition, 0x0, 0xaaa), 10, 'W', 'T'),
 		focusPositionBar: progressBar(normalizePct(self.data.focusPosition, 0x0, 0xaaa), 10, 'N', 'F'),
 		irisPositionBar: progressBar(normalizePct(self.data.irisPosition, 0x0, 0xaaa), 10, 'C', 'O'),
+
+		irisVolume: self.data.irisVolume,
 
 		redGain: self.data.redGainValue,
 		blueGain: self.data.blueGainValue,
