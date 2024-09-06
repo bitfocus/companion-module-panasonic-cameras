@@ -38,7 +38,7 @@ export function setVariables(self) {
 	if (SERIES.capabilities.focusAuto) {
 		variables.push({ variableId: 'focusMode', name: 'Focus Mode' })
 	}
-	if (SERIES.capabilities.whiteBalance) {
+	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
 		variables.push({ variableId: 'whiteBalance', name: 'White Balance Mode' })
 	}
 	if (SERIES.capabilities.colorTemperature) {
@@ -197,7 +197,7 @@ export function checkVariables(self) {
 
 	const ts = SERIES.capabilities.streamTS ? getLabel(e.ENUM_OFF_ON, self.data.ts) : null
 
-	const whiteBalance = SERIES.capabilities.whiteBalance ? getLabel(SERIES.capabilities.whiteBalance.dropdown, self.data.whiteBalance) : null
+	const whiteBalance = SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown ? getLabel(SERIES.capabilities.whiteBalance.dropdown, self.data.whiteBalance) : null
 
 	const progressBar = (pct, width = 20, start = '', end = '') => {
 		if (pct && pct >= 0 && pct <= 100) {
