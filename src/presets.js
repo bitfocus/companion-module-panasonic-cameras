@@ -414,9 +414,10 @@ export function getPresetDefinitions(self) {
 			},
 			steps: [
 				{
-					down: [ { actionId: 'zoom', options: { dir: 1 } } ],
-					up: [ { actionId: 'zoom', options: { dir: 0 } } ]
-				}],
+					down: [{ actionId: 'zoom', options: { dir: 1 } }],
+					up: [{ actionId: 'zoom', options: { dir: 0 } }],
+				},
+			],
 			feedbacks: [],
 		}
 
@@ -432,9 +433,10 @@ export function getPresetDefinitions(self) {
 			},
 			steps: [
 				{
-					down: [ { actionId: 'zoom', options: { dir: -1 } } ],
-					up: [ { actionId: 'zoom', options: { dir: 0 } } ]
-				}],
+					down: [{ actionId: 'zoom', options: { dir: -1 } }],
+					up: [{ actionId: 'zoom', options: { dir: 0 } }],
+				},
+			],
 			feedbacks: [],
 		}
 
@@ -456,7 +458,7 @@ export function getPresetDefinitions(self) {
 					down: [
 						{
 							actionId: 'zoomSpeed',
-							options: { op: 's',	set: 25 },
+							options: { op: 's', set: 25 },
 						},
 					],
 					up: [],
@@ -535,9 +537,10 @@ export function getPresetDefinitions(self) {
 			},
 			steps: [
 				{
-					down: [ { actionId: 'focus', options: { dir: 1 } } ],
-					up: [ { actionId: 'focus', options: { dir: 0 } } ]
-				}],
+					down: [{ actionId: 'focus', options: { dir: 1 } }],
+					up: [{ actionId: 'focus', options: { dir: 0 } }],
+				},
+			],
 			feedbacks: [],
 		}
 
@@ -553,9 +556,10 @@ export function getPresetDefinitions(self) {
 			},
 			steps: [
 				{
-					down: [ { actionId: 'focus', options: { dir: -1 } } ],
-					up: [ { actionId: 'focus', options: { dir: 0 } } ]
-				}],
+					down: [{ actionId: 'focus', options: { dir: -1 } }],
+					up: [{ actionId: 'focus', options: { dir: 0 } }],
+				},
+			],
 			feedbacks: [],
 		}
 
@@ -577,7 +581,7 @@ export function getPresetDefinitions(self) {
 					down: [
 						{
 							actionId: 'focusSpeed',
-							options: { op: 's',	set: 25 },
+							options: { op: 's', set: 25 },
 						},
 					],
 					up: [],
@@ -1358,60 +1362,62 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.whiteBalance) {
-		presets[`image-whitebalance`] = {
-			type: 'button',
-			category: 'Image',
-			name: 'White Balance',
-			style: {
-				text: 'WB Mode\\n$(generic-module:whiteBalance)',
-				size: '14',
-				color: colorBlack,
-				bgcolor: colorWhite,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'whiteBalanceMode',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'whiteBalanceMode',
-							options: {
-								op: -1,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'whiteBalanceMode',
-							options: {
-								op: 1,
-							},
-						},
-					],
+		if (SERIES.capabilities.whiteBalance.dropdown) {
+			presets[`image-whitebalance`] = {
+				type: 'button',
+				category: 'Image',
+				name: 'White Balance',
+				style: {
+					text: 'WB Mode\\n$(generic-module:whiteBalance)',
+					size: '14',
+					color: colorBlack,
+					bgcolor: colorWhite,
 				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'whiteBalance',
-					options: {
-						option: SERIES.capabilities.whiteBalance.dropdown[0].id,
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
+				options: {
+					rotaryActions: true,
 				},
-			],
+				steps: [
+					{
+						down: [
+							{
+								actionId: 'whiteBalanceMode',
+								options: {
+									op: 't',
+								},
+							},
+						],
+						up: [],
+						rotate_left: [
+							{
+								actionId: 'whiteBalanceMode',
+								options: {
+									op: -1,
+								},
+							},
+						],
+						rotate_right: [
+							{
+								actionId: 'whiteBalanceMode',
+								options: {
+									op: 1,
+								},
+							},
+						],
+					},
+				],
+				feedbacks: [
+					{
+						feedbackId: 'whiteBalance',
+						options: {
+							option: SERIES.capabilities.whiteBalance.dropdown[0].id,
+						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorRed,
+						},
+					},
+				],
+			}
 		}
 
 		if (SERIES.capabilities.colorTemperature) {
