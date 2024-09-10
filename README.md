@@ -37,3 +37,8 @@ AW-HE40 series, AW-HE42/UE70 series, AW-UE80 series, AW-UE150 series, AG-CX350/A
 - AG-CX350, AG-CX200
 - AJ-CX4000
 - AJ-UPX360, AJ-UPX900
+
+**POVCAM series**
+
+- AG-UCK20
+- AG-MDC20
