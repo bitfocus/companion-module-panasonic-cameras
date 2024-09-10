@@ -99,7 +99,7 @@ export const SERIES_SPECS = [
 			presetTime: true, // Has additional Preset Recall Time control (UPVSxx and OSJ:29:1)
 			pull: false, // Additional definition of states that needs to be pulled from camera if no event subscription is available
 			recordSD: true, // Has SD Card Recording control (sdctrl?save=start or sdctrl?save=end)
-			restart: true, // Has Restart command (initial?cmd=reset) - ToDo
+			restart: true, // Has Restart command (initial?cmd=reset)
 			shutter: { cmd: 'OSJ:03', inc: 'OSJ:04', dec: 'OSJ:05', dropdown: e.ENUM_SHUTTER_ADV }, // Has Shutter Support (OSH, OSJ:03 - OSJ:06, ...)
 			streamRTMP: true, // Has RTMP Push Streaming control (rtmp_ctrl?cmd=start or rtmp_ctrl?cmd=stop)
 			streamSRT: true, // Has SRT Caller Streaming control (srt_ctrl?cmd=start or srt_ctrl?cmd=stop)
