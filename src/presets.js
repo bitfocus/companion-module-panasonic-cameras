@@ -1651,7 +1651,7 @@ export function getPresetDefinitions(self) {
 			category: 'System',
 			name: 'Power',
 			style: {
-				text: 'Power\\n$(generic-module:power)',
+				text: '⏻ Power\\n$(generic-module:power)',
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorOrange,
@@ -1678,6 +1678,35 @@ export function getPresetDefinitions(self) {
 					},
 				},
 			],
+		}
+	}
+
+	if (SERIES.capabilities.restart) {
+		presets['system-restart'] = {
+			type: 'button',
+			category: 'System',
+			name: 'Restart',
+			style: {
+				text: 'Restart\\n🗘',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'restart',
+							options: {
+								username: 'admin',
+								password: '12345',
+							},
+						},
+					],
+					up: [],
+				},
+			],
+			feedbacks: [],
 		}
 	}
 

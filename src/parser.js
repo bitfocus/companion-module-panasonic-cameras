@@ -135,10 +135,19 @@ export function parseUpdate(self, str) {
 		case 'dA1':
 			self.data.tally = '1'
 			break
-		case 'p0':
+		case 'p0': // Standby
 			self.data.power = '0'
 			break
-		case 'p1':
+		case 'p1': // Power ON
+			self.data.power = '1'
+			break
+		case 'p3': // Starting (Standby to Power ON)
+			self.data.power = '1'
+			break
+		case 'p4': // Power OFF
+			self.data.power = '0'
+			break
+		case 'p5': // Reboot
 			self.data.power = '1'
 			break
 		case 'iNS0':
@@ -414,6 +423,9 @@ export function parseWebCode(self, code, cmd) {
 				break
 			case 'sdctrl?save=end':
 				self.data.recording = '0'
+				break
+			case 'initial?cmd=reset&Randomnum=12345':
+				self.data.power = '0'
 				break
 		}
 	}

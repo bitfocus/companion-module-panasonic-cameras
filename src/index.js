@@ -260,7 +260,7 @@ class PanasonicCameraInstance extends InstanceBase {
 	}
 
 	// Currently only for web commands that don't require admin rights
-	async getWeb(cmd) {
+	async getWeb(cmd, username = '', password = '') {
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${cmd}`
 
 		if (this.config.debug) {
@@ -268,7 +268,7 @@ class PanasonicCameraInstance extends InstanceBase {
 		}
 
 		try {
-			const response = await got.get(url, { timeout: { request: this.config.timeout } })
+			const response = await got.get(url, { username, password, timeout: { request: this.config.timeout } })
 			if (response.body) {
 				const lines = response.body.trim().split('\r\n')
 
