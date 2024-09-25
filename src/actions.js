@@ -179,7 +179,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			type: 'checkbox',
 			label: 'Use Variable',
 			default: false,
-		}
+		},
 	]
 }
 

@@ -508,6 +508,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 10,
+								useVar: false,
+								stepVar: '10',
+								setVar: '',
 							},
 						},
 					],
@@ -517,6 +520,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 10,
+								useVar: false,
+								stepVar: '10',
+								setVar: '',
 							},
 						},
 					],
@@ -757,6 +763,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 30,
+								useVar: false,
+								stepVar: '30',
+								setVar: '',
 							},
 						},
 					],
@@ -766,6 +775,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 30,
+								useVar: false,
+								stepVar: '30',
+								setVar: '',
 							},
 						},
 					],
@@ -792,6 +804,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 0x1e,
+								useVar: false,
+								stepVar: '0x1e',
+								setVar: '',
 							},
 						},
 					],
@@ -819,6 +834,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 0x1e,
+								useVar: false,
+								stepVar: '0x1e',
+								setVar: '',
 							},
 						},
 					],
@@ -1137,6 +1155,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 's',
 								set: 0,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1147,6 +1168,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1156,6 +1180,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1187,6 +1214,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 's',
 								set: 0,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1197,6 +1227,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1206,6 +1239,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1235,6 +1271,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 's',
 								set: 0,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1245,6 +1284,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1254,6 +1296,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1285,6 +1330,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 's',
 								set: 0,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1295,6 +1343,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1304,6 +1355,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1333,6 +1387,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 's',
 								set: 0,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1343,6 +1400,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1352,6 +1412,9 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 1,
+								useVar: false,
+								stepVar: '1',
+								setVar: '0',
 							},
 						},
 					],
@@ -1444,6 +1507,9 @@ export function getPresetDefinitions(self) {
 								options: {
 									op: -1,
 									step: 20,
+									useVar: false,
+									stepVar: '20',
+									setVar: '0',
 								},
 							},
 						],
@@ -1453,6 +1519,9 @@ export function getPresetDefinitions(self) {
 								options: {
 									op: 1,
 									step: 20,
+									useVar: false,
+									stepVar: '20',
+									setVar: '0',
 								},
 							},
 						],
