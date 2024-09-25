@@ -184,16 +184,19 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 }
 
 async function parseSetIncDecVariables(action, self, min, max, stepSize = 1) {
-	const set = action.options.useVar ? Number(await self.parseVariablesInString(action.options.setVar)) : action.options.set
-	const step = action.options.useVar ? Number(await self.parseVariablesInString(action.options.stepVar)) : action.options.step
-	if (action.options.op === ACTION_SET && (isNaN(set) || set < min || set > max)) {
+	let set = action.options.useVar ? Number(await self.parseVariablesInString(action.options.setVar)) : action.options.set
+	let step = action.options.useVar ? Number(await self.parseVariablesInString(action.options.stepVar)) : action.options.step
+	if (action.options.op === ACTION_SET && isNaN(set)) {
 		self.log('debug', `Invalid set variable ${set} from ${action.options.setVar}. Must be between ${min} and ${max}`)
 		return undefined
 	}
-	if (action.options.op !== ACTION_SET && (isNaN(step) || step < 1 || set > max - min)) {
+	if (action.options.op !== ACTION_SET && isNaN(step)) {
 		self.log('debug', `Invalid step variable ${step} from ${action.options.stepVar}. Must be between 1 and ${max - min}`)
 		return undefined
 	}
+	// if variables exceeed limits conform to limit rather than rejecting.
+	set = set > max ? max : set < min ? min : set
+	step = step > (max - min) ? max - min : step < 1 ? 1 : step
 	action.options.set = set - (set % stepSize)
 	action.options.step = step - (step % stepSize)
 	return action
