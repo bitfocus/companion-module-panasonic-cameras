@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { e } from './enum.js'
-import { getAndUpdateSeries, getNext, getNextValue, toHexString } from './common.js'
+import { getAndUpdateSeries, getNext, getNextValue, parseIntConstrained, toHexString } from './common.js'
 import { Regex } from '@companion-module/base'
 
 const SPEED_OFFSET = 50
@@ -158,7 +158,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			type: 'number',
 			label: 'Step size',
 			default: step,
-			min: 1,
+			min: step,
 			max: max - min,
 			required: true,
 			isVisible: (options) => options.op !== 's' && !options.useVar,
@@ -171,7 +171,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			regex: Regex.SOMETHING,
 			required: true,
 			useVariables: true,
-			tooltip: `Variable should return a number between ${1} and ${max - min}`,
+			tooltip: `Variable should return a number between ${step} and ${max - min}`,
 			isVisible: (options) => options.op !== 's' && options.useVar,
 		},
 		{
@@ -183,22 +183,9 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 	]
 }
 
-async function parseSetIncDecVariables(action, self, min, max, stepSize = 1) {
-	let set = action.options.useVar ? Number(await self.parseVariablesInString(action.options.setVar)) : action.options.set
-	let step = action.options.useVar ? Number(await self.parseVariablesInString(action.options.stepVar)) : action.options.step
-	if (action.options.op === ACTION_SET && isNaN(set)) {
-		self.log('debug', `Invalid set variable ${set} from ${action.options.setVar}. Must be between ${min} and ${max}`)
-		return undefined
-	}
-	if (action.options.op !== ACTION_SET && isNaN(step)) {
-		self.log('debug', `Invalid step variable ${step} from ${action.options.stepVar}. Must be between 1 and ${max - min}`)
-		return undefined
-	}
-	// if variables exceeed limits conform to limit rather than rejecting.
-	set = set > max ? max : set < min ? min : set
-	step = step > max - min ? max - min : step < 1 ? 1 : step
-	action.options.set = set - (set % stepSize)
-	action.options.step = step - (step % stepSize)
+async function parseSetIncDecVariables(action, self, min, max, step = 1) {
+	action.options.set = action.options.useVar ? parseIntConstrained(await self.parseVariablesInString(action.options.setVar), min, max) : action.options.set
+	action.options.step = action.options.useVar ? parseIntConstrained(await self.parseVariablesInString(action.options.stepVar), step, max - min) : action.options.step
 	return action
 }
 
