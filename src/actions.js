@@ -150,7 +150,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			regex: Regex.SOMETHING,
 			required: true,
 			useVariables: true,
-			tooltip: `Variable should return an integer between ${min} and ${max}`,
+			tooltip: `Variable should return a number between ${min} and ${max}`,
 			isVisible: (options) => options.op === 's' && options.useVar,
 		},
 		{
@@ -171,7 +171,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			regex: Regex.SOMETHING,
 			required: true,
 			useVariables: true,
-			tooltip: `Variable should return an integer between ${1} and ${max - min}`,
+			tooltip: `Variable should return a number between ${1} and ${max - min}`,
 			isVisible: (options) => options.op !== 's' && options.useVar,
 		},
 		{
@@ -196,7 +196,7 @@ async function parseSetIncDecVariables(action, self, min, max, stepSize = 1) {
 	}
 	// if variables exceeed limits conform to limit rather than rejecting.
 	set = set > max ? max : set < min ? min : set
-	step = step > (max - min) ? max - min : step < 1 ? 1 : step
+	step = step > max - min ? max - min : step < 1 ? 1 : step
 	action.options.set = set - (set % stepSize)
 	action.options.step = step - (step % stepSize)
 	return action
