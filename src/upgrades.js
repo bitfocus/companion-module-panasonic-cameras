@@ -16,8 +16,8 @@ export const upgradeScripts = [
 				case 'gainBlue':
 				case 'colorTemperature':
 					action.options.useVar = action.options.useVar === undefined ? false : action.options.useVar
-					action.options.setVar = action.options.setVar === undefined ? '0' : action.options.setVar
-					action.options.stepVar = action.options.stepVar === undefined ? '1' : action.options.stepVar
+					action.options.setVar = action.options.setVar === undefined ? `${action.options.set}` : action.options.setVar
+					action.options.stepVar = action.options.stepVar === undefined ? `${action.options.step}` : action.options.stepVar
 					result.updatedActions.push(action)
 					break
 			}
