@@ -8,6 +8,7 @@ export const upgradeScripts = [
 
 		for (const action of props.actions) {
 			switch (action.actionId) {
+				case 'focusFollow':
 				case 'iris':
 				case 'ped':
 				case 'pedRed':
