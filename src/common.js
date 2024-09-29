@@ -52,14 +52,7 @@ export function toHexString(value, length) {
 
 export function parseIntConstrained(value, min, max) {
 	let v = parseInt(value)
-	if (isNaN(v)) {
-		v = min
-	}
-	if (v > max) {
-		v = max
-	}
-	if (v < min) {
-		v = min
-	}
+	if (v > max) return max
+	if (v < min) return min
 	return v
 }
