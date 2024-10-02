@@ -827,7 +827,7 @@ export const SERIES_SPECS = [
 			ois: { dropdown: e.ENUM_OIS_OTHER },
 			panTilt: true,
 			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 200, step: 1, hexlen: 3 },
-			poll: { ptz: false, cam: false, web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'] },
+			poll: { ptz: false, cam: ['QIF'], web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'] },
 			power: true,
 			preset: 100,
 			presetSpeed: { dropdown: e.ENUM_PRESET_SPEED_TABLE_2 },
