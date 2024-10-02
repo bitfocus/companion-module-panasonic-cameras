@@ -145,12 +145,12 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 		{
 			id: 'setVar',
 			type: 'textinput',
-			label: label,
+			label: label + ' variable',
 			default: `${def}`,
 			regex: Regex.SOMETHING,
 			required: true,
 			useVariables: true,
-			tooltip: `Variable should return a number between ${min} and ${max}`,
+			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
 			isVisible: (options) => options.op === 's' && options.useVar,
 		},
 		{
@@ -166,12 +166,12 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 		{
 			id: 'stepVar',
 			type: 'textinput',
-			label: 'Step Size',
+			label: 'Step size variable',
 			default: `${step}`,
 			regex: Regex.SOMETHING,
 			required: true,
 			useVariables: true,
-			tooltip: `Variable should return a number between ${step} and ${max - min}`,
+			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
 			isVisible: (options) => options.op !== 's' && options.useVar,
 		},
 		{
@@ -187,14 +187,14 @@ async function parseSetIncDecVariables(action, self, min, max, step) {
 	let setVar = parseIntConstrained(await self.parseVariablesInString(action.options.setVar), min, max)
 	let stepVar = parseIntConstrained(await self.parseVariablesInString(action.options.stepVar), step, max - min)
 	if (action.options.op === ACTION_SET && action.options.useVar) {
-		if (isNaN(setVar)) return undefined
+		if (isNaN(setVar)) return false
 		action.options.set = setVar
 	}
 	if (action.options.op !== ACTION_SET && action.options.useVar) {
-		if (isNaN(stepVar)) return undefined
+		if (isNaN(stepVar)) return false
 		action.options.step = stepVar
 	}
-	return action
+	return true
 }
 
 function cmdValue(action, offset, min, max, step, hexlen, data) {
@@ -384,9 +384,8 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Follow Focus',
 			options: optSetIncDecStep('Focus setting', 0x555, 0x0, 0xaaa, 10),
 			callback: async (action) => {
-				const parsedAction = await parseSetIncDecVariables(action, self, 0x0, 0xaaa, 10)
-				if (parsedAction === undefined) return
-				await self.getPTZ('AXF' + cmdValue(parsedAction, 0x555, 0x0, 0xaaa, parsedAction.option.step, 3, self.data.focusPosition))
+				if (!(await parseSetIncDecVariables(action, self, 0x0, 0xaaa, 10))) return
+				await self.getPTZ('AXF' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.focusPosition))
 			},
 		}
 	}
@@ -430,9 +429,8 @@ export function getActionDefinitions(self) {
 			name: 'Exposure - Iris',
 			options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
 			callback: async (action) => {
-				const parsedAction = await parseSetIncDecVariables(action, self, 0x0, 0xaaa, 0x1e)
-				if (parsedAction === undefined) return
-				await self.getPTZ('AXI' + cmdValue(parsedAction, 0x555, 0x0, 0xaaa, parsedAction.options.step, 3, self.data.irisPosition))
+				if (!(await parseSetIncDecVariables(action, self, 0x0, 0xaaa, 0x1e))) return
+				await self.getPTZ('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
 			},
 		}
 	}
@@ -443,9 +441,8 @@ export function getActionDefinitions(self) {
 			name: 'Exposure - Iris',
 			options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
 			callback: async (action) => {
-				const parsedAction = await parseSetIncDecVariables(action, self, 0x0, 0x3ff, 0xa)
-				if (parsedAction === undefined) return
-				await self.getCam('ORV:' + cmdValue(parsedAction, 0x0, 0x0, 0x3ff, parsedAction.options.step, 3, self.data.irisVolume))
+				if (!(await parseSetIncDecVariables(action, self, 0x0, 0x3ff, 0xa))) return
+				await self.getCam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
 			},
 		}
 	}
@@ -530,9 +527,8 @@ export function getActionDefinitions(self) {
 			name: 'Image - Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				const parsedAction = await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step)
-				if (parsedAction === undefined) return
-				await self.getCam(caps.cmd + ':' + cmdValue(parsedAction, caps.offset, -caps.limit, caps.limit, parsedAction.options.step, caps.hexlen, self.data.masterPedValue))
+				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				await self.getCam(caps.cmd + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.masterPedValue))
 			},
 		}
 	}
@@ -543,9 +539,8 @@ export function getActionDefinitions(self) {
 			name: 'Image - Red Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				const parsedAction = await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step)
-				if (parsedAction === undefined) return
-				await self.getCam(caps.cmd.red + ':' + cmdValue(parsedAction, caps.offset, -caps.limit, caps.limit, parsedAction.options.step, caps.hexlen, self.data.redPedValue))
+				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				await self.getCam(caps.cmd.red + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.redPedValue))
 			},
 		}
 	}
@@ -556,9 +551,8 @@ export function getActionDefinitions(self) {
 			name: 'Image - Blue Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				const parsedAction = await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step)
-				if (parsedAction === undefined) return
-				await self.getCam(caps.cmd.blue + ':' + cmdValue(parsedAction, caps.offset, -caps.limit, caps.limit, parsedAction.options.step, caps.hexlen, self.data.bluePedValue))
+				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				await self.getCam(caps.cmd.blue + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.bluePedValue))
 			},
 		}
 	}
@@ -569,9 +563,8 @@ export function getActionDefinitions(self) {
 			name: 'Image - Red Gain',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				const parsedAction = await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step)
-				if (parsedAction === undefined) return
-				await self.getCam(caps.cmd.red + ':' + cmdValue(parsedAction, caps.offset, -caps.limit, caps.limit, parsedAction.options.step, caps.hexlen, self.data.redGainValue))
+				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				await self.getCam(caps.cmd.red + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.redGainValue))
 			},
 		}
 	}
@@ -582,9 +575,8 @@ export function getActionDefinitions(self) {
 			name: 'Image - Blue Gain',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				const parsedAction = await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step)
-				if (parsedAction === undefined) return
-				await self.getCam(caps.cmd.blue + ':' + cmdValue(parsedAction, caps.offset, -caps.limit, caps.limit, parsedAction.options.step, caps.hexlen, self.data.blueGainValue))
+				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				await self.getCam(caps.cmd.blue + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.blueGainValue))
 			},
 		}
 	}
@@ -633,11 +625,10 @@ export function getActionDefinitions(self) {
 				name: 'Image - Color Temperature',
 				options: optSetIncDecStep('Color Temperature [K]', 3200, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20),
 				callback: async (action) => {
-					const parsedAction = await parseSetIncDecVariables(action, self, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20)
-					if (parsedAction === undefined) return
+					if (!(await parseSetIncDecVariables(action, self, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20))) return
 					switch (action.options.op) {
 						case ACTION_SET:
-							await self.getCam(SERIES.capabilities.colorTemperature.advanced.set + ':' + toHexString(parsedAction.options.set, 5) + ':0')
+							await self.getCam(SERIES.capabilities.colorTemperature.advanced.set + ':' + toHexString(action.options.set, 5) + ':0')
 							break
 						case ACTION_INC:
 							await self.getCam(SERIES.capabilities.colorTemperature.advanced.inc + ':1')
