@@ -49,3 +49,10 @@ export function getLabel(values, key) {
 export function toHexString(value, length) {
 	return parseInt(value).toString(16).toUpperCase().padStart(length, '0')
 }
+
+export function parseIntConstrained(value, min, max) {
+	let v = parseInt(value)
+	if (v > max) return max
+	if (v < min) return min
+	return v
+}
