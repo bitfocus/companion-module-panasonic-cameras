@@ -1,4 +1,4 @@
-import { getAndUpdateSeries, getLabel } from './common.js'
+import { constrainRange, getAndUpdateSeries, getLabel } from './common.js'
 import { e } from './enum.js'
 
 // ##########################
@@ -209,10 +209,7 @@ export function checkVariables(self) {
 	}
 
 	const normalizePct = (val, low = 0, high = 100, limit = false, fractionDigits = 0) => {
-		if (limit) {
-			val = val < low ? low : val
-			val = val > high ? high : val
-		}
+		val = limit ? constrainRange(val, low, high) : val
 		return val < low || val > high ? null : (((val - low) / (high - low)) * 100).toFixed(fractionDigits)
 	}
 

@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { e } from './enum.js'
-import { getAndUpdateSeries, getNext, getNextValue, parseIntConstrained, toHexString } from './common.js'
+import { getAndUpdateSeries, getNext, getNextValue, constrainRange, toHexString } from './common.js'
 import { Regex } from '@companion-module/base'
 
 const SPEED_OFFSET = 50
@@ -66,6 +66,22 @@ function optMove(label_inc = '⬆', label_dec = '⬇') {
 			],
 		},
 		liveSpeed,
+	]
+}
+
+function optMoveVar() {
+	return [
+		speedOperation,
+		{
+			id: 'step',
+			type: 'number',
+			label: 'Step size',
+			default: 7,
+			min: 1,
+			max: 7,
+			required: false,
+			isVisible: (options) => options.op !== 's',
+		},
 	]
 }
 
@@ -186,11 +202,11 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 async function parseSetIncDecVariables(action, self, min, max, step) {
 	if (action.options.useVar) {
 		if (action.options.op === ACTION_SET) {
-			const setVar = parseIntConstrained(await self.parseVariablesInString(action.options.setVar), min, max)
+			const setVar = constrainRange(parseInt(await self.parseVariablesInString(action.options.setVar)), min, max)
 			if (isNaN(setVar)) return false
 			action.options.set = setVar
 		} else {
-			const stepVar = parseIntConstrained(await self.parseVariablesInString(action.options.stepVar), step, max - min)
+			const stepVar = constrainRange(parseInt(await self.parseVariablesInString(action.options.stepVar)), step, max - min)
 			if (isNaN(stepVar)) return false
 			action.options.step = stepVar
 		}
@@ -340,6 +356,15 @@ export function getActionDefinitions(self) {
 						await self.getPTZ('Z' + cmdSpeed(action.options.dir * self.zSpeed + SPEED_OFFSET))
 					})
 				}
+			},
+		}
+
+		actions.zoomControl = {
+			name: 'Lens - Zoom Control',
+			options: optMoveVar(),
+			callback: async (action) => {
+				self.zSpeed = action.options.op !== ACTION_SET ? constrainRange(self.zSpeed + action.options.step * action.options.op, -SPEED_MAX, SPEED_MAX) : action.options.set
+				await self.getPTZ('Z' + cmdSpeed(self.zSpeed + SPEED_OFFSET))
 			},
 		}
 

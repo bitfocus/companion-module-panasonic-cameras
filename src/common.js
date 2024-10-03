@@ -50,9 +50,8 @@ export function toHexString(value, length) {
 	return parseInt(value).toString(16).toUpperCase().padStart(length, '0')
 }
 
-export function parseIntConstrained(value, min, max) {
-	let v = parseInt(value)
-	if (v > max) return max
-	if (v < min) return min
-	return v
+export function constrainRange(value, min, max) {
+	if (value > max) return max
+	if (value < min) return min
+	return value
 }
