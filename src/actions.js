@@ -184,15 +184,16 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 }
 
 async function parseSetIncDecVariables(action, self, min, max, step) {
-	let setVar = parseIntConstrained(await self.parseVariablesInString(action.options.setVar), min, max)
-	let stepVar = parseIntConstrained(await self.parseVariablesInString(action.options.stepVar), step, max - min)
-	if (action.options.op === ACTION_SET && action.options.useVar) {
-		if (isNaN(setVar)) return false
-		action.options.set = setVar
-	}
-	if (action.options.op !== ACTION_SET && action.options.useVar) {
-		if (isNaN(stepVar)) return false
-		action.options.step = stepVar
+	if (action.options.useVar) {
+		if (action.options.op === ACTION_SET) {
+			const setVar = parseIntConstrained(await self.parseVariablesInString(action.options.setVar), min, max)
+			if (isNaN(setVar)) return false
+			action.options.set = setVar
+		} else {
+			const stepVar = parseIntConstrained(await self.parseVariablesInString(action.options.stepVar), step, max - min)
+			if (isNaN(stepVar)) return false
+			action.options.step = stepVar
+		}
 	}
 	return true
 }
