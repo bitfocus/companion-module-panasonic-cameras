@@ -32,9 +32,9 @@ const speedOperation = {
 	type: 'dropdown',
 	label: 'Speed Change',
 	id: 'op',
-	default: ACTION_SET,
+	default: ACTION_STOP,
 	choices: [
-		{ id: ACTION_SET, label: 'Set Speed' },
+		{ id: ACTION_STOP, label: 'Reset Speed (Stop)' },
 		{ id: ACTION_RAISE, label: 'Raise Speed' },
 		{ id: ACTION_LOWER, label: 'Lower Speed' },
 	],
@@ -58,7 +58,7 @@ function optMove(label_inc = '⬆', label_dec = '⬇') {
 			type: 'dropdown',
 			label: 'Direction',
 			id: 'dir',
-			default: 0,
+			default: ACTION_STOP,
 			choices: [
 				{ id: ACTION_STOP, label: 'Stop' },
 				{ id: ACTION_INC, label: label_inc },
@@ -363,7 +363,7 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Zoom Control',
 			options: optMoveVar(),
 			callback: async (action) => {
-				self.zSpeed = action.options.op !== ACTION_SET ? constrainRange(self.zSpeed + action.options.step * action.options.op, -SPEED_MAX, SPEED_MAX) : action.options.set
+				self.zSpeed = action.options.op !== ACTION_STOP ? constrainRange(self.zSpeed + action.options.step * action.options.op, -SPEED_MAX, SPEED_MAX) : 0
 				await self.getPTZ('Z' + cmdSpeed(self.zSpeed + SPEED_OFFSET))
 			},
 		}

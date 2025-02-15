@@ -398,7 +398,32 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			steps: [],
+			options: {
+				rotaryActions: true,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'zoomSpeed',
+							options: { op: 0 },
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'zoomControl',
+							options: { op: -1, step: 7 },
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'zoomControl',
+							options: { op: 1, step: 7 },
+						},
+					],
+				},
+			],
 			feedbacks: [],
 		}
 
@@ -458,7 +483,7 @@ export function getPresetDefinitions(self) {
 					down: [
 						{
 							actionId: 'zoomSpeed',
-							options: { op: 's', set: 25 },
+							options: { op: 0 },
 						},
 					],
 					up: [],
