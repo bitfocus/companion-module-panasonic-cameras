@@ -405,8 +405,8 @@ export function getPresetDefinitions(self) {
 				{
 					down: [
 						{
-							actionId: 'zoomSpeed',
-							options: { op: 0 },
+							actionId: 'zoomControl',
+							options: { op: 's', set: 0 },
 						},
 					],
 					up: [],
@@ -483,20 +483,20 @@ export function getPresetDefinitions(self) {
 					down: [
 						{
 							actionId: 'zoomSpeed',
-							options: { op: 0 },
+							options: { op: 's', set: 25 },
 						},
 					],
 					up: [],
 					rotate_left: [
 						{
 							actionId: 'zoomSpeed',
-							options: { op: -1 },
+							options: { op: -1, step: 1 },
 						},
 					],
 					rotate_right: [
 						{
 							actionId: 'zoomSpeed',
-							options: { op: 1 },
+							options: { op: 1, step: 1 },
 						},
 					],
 				},
@@ -615,13 +615,13 @@ export function getPresetDefinitions(self) {
 					rotate_left: [
 						{
 							actionId: 'focusSpeed',
-							options: { op: -1 },
+							options: { op: -1, step: 1 },
 						},
 					],
 					rotate_right: [
 						{
 							actionId: 'focusSpeed',
-							options: { op: 1 },
+							options: { op: 1, step: 1 },
 						},
 					],
 				},
