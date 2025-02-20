@@ -98,7 +98,7 @@ export function setVariables(self) {
 		variables.push({ variableId: 'irisMode', name: 'Iris Mode' })
 	}
 	if (SERIES.capabilities.irisF) {
-		variables.push({ variableId: 'irisF', name: 'Iris F No.' })
+		variables.push({ variableId: 'irisF', name: 'Iris ƒ No.' })
 	}
 	if (SERIES.capabilities.pedestal) {
 		variables.push({ variableId: 'masterPed', name: 'Master Pedestal' })

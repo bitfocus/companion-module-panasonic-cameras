@@ -104,7 +104,7 @@ export function parseUpdate(self, str) {
 		//self.data.tiltPosition = parseInt(str[0].substring(7, 11), 16)
 		//self.data.zoom999Position = parseInt(str[0].substring(11, 14), 16)
 		//self.data.focus99Position = parseInt(str[0].substring(14, 16), 16)
-		self.data.irisLabel = str[0].substring(16, 18) === 'FF' ? 'CLOSE' : 'f/' + (parseInt(str[0].substring(16, 18), 16) / 10).toFixed(1)
+		self.data.irisLabel = str[0].substring(16, 18) === 'FF' ? 'CLOSE' : 'ƒ/' + (parseInt(str[0].substring(16, 18), 16) / 10).toFixed(1)
 	}
 
 	if (str[0].substring(0, 3) === 'pTG') {
@@ -205,7 +205,7 @@ export function parseUpdate(self, str) {
 			self.data.whiteBalance = str[1]
 			break
 		case 'OIF':
-			self.data.irisLabel = str[1] === 'FF' ? 'CLOSE' : 'f/' + (parseInt(str[1], 16) / 10).toFixed(1)
+			self.data.irisLabel = str[1] === 'FF' ? 'CLOSE' : 'ƒ/' + (parseInt(str[1], 16) / 10).toFixed(1)
 			break
 		case 'OIS':
 			self.data.ois = str[1]
