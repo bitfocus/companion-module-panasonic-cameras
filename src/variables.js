@@ -87,6 +87,7 @@ export function setVariables(self) {
 		variables.push({ variableId: 'focusPosition', name: 'Focus Position' })
 		variables.push({ variableId: 'focusPositionPct', name: 'Focus Position %' })
 		variables.push({ variableId: 'focusPositionBar', name: 'Focus Position' })
+		variables.push({ variableId: 'focusSpeed', name: 'Focus Speed Control' })
 		variables.push({ variableId: 'fSpeed', name: 'Focus Speed' })
 	}
 	if (SERIES.capabilities.iris) {
@@ -238,6 +239,7 @@ export function checkVariables(self) {
 
 		irisVolume: self.data.irisVolume,
 
+		focusSpeed: self.data.focusSpeed,
 		redGain: self.data.redGainValue,
 		blueGain: self.data.blueGainValue,
 		redPed: self.data.redPedValue,

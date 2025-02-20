@@ -128,6 +128,10 @@ export function parseUpdate(self, str) {
 		self.data.presetSpeed = str[0].substring(4)
 	}
 
+	if (str[0].substring(0, 2) === 'fS') {
+		self.data.focusSpeedValue = parseInt(str[0].substring(2, 4)) - 50
+	}
+
 	if (str[0].substring(0, 2) === 'zS') {
 		self.data.zoomSpeedValue = parseInt(str[0].substring(2, 4)) - 50
 	}

@@ -392,6 +392,15 @@ export function getActionDefinitions(self) {
 			},
 		}
 
+		actions.focusControl = {
+			name: 'Lens - Focus Speed Control',
+			options: [speedOperation, speedSetting, speedStep],
+			callback: async (action) => {
+				self.data.focusSpeed = action.options.op !== ACTION_SET ? getNextValue(self.data.focusSpeed, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
+				await self.getPTZ('F' + cmdSpeed(self.data.focusSpeed + SPEED_OFFSET))
+			},
+		}
+
 		actions.focusSpeed = {
 			name: 'Lens - Focus Speed',
 			options: [speedOperation, speedSetting, speedStep],
