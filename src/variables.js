@@ -81,6 +81,7 @@ export function setVariables(self) {
 		variables.push({ variableId: 'zoomPositionPct', name: 'Zoom Position %' })
 		variables.push({ variableId: 'zoomPositionBar', name: 'Zoom Position' })
 		variables.push({ variableId: 'zSpeed', name: 'Zoom Speed' })
+		variables.push({ variableId: 'zSpeedDir', name: 'Zoom Speed and Direction' })
 	}
 	if (SERIES.capabilities.focus) {
 		variables.push({ variableId: 'focusPosition', name: 'Focus Position' })
@@ -280,5 +281,6 @@ export function checkVariables(self) {
 		tSpeed: self.tSpeed,
 		zSpeed: self.zSpeed,
 		fSpeed: self.fSpeed,
+		fSpeedDir: self.zSpeedDir,
 	})
 }

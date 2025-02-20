@@ -411,6 +411,8 @@ class PanasonicCameraInstance extends InstanceBase {
 		this.zSpeed = 25
 		this.fSpeed = 25
 
+		this.zSpeedDir = 0
+
 		this.tcpPortSelected = 31004
 		this.tcpPortOld = this.config.tcpPort || 31004
 

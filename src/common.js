@@ -32,14 +32,7 @@ export function getNext(values, key, step = 1, overrun = true) {
 }
 
 export function getNextValue(value, min, max, step = 1) {
-	let v = (value += step)
-	if (v > max) {
-		v = max
-	}
-	if (v < min) {
-		v = min
-	}
-	return v
+	return constrainRange(value + step, min, max)
 }
 
 export function getLabel(values, key) {

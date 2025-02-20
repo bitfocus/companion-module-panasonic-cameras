@@ -365,6 +365,7 @@ export function getPresetDefinitions(self) {
 							options: {
 								scope: 'pt',
 								op: -1,
+								step: 1,
 							},
 						},
 					],
@@ -374,6 +375,7 @@ export function getPresetDefinitions(self) {
 							options: {
 								scope: 'pt',
 								op: 1,
+								step: 1,
 							},
 						},
 					],
@@ -2096,7 +2098,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'presetSpeedTime',
 							options: {
 								op: 's',
-								set: '875',
+								set: '999',
 							},
 						},
 					],
@@ -2107,7 +2109,7 @@ export function getPresetDefinitions(self) {
 				{
 					feedbackId: 'presetSpeedTime',
 					options: {
-						option: '875',
+						option: '999',
 					},
 					style: {
 						color: colorWhite,
@@ -2172,7 +2174,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'presetSpeedTime',
 							options: {
 								op: 's',
-								set: '375',
+								set: '275',
 							},
 						},
 					],
@@ -2183,7 +2185,7 @@ export function getPresetDefinitions(self) {
 				{
 					feedbackId: 'presetSpeedTime',
 					options: {
-						option: '375',
+						option: '275',
 					},
 					style: {
 						color: colorWhite,

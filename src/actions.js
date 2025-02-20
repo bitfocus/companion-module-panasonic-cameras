@@ -52,19 +52,15 @@ const speedSetting = {
 	isVisible: (options) => options.op === 's',
 }
 
-const speedModification = {
+const speedStep = {
 	id: 'step',
 	type: 'number',
 	label: 'Step size',
-	default: 7,
+	default: 1,
 	min: 1,
 	max: 7,
 	required: false,
 	isVisible: (options) => options.op !== 's',
-}
-
-function optSpeed() {
-	return [speedOperation, speedSetting, speedModification]
 }
 
 function optMove(label_inc = '⬆', label_dec = '⬇') {
@@ -301,25 +297,27 @@ export function getActionDefinitions(self) {
 					id: 'scope',
 					default: 'pt',
 					choices: [
-						{ id: 'pt', label: 'Pan/Tilt' },
-						{ id: 'p', label: 'Pan only' },
-						{ id: 't', label: 'Tilt only' },
+						{ id: 'pt', label: 'Pan + Tilt' },
+						{ id: 'p', label: 'Pan' },
+						{ id: 't', label: 'Tilt' },
 					],
 				},
-				optSpeed(),
+				speedOperation,
+				speedSetting,
+				speedStep,
 			],
 			callback: async (action) => {
 				switch (action.options.scope) {
 					case 'pt':
-						self.ptSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.ptSpeed, SPEED_MIN, SPEED_MAX, action.options.op)
+						self.ptSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.ptSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
 						self.pSpeed = self.ptSpeed
 						self.tSpeed = self.ptSpeed
 						break
 					case 'p':
-						self.pSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.pSpeed, SPEED_MIN, SPEED_MAX, action.options.op)
+						self.pSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.pSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
 						break
 					case 't':
-						self.tSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.tSpeed, SPEED_MIN, SPEED_MAX, action.options.op)
+						self.tSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.tSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
 						break
 				}
 
@@ -359,18 +357,18 @@ export function getActionDefinitions(self) {
 
 		actions.zoomControl = {
 			name: 'Lens - Zoom Control',
-			options: optSpeed(),
+			options: [speedOperation, speedSetting, speedStep],
 			callback: async (action) => {
-				self.zSpeed = action.options.op !== ACTION_SET ? constrainRange(self.zSpeed + action.options.step * action.options.op, -SPEED_MAX, SPEED_MAX) : action.options.set
-				await self.getPTZ('Z' + cmdSpeed(self.zSpeed + SPEED_OFFSET))
+				self.zSpeedDir = action.options.op !== ACTION_SET ? getNextValue(self.zSpeedDir, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
+				await self.getPTZ('Z' + cmdSpeed(self.zSpeedDir + SPEED_OFFSET))
 			},
 		}
 
 		actions.zoomSpeed = {
 			name: 'Lens - Zoom Speed',
-			options: optSpeed(),
+			options: [speedOperation, speedSetting, speedStep],
 			callback: async (action) => {
-				self.zSpeed = action.options.op !== ACTION_SET ? getNextValue(self.zSpeed, SPEED_MIN, SPEED_MAX, action.options.op) : action.options.set
+				self.zSpeed = action.options.op !== ACTION_SET ? getNextValue(self.zSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step) : action.options.set
 				self.setVariableValues({ zSpeed: self.zSpeed })
 				self.speedChangeEmitter.emit('zSpeed')
 			},
@@ -396,9 +394,9 @@ export function getActionDefinitions(self) {
 
 		actions.focusSpeed = {
 			name: 'Lens - Focus Speed',
-			options: optSpeed(),
+			options: [speedOperation, speedSetting, speedStep],
 			callback: async (action) => {
-				self.fSpeed = action.options.op !== ACTION_SET ? getNextValue(self.fSpeed, SPEED_MIN, SPEED_MAX, action.options.op) : action.options.set
+				self.fSpeed = action.options.op !== ACTION_SET ? getNextValue(self.fSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step) : action.options.set
 				self.setVariableValues({ fSpeed: self.fSpeed })
 				self.speedChangeEmitter.emit('fSpeed')
 			},
