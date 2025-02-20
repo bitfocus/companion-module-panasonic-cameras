@@ -128,6 +128,10 @@ export function parseUpdate(self, str) {
 		self.data.presetSpeed = str[0].substring(4)
 	}
 
+	if (str[0].substring(0, 2) === 'zS') {
+		self.data.zoomSpeedValue = parseInt(str[0].substring(2, 4)) - 50
+	}
+
 	switch (str[0]) {
 		case 'dA0':
 			self.data.tally = '0'

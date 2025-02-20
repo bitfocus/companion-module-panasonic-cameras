@@ -356,11 +356,11 @@ export function getActionDefinitions(self) {
 		}
 
 		actions.zoomControl = {
-			name: 'Lens - Zoom Control',
+			name: 'Lens - Zoom Speed Control',
 			options: [speedOperation, speedSetting, speedStep],
 			callback: async (action) => {
-				self.zSpeedDir = action.options.op !== ACTION_SET ? getNextValue(self.zSpeedDir, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
-				await self.getPTZ('Z' + cmdSpeed(self.zSpeedDir + SPEED_OFFSET))
+				self.data.zoomSpeed = action.options.op !== ACTION_SET ? getNextValue(self.data.zoomSpeed, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
+				await self.getPTZ('Z' + cmdSpeed(self.data.zoomSpeed + SPEED_OFFSET))
 			},
 		}
 

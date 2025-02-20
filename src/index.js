@@ -391,6 +391,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			bluePedValue: 0,
 			//greenPedValue: 0,
 			masterPedValue: 0,
+			zoomSpeedValue: 0,
 
 			// other strings
 			colorTempLabel: null,
@@ -410,8 +411,6 @@ class PanasonicCameraInstance extends InstanceBase {
 		this.tSpeed = 25
 		this.zSpeed = 25
 		this.fSpeed = 25
-
-		this.zSpeedDir = 0
 
 		this.tcpPortSelected = 31004
 		this.tcpPortOld = this.config.tcpPort || 31004

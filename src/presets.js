@@ -597,7 +597,7 @@ export function getPresetDefinitions(self) {
 			category: 'Lens',
 			name: 'Focus Speed',
 			style: {
-				text: 'Focus\\nSpeed\\n$(generic-module:zSpeed)',
+				text: 'Focus\\nSpeed\\n$(generic-module:fSpeed)',
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
