@@ -196,6 +196,22 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.zoom) {
+		feedbacks.zoomControl = {
+			type: 'boolean',
+			name: 'Lens - Zoom Control',
+			description: 'Indicates if Zoom is currently in operation',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [],
+			callback: function () {
+				return self.data.zoomSpeedValue != 0
+			},
+		}
+	}
+
 	if (SERIES.capabilities.trackingAuto) {
 		feedbacks.autotrackingMode = {
 			type: 'boolean',

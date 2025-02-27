@@ -426,7 +426,15 @@ export function getPresetDefinitions(self) {
 					],
 				},
 			],
-			feedbacks: [],
+			feedbacks: [
+				{
+					feedbackId: 'zoomControl',
+					style: {
+						color: colorWhite,
+						bgcolor: colorRed,
+					},
+				},
+			],
 		}
 
 		presets['lens-zoom-in'] = {
