@@ -52,6 +52,18 @@ const speedSetting = {
 	isVisible: (options) => options.op === 's',
 }
 
+const speedControlSetting = {
+	type: 'number',
+	label: 'Direct speed setting',
+	id: 'set',
+	default: SPEED_MIN,
+	min: -SPEED_MAX,
+	max: SPEED_MAX,
+	required: true,
+	range: true,
+	isVisible: (options) => options.op === 's',
+}
+
 const speedStep = {
 	id: 'step',
 	type: 'number',
@@ -357,10 +369,10 @@ export function getActionDefinitions(self) {
 
 		actions.zoomControl = {
 			name: 'Lens - Zoom Speed Control',
-			options: [speedOperation, speedSetting, speedStep],
+			options: [speedOperation, speedControlSetting, speedStep],
 			callback: async (action) => {
-				self.data.zoomSpeed = action.options.op !== ACTION_SET ? getNextValue(self.data.zoomSpeed, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
-				await self.getPTZ('Z' + cmdSpeed(self.data.zoomSpeed + SPEED_OFFSET))
+				self.data.zoomSpeedValue = action.options.op !== ACTION_SET ? getNextValue(self.data.zoomSpeedValue, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
+				await self.getPTZ('Z' + cmdSpeed(self.data.zoomSpeedValue + SPEED_OFFSET))
 			},
 		}
 
@@ -394,10 +406,10 @@ export function getActionDefinitions(self) {
 
 		actions.focusControl = {
 			name: 'Lens - Focus Speed Control',
-			options: [speedOperation, speedSetting, speedStep],
+			options: [speedOperation, speedControlSetting, speedStep],
 			callback: async (action) => {
-				self.data.focusSpeed = action.options.op !== ACTION_SET ? getNextValue(self.data.focusSpeed, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
-				await self.getPTZ('F' + cmdSpeed(self.data.focusSpeed + SPEED_OFFSET))
+				self.data.focusSpeedValue = action.options.op !== ACTION_SET ? getNextValue(self.data.focusSpeedValue, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
+				await self.getPTZ('F' + cmdSpeed(self.data.focusSpeedValue + SPEED_OFFSET))
 			},
 		}
 

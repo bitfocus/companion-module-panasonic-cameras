@@ -239,13 +239,13 @@ export function checkVariables(self) {
 
 		irisVolume: self.data.irisVolume,
 
-		focusSpeed: self.data.focusSpeed,
+		focusSpeed: self.data.focusSpeedValue,
 		redGain: self.data.redGainValue,
 		blueGain: self.data.blueGainValue,
 		redPed: self.data.redPedValue,
 		bluePed: self.data.bluePedValue,
 		masterPed: self.data.masterPedValue,
-		zoomSpeed: self.data.zoomSpeed,
+		zoomSpeed: self.data.zoomSpeedValue,
 
 		irisF: self.data.irisLabel,
 		shutterStep: self.data.shutterStepLabel,
