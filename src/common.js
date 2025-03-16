@@ -32,14 +32,7 @@ export function getNext(values, key, step = 1, overrun = true) {
 }
 
 export function getNextValue(value, min, max, step = 1) {
-	let v = (value += step)
-	if (v > max) {
-		v = max
-	}
-	if (v < min) {
-		v = min
-	}
-	return v
+	return constrainRange(value + step, min, max)
 }
 
 export function getLabel(values, key) {
@@ -50,9 +43,8 @@ export function toHexString(value, length) {
 	return parseInt(value).toString(16).toUpperCase().padStart(length, '0')
 }
 
-export function parseIntConstrained(value, min, max) {
-	let v = parseInt(value)
-	if (v > max) return max
-	if (v < min) return min
-	return v
+export function constrainRange(value, min, max) {
+	if (value > max) return max
+	if (value < min) return min
+	return value
 }
