@@ -16,7 +16,6 @@
 	"license": "MIT",
 	"dependencies": {
 		"@companion-module/base": "~1.11.2",
-		"got": "^13.0.0",
 		"jimp": "^0.22.12",
 		"yarn": "^1.22.22"
 	},

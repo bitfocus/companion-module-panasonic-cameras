@@ -1,59 +1,74 @@
 export async function pollCameraStatus(self) {
-	// Poll all remaining data if subscription is disabled
-	if (!self.config.subscriptionEnable) {
-		if (self.SERIES.capabilities.pull.ptz) {
-			for (let cmd of self.SERIES.capabilities.pull.ptz) {
-				if (self.poll) await self.getPTZ(cmd)
-				else return
-				if (self.poll) await sleep(self.config.pollDelay)
-				else return
+	// Use an interval-based approach instead of recursive calls
+	if (self.pollIntervalId) {
+		clearInterval(self.pollIntervalId)
+	}
+
+	const pollOnce = async () => {
+		// Check if aborted instead of using self.poll
+		if (self.abortController.signal.aborted) {
+			if (self.pollIntervalId) {
+				clearInterval(self.pollIntervalId)
+				self.pollIntervalId = null
 			}
+			return
 		}
-		if (self.SERIES.capabilities.pull.cam) {
-			for (let cmd of self.SERIES.capabilities.pull.cam) {
-				if (self.poll) await self.getCam(cmd)
-				else return
-				if (self.poll) await sleep(self.config.pollDelay)
-				else return
+
+		try {
+			// Poll all remaining data if subscription is disabled
+			if (!self.config.subscriptionEnable) {
+				await executeCommands(self, self.SERIES.capabilities.pull)
 			}
-		}
-		if (self.SERIES.capabilities.pull.web) {
-			for (let cmd of self.SERIES.capabilities.pull.web) {
-				if (self.poll) await self.getWeb(cmd)
-				else return
-				if (self.poll) await sleep(self.config.pollDelay)
-				else return
+
+			// Poll additional data which is not covered by subscription
+			await executeCommands(self, self.SERIES.capabilities.poll)
+		} catch (err) {
+			if (self.config.debug) {
+				self.log('debug', 'Polling error: ' + String(err))
 			}
 		}
 	}
 
-	// Poll additional data which is not covered by subscription
-	if (self.SERIES.capabilities.poll.ptz) {
-		for (let cmd of self.SERIES.capabilities.poll.ptz) {
-			if (self.poll) await self.getPTZ(cmd)
-			else return
-			if (self.poll) await sleep(self.config.pollDelay)
-			else return
-		}
-	}
-	if (self.SERIES.capabilities.poll.cam) {
-		for (let cmd of self.SERIES.capabilities.poll.cam) {
-			if (self.poll) await self.getCam(cmd)
-			else return
-			if (self.poll) await sleep(self.config.pollDelay)
-			else return
-		}
-	}
-	if (self.SERIES.capabilities.poll.web) {
-		for (let cmd of self.SERIES.capabilities.poll.web) {
-			if (self.poll) await self.getWeb(cmd)
-			else return
-			if (self.poll) await sleep(self.config.pollDelay)
-			else return
-		}
-	}
+	// Start interval-based polling
+	self.pollIntervalId = setInterval(pollOnce, self.config.pollDelay || 1000)
 
-	pollCameraStatus(self) // Keep polling in loop
+	// Execute first poll immediately
+	await pollOnce()
+}
+
+async function executeCommands(self, capabilities) {
+	if (!capabilities || self.abortController.signal.aborted) return
+
+	const commandGroups = [
+		{ type: 'ptz', commands: capabilities.ptz, method: self.getPTZ.bind(self) },
+		{ type: 'cam', commands: capabilities.cam, method: self.getCam.bind(self) },
+		{ type: 'web', commands: capabilities.web, method: self.getWeb.bind(self) },
+	]
+
+	for (const group of commandGroups) {
+		if (!group.commands || self.abortController.signal.aborted) continue
+
+		for (const cmd of group.commands) {
+			if (self.abortController.signal.aborted) return // Check before each command
+
+			try {
+				await group.method(cmd)
+
+				// Use a promise-based delay that can be cancelled
+				if (!self.abortController.signal.aborted && self.config.pollDelay > 0) {
+					await sleep(self.config.pollDelay, self.abortController.signal)
+				}
+			} catch (err) {
+				if (err.name === 'AbortError') {
+					return // Polling was cancelled
+				}
+				// Continue with next command on other errors
+				if (self.config.debug) {
+					self.log('debug', `Error polling ${group.type} command ${cmd}: ${String(err)}`)
+				}
+			}
+		}
+	}
 }
 
 export async function getAllCameraStatus(self) {
@@ -148,25 +163,18 @@ export async function getAllCameraStatus(self) {
 		web: ['get_state', 'get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 	}
 
-	if (cmds) {
-		if (cmds.ptz) {
-			for (let cmd of cmds.ptz) {
-				await self.getPTZ(cmd)
-			}
-		}
-		if (cmds.cam) {
-			for (let cmd of cmds.cam) {
-				await self.getCam(cmd)
-			}
-		}
-		if (cmds.web) {
-			for (let cmd of cmds.web) {
-				await self.getWeb(cmd)
-			}
-		}
-	}
+	await executeCommands(self, cmds)
 }
 
-function sleep(ms) {
-	return new Promise((resolve) => setTimeout(resolve, ms))
+function sleep(ms, signal) {
+	return new Promise((resolve, reject) => {
+		const timeout = setTimeout(resolve, ms)
+
+		if (signal) {
+			signal.addEventListener('abort', () => {
+				clearTimeout(timeout)
+				reject(new Error('AbortError'))
+			})
+		}
+	})
 }
