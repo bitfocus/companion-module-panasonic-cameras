@@ -285,7 +285,7 @@ export function getActionDefinitions(self) {
 						self.speedChangeEmitter.removeAllListeners('ptSpeed').then(
 							self.speedChangeEmitter.on('ptSpeed', async () => {
 								await self.getPTZ('PTS' + cmdSpeed(pan * self.pSpeed + SPEED_OFFSET) + cmdSpeed(tilt * self.tSpeed + SPEED_OFFSET))
-							})
+							}),
 						)
 					}
 				}
