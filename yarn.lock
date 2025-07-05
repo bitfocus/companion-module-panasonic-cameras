@@ -22,7 +22,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@companion-module/tools@npm:^2.1.1":
+"@companion-module/tools@npm:^2.3.0":
   version: 2.3.0
   resolution: "@companion-module/tools@npm:2.3.0"
   dependencies:
@@ -2504,7 +2504,7 @@ __metadata:
   resolution: "panasonic-cameras@workspace:."
   dependencies:
     "@companion-module/base": "npm:~1.11.2"
-    "@companion-module/tools": "npm:^2.1.1"
+    "@companion-module/tools": "npm:^2.3.0"
     eslint: "npm:^9.23.0"
     got: "npm:^13.0.0"
     jimp: "npm:^0.22.12"

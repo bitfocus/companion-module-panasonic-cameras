@@ -769,7 +769,10 @@ export function getPresetDefinitions(self) {
 			category: 'Exposure',
 			name: 'Iris',
 			style: {
-				text: 'IRIS\\n$(generic-module:' + (SERIES.capabilities.irisF ? 'irisF' : 'irisPosition') + ')\\n$(generic-module:irisPositionBar)',
+				text:
+					'IRIS\\n$(generic-module:' +
+					(SERIES.capabilities.irisF ? 'irisF' : 'irisPosition') +
+					')\\n$(generic-module:irisPositionBar)',
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,

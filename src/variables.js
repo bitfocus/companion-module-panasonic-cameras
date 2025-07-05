@@ -147,15 +147,21 @@ export function setVariables(self) {
 export function checkVariables(self) {
 	const SERIES = getAndUpdateSeries(self)
 
-	const autotrackingAngle = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_AUTOTRACKING_ANGLE, self.data.autotrackingAngle) : null
+	const autotrackingAngle = SERIES.capabilities.trackingAuto
+		? getLabel(e.ENUM_AUTOTRACKING_ANGLE, self.data.autotrackingAngle)
+		: null
 
 	const autotrackingMode = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_OFF_ON, self.data.autotrackingMode) : null
 
-	const autotrackingStatus = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_AUTOTRACKING_STATUS, self.data.autotrackingStatus) : null
+	const autotrackingStatus = SERIES.capabilities.trackingAuto
+		? getLabel(e.ENUM_AUTOTRACKING_STATUS, self.data.autotrackingStatus)
+		: null
 
 	const colorbar = SERIES.capabilities.colorbar ? getLabel(e.ENUM_OFF_ON, self.data.colorbar) : null
 
-	const colorTemperature = SERIES.capabilities.colorTemperature.index ? getLabel(SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature) : null
+	const colorTemperature = SERIES.capabilities.colorTemperature.index
+		? getLabel(SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature)
+		: null
 
 	const error = SERIES.capabilities.error ? getLabel(e.ENUM_ERROR, self.data.error) : null
 
@@ -179,9 +185,13 @@ export function checkVariables(self) {
 
 	const presetSpeed = SERIES.capabilities.presetSpeed ? getLabel(e.ENUM_PRESET_SPEED_TIME, self.data.presetSpeed) : null
 
-	const presetSpeedTable = SERIES.capabilities.presetSpeed ? getLabel(SERIES.capabilities.presetSpeed.dropdown, self.data.presetSpeedTable) : null
+	const presetSpeedTable = SERIES.capabilities.presetSpeed
+		? getLabel(SERIES.capabilities.presetSpeed.dropdown, self.data.presetSpeedTable)
+		: null
 
-	const presetSpeedUnit = SERIES.capabilities.presetTime ? getLabel(e.ENUM_PRESET_SPEED_UNIT, self.data.presetSpeedUnit) : null
+	const presetSpeedUnit = SERIES.capabilities.presetTime
+		? getLabel(e.ENUM_PRESET_SPEED_UNIT, self.data.presetSpeedUnit)
+		: null
 
 	const recording = SERIES.capabilities.recordSD ? getLabel(e.ENUM_OFF_ON, self.data.recording) : null
 
@@ -199,7 +209,10 @@ export function checkVariables(self) {
 
 	const ts = SERIES.capabilities.streamTS ? getLabel(e.ENUM_OFF_ON, self.data.ts) : null
 
-	const whiteBalance = SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown ? getLabel(SERIES.capabilities.whiteBalance.dropdown, self.data.whiteBalance) : null
+	const whiteBalance =
+		SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown
+			? getLabel(SERIES.capabilities.whiteBalance.dropdown, self.data.whiteBalance)
+			: null
 
 	const progressBar = (pct, width = 20, start = '', end = '') => {
 		if (pct && pct >= 0 && pct <= 100) {

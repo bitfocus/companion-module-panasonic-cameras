@@ -21,9 +21,10 @@
 		"yarn": "^1.22.22"
 	},
 	"devDependencies": {
-		"@companion-module/tools": "^2.1.1",
+		"@companion-module/tools": "^2.3.0",
 		"eslint": "^9.23.0",
 		"prettier": "^3.5.3"
 	},
+	"prettier": "@companion-module/tools/.prettierrc.json",
 	"packageManager": "yarn@4.5.3"
 }

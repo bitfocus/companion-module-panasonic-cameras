@@ -335,7 +335,10 @@ export function getFeedbackDefinitions(self) {
 				},
 			],
 			callback: function (feedback) {
-				return self.data.presetEntries[parseInt(feedback.options.option)] === '1' && self.data.presetSelectedIdx === parseInt(feedback.options.option)
+				return (
+					self.data.presetEntries[parseInt(feedback.options.option)] === '1' &&
+					self.data.presetSelectedIdx === parseInt(feedback.options.option)
+				)
 			},
 		}
 
@@ -357,7 +360,10 @@ export function getFeedbackDefinitions(self) {
 				},
 			],
 			callback: function (feedback) {
-				return self.data.presetEntries[parseInt(feedback.options.option)] === '1' && self.data.presetCompletedIdx === parseInt(feedback.options.option)
+				return (
+					self.data.presetEntries[parseInt(feedback.options.option)] === '1' &&
+					self.data.presetCompletedIdx === parseInt(feedback.options.option)
+				)
 			},
 		}
 
