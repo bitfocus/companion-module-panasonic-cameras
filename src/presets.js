@@ -365,6 +365,7 @@ export function getPresetDefinitions(self) {
 							options: {
 								scope: 'pt',
 								op: -1,
+								step: 1,
 							},
 						},
 					],
@@ -374,6 +375,7 @@ export function getPresetDefinitions(self) {
 							options: {
 								scope: 'pt',
 								op: 1,
+								step: 1,
 							},
 						},
 					],
@@ -398,8 +400,41 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			steps: [],
-			feedbacks: [],
+			options: {
+				rotaryActions: true,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'zoomControl',
+							options: { op: 's', set: 0 },
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'zoomControl',
+							options: { op: -1, step: 7 },
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'zoomControl',
+							options: { op: 1, step: 7 },
+						},
+					],
+				},
+			],
+			feedbacks: [
+				{
+					feedbackId: 'zoomControl',
+					style: {
+						color: colorWhite,
+						bgcolor: colorRed,
+					},
+				},
+			],
 		}
 
 		presets['lens-zoom-in'] = {
@@ -465,13 +500,13 @@ export function getPresetDefinitions(self) {
 					rotate_left: [
 						{
 							actionId: 'zoomSpeed',
-							options: { op: -1 },
+							options: { op: -1, step: 1 },
 						},
 					],
 					rotate_right: [
 						{
 							actionId: 'zoomSpeed',
-							options: { op: 1 },
+							options: { op: 1, step: 1 },
 						},
 					],
 				},
@@ -570,7 +605,7 @@ export function getPresetDefinitions(self) {
 			category: 'Lens',
 			name: 'Focus Speed',
 			style: {
-				text: 'Focus\\nSpeed\\n$(generic-module:zSpeed)',
+				text: 'Focus\\nSpeed\\n$(generic-module:fSpeed)',
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
@@ -590,13 +625,13 @@ export function getPresetDefinitions(self) {
 					rotate_left: [
 						{
 							actionId: 'focusSpeed',
-							options: { op: -1 },
+							options: { op: -1, step: 1 },
 						},
 					],
 					rotate_right: [
 						{
 							actionId: 'focusSpeed',
-							options: { op: 1 },
+							options: { op: 1, step: 1 },
 						},
 					],
 				},
@@ -2071,7 +2106,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'presetSpeedTime',
 							options: {
 								op: 's',
-								set: '875',
+								set: '999',
 							},
 						},
 					],
@@ -2082,7 +2117,7 @@ export function getPresetDefinitions(self) {
 				{
 					feedbackId: 'presetSpeedTime',
 					options: {
-						option: '875',
+						option: '999',
 					},
 					style: {
 						color: colorWhite,
@@ -2147,7 +2182,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'presetSpeedTime',
 							options: {
 								op: 's',
-								set: '375',
+								set: '275',
 							},
 						},
 					],
@@ -2158,7 +2193,7 @@ export function getPresetDefinitions(self) {
 				{
 					feedbackId: 'presetSpeedTime',
 					options: {
-						option: '375',
+						option: '275',
 					},
 					style: {
 						color: colorWhite,

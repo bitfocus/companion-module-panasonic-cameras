@@ -1,4 +1,4 @@
-import { getAndUpdateSeries, getLabel } from './common.js'
+import { constrainRange, getAndUpdateSeries, getLabel } from './common.js'
 import { e } from './enum.js'
 
 // ##########################
@@ -80,12 +80,14 @@ export function setVariables(self) {
 		variables.push({ variableId: 'zoomPosition', name: 'Zoom Position' })
 		variables.push({ variableId: 'zoomPositionPct', name: 'Zoom Position %' })
 		variables.push({ variableId: 'zoomPositionBar', name: 'Zoom Position' })
+		variables.push({ variableId: 'zoomSpeed', name: 'Zoom Speed Control' })
 		variables.push({ variableId: 'zSpeed', name: 'Zoom Speed' })
 	}
 	if (SERIES.capabilities.focus) {
 		variables.push({ variableId: 'focusPosition', name: 'Focus Position' })
 		variables.push({ variableId: 'focusPositionPct', name: 'Focus Position %' })
 		variables.push({ variableId: 'focusPositionBar', name: 'Focus Position' })
+		variables.push({ variableId: 'focusSpeed', name: 'Focus Speed Control' })
 		variables.push({ variableId: 'fSpeed', name: 'Focus Speed' })
 	}
 	if (SERIES.capabilities.iris) {
@@ -209,10 +211,7 @@ export function checkVariables(self) {
 	}
 
 	const normalizePct = (val, low = 0, high = 100, limit = false, fractionDigits = 0) => {
-		if (limit) {
-			val = val < low ? low : val
-			val = val > high ? high : val
-		}
+		val = limit ? constrainRange(val, low, high) : val
 		return val < low || val > high ? null : (((val - low) / (high - low)) * 100).toFixed(fractionDigits)
 	}
 
@@ -240,11 +239,13 @@ export function checkVariables(self) {
 
 		irisVolume: self.data.irisVolume,
 
+		focusSpeed: self.data.focusSpeedValue,
 		redGain: self.data.redGainValue,
 		blueGain: self.data.blueGainValue,
 		redPed: self.data.redPedValue,
 		bluePed: self.data.bluePedValue,
 		masterPed: self.data.masterPedValue,
+		zoomSpeed: self.data.zoomSpeedValue,
 
 		irisF: self.data.irisLabel,
 		shutterStep: self.data.shutterStepLabel,
