@@ -25,4 +25,23 @@ export const upgradeScripts = [
 		}
 		return result
 	},
+	function addSetStepSize(_context, props) {
+		const result = {
+			updatedActions: [],
+			updatedConfig: null,
+			updatedFeedbacks: [],
+		}
+
+		for (const action of props.actions) {
+			switch (action.actionId) {
+				case 'ptSpeed':
+				case 'zoomSpeed':
+				case 'focusSpeed':
+					action.options.step = action.options.step === undefined ? 1 : action.options.step
+					result.updatedActions.push(action)
+					break
+			}
+		}
+		return result
+	},
 ]
