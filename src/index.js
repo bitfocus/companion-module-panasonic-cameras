@@ -292,29 +292,18 @@ class PanasonicCameraInstance extends InstanceBase {
 		this.setPresetDefinitions(getPresetDefinitions(this))
 	}
 
-	init_subscription(port = 0) {
+	init_subscription(tcpListenerPort = 0) {
 		// Create a new TCP server.
 		this.server = net.createServer((socket) => {
 			socket.name = socket.remoteAddress + ':' + socket.remotePort
 
-			// Log successful connection establishment
-			this.log('info', 'Camera TCP connection established from: ' + socket.name)
-
-			socket.on('end', () => {
-				this.log('info', 'Camera TCP connection closed gracefully from: ' + socket.name)
-				this.updateStatus(InstanceStatus.UnknownWarning, 'socket end')
-			})
-
 			socket.on('error', (err) => {
 				this.log('error', 'Camera TCP connection error from ' + socket.name + ': ' + String(err))
-				this.updateStatus(InstanceStatus.UnknownWarning, 'socket error')
 			})
 
 			socket.on('close', (hadError) => {
 				if (hadError) {
-					this.log('warn', 'Camera TCP connection closed due to error from: ' + socket.name)
-				} else {
-					this.log('info', 'Camera TCP connection closed normally from: ' + socket.name)
+					this.log('warn', 'Camera TCP connection closed due to error from ' + socket.name)
 				}
 			})
 
@@ -339,7 +328,7 @@ class PanasonicCameraInstance extends InstanceBase {
 		// Handle successful server startup
 		this.server.on('listening', () => {
 			this.tcpServerPort = this.server.address().port
-			this.log('info', 'Listening for camera updates on localhost:' + this.tcpServerPort)
+			this.log('info', 'Listening for camera updates on TCP/' + this.tcpServerPort)
 
 			// Automatically subscribe to camera events once server is listening
 			this.subscribeTCPEvents(this.tcpServerPort)
@@ -347,21 +336,14 @@ class PanasonicCameraInstance extends InstanceBase {
 
 		// common error handler
 		this.server.on('error', (err) => {
-			if (err.code === 'EADDRINUSE') {
-				this.server.close() // close the server to free the port
-				this.updateStatus(InstanceStatus.UnknownError, 'Local TCP port ' + this.tcpServerPort + ' is already in use')
-			} else {
-				this.log('error', 'TCP server error: ' + String(err))
-			}
+			this.updateStatus(InstanceStatus.UnknownError, String(err))
 		})
 
-		// Listens for a client (camera) to make a connection request.
+		// Listen to incoming TCP connections from the camera
 		try {
-			this.log('debug', 'Trying to listen to TCP from camera')
-			this.server.listen(port)
+			this.server.listen(tcpListenerPort)
 		} catch (err) {
-			this.log('error', "Couldn't bind to TCP port " + port + ' on localhost: ' + String(err))
-			this.updateStatus(InstanceStatus.UnknownError, 'TCP Port failure')
+			this.updateStatus(InstanceStatus.UnknownError, String(err))
 		}
 	}
 
@@ -398,15 +380,10 @@ class PanasonicCameraInstance extends InstanceBase {
 		try {
 			const response = await this.httpRequest(url)
 			if (response && response.ok) {
-				this.log('info', 'subscribed: ' + url)
-
-				this.updateStatus(InstanceStatus.Ok)
-
-				//await this.getPTZ('LPC1') // enable optional Lens Position Information updates
+				this.getPTZ('LPC1') // enable optional Lens Position Information updates
 			}
 		} catch (err) {
-			this.log('error', 'Error on subscribe: ' + String(err))
-			this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
+			this.updateStatus(InstanceStatus.UnknownError, String(err))
 		}
 	}
 
