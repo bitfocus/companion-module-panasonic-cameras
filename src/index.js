@@ -539,7 +539,7 @@ class PanasonicCameraInstance extends InstanceBase {
 					if (!this.abortController.signal.aborted) {
 						this.abortController.abort() // Abort the current requests
 						await this.destroy() // Clean up on timeout
-						await this.init(this.config) // Reinitialize the instance
+						this.init(this.config) // Reinitialize the instance
 					}
 					break
 				case 'AbortError':
