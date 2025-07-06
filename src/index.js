@@ -19,10 +19,19 @@ class PanasonicCameraInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
 		this.abortController = new AbortController()
+		this.isInitializing = false
+		this.isDestroying = false
+		this.initPromise = null
 	}
 
 	// When module gets deleted
 	async destroy() {
+		// Prevent multiple destroy calls
+		if (this.isDestroying) {
+			return
+		}
+		this.isDestroying = true
+
 		// Clear polling timeout (changed from interval to timeout-based scheduling)
 		clearTimeout(this.pollTimeoutId)
 		this.pollTimeoutId = null
@@ -32,22 +41,42 @@ class PanasonicCameraInstance extends InstanceBase {
 
 		// Remove TCP Server and close all connections
 		if (this.server) {
-			// Stop getting Status Updates
-			try {
-				await this.unsubscribeTCPEvents(this.tcpServerPort)
-			} catch (err) {
-				// Ignore errors during cleanup
-			}
-
 			// Close and delete server
 			this.server.close()
 			delete this.server
 		}
+
+		// Reset state flags
+		this.isDestroying = false
+		this.isInitializing = false
+		this.initPromise = null
 	}
 
 	// Initalize module
 	async init(config) {
+		// Prevent multiple concurrent initializations
+		if (this.isInitializing) {
+			// Return existing initialization promise if one is in progress
+			return this.initPromise
+		}
+
+		this.isInitializing = true
+		this.initPromise = this._initialize(config)
+
+		try {
+			await this.initPromise
+		} finally {
+			this.isInitializing = false
+		}
+	}
+
+	async _initialize(config) {
 		this.config = config
+
+		// Initialize/reinitialize AbortController for new connection
+		if (this.abortController.signal.aborted) {
+			this.abortController = new AbortController()
+		}
 
 		this.data = {
 			modelAuto: null,
@@ -148,9 +177,6 @@ class PanasonicCameraInstance extends InstanceBase {
 
 		this.speedChangeEmitter = new EventEmitter()
 
-		// Initialize/reinitialize AbortController for new connection
-		this.abortController = new AbortController()
-
 		// Start initialization if we have a valid configuration
 		if (
 			this.config.host.length > 0 &&
@@ -197,6 +223,45 @@ class PanasonicCameraInstance extends InstanceBase {
 		await this.init(config)
 	}
 
+	/**
+	 * Safe reinitialize method for timeout recovery
+	 * Prevents race conditions and ensures proper cleanup
+	 */
+	async safeReinitialize() {
+		// Prevent multiple concurrent reinitializations
+		if (this.isInitializing || this.isDestroying) {
+			this.log('debug', 'Reinitialize skipped - already in progress')
+			return
+		}
+
+		try {
+			this.log('info', 'Starting safe reinitialize after timeout')
+
+			// Mark as destroying to prevent other operations
+			this.isDestroying = true
+
+			// Abort all current requests first
+			this.abortController.abort()
+
+			// Wait a brief moment for requests to abort cleanly
+			await new Promise((resolve) => setTimeout(resolve, 100))
+
+			// Clean up resources
+			await this.destroy()
+
+			// Small delay before reinitializing to ensure cleanup is complete
+			await new Promise((resolve) => setTimeout(resolve, 200))
+
+			// Reinitialize with current config
+			await this.init(this.config)
+
+			this.log('info', 'Safe reinitialize completed successfully')
+		} catch (error) {
+			this.log('error', 'Error during safe reinitialize: ' + String(error))
+			this.updateStatus(InstanceStatus.UnknownError, 'Reinitialize failed')
+		}
+	}
+
 	// Return config fields for web config
 	getConfigFields() {
 		return ConfigFields
@@ -232,14 +297,25 @@ class PanasonicCameraInstance extends InstanceBase {
 		this.server = net.createServer((socket) => {
 			socket.name = socket.remoteAddress + ':' + socket.remotePort
 
+			// Log successful connection establishment
+			this.log('info', 'Camera TCP connection established from: ' + socket.name)
+
 			socket.on('end', () => {
-				this.log('error', 'Update notification channel was closed from camera side: ' + socket.name)
-				this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
+				this.log('info', 'Camera TCP connection closed gracefully from: ' + socket.name)
+				this.updateStatus(InstanceStatus.UnknownWarning, 'socket end')
 			})
 
-			socket.on('error', () => {
-				this.log('error', 'Update notification channel errored/died: ' + socket.name)
-				this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
+			socket.on('error', (err) => {
+				this.log('error', 'Camera TCP connection error from ' + socket.name + ': ' + String(err))
+				this.updateStatus(InstanceStatus.UnknownWarning, 'socket error')
+			})
+
+			socket.on('close', (hadError) => {
+				if (hadError) {
+					this.log('warn', 'Camera TCP connection closed due to error from: ' + socket.name)
+				} else {
+					this.log('info', 'Camera TCP connection closed normally from: ' + socket.name)
+				}
 			})
 
 			// Receive data from the client (camera)
@@ -250,9 +326,7 @@ class PanasonicCameraInstance extends InstanceBase {
 				// Convert binary buffer to string, split data in order to remove binary data before and after command
 				const str = data.toString().split('\r\n', 3)[1]
 
-				if (this.config.debug) {
-					this.log('info', 'Received Update: ' + str)
-				}
+				this.log('debug', 'Received Update: ' + str)
 
 				parseUpdate(this, str.split(':'))
 
@@ -274,6 +348,7 @@ class PanasonicCameraInstance extends InstanceBase {
 		// common error handler
 		this.server.on('error', (err) => {
 			if (err.code === 'EADDRINUSE') {
+				this.server.close() // close the server to free the port
 				this.updateStatus(InstanceStatus.UnknownError, 'Local TCP port ' + this.tcpServerPort + ' is already in use')
 			} else {
 				this.log('error', 'TCP server error: ' + String(err))
@@ -298,9 +373,7 @@ class PanasonicCameraInstance extends InstanceBase {
 	async unsubscribeTCPEvents(port) {
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/event?connect=stop&my_port=${port}&uid=0`
 
-		if (this.config.debug) {
-			this.log('debug', 'TCP unsubscription request: ' + url)
-		}
+		this.log('debug', 'TCP unsubscription request: ' + url)
 
 		try {
 			const response = await this.httpRequest(url)
@@ -320,9 +393,7 @@ class PanasonicCameraInstance extends InstanceBase {
 	async subscribeTCPEvents(port) {
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/event?connect=start&my_port=${port}&uid=0`
 
-		if (this.config.debug) {
-			this.log('debug', 'TCP subscription request: ' + url)
-		}
+		this.log('debug', 'TCP subscription request: ' + url)
 
 		try {
 			const response = await this.httpRequest(url)
@@ -331,7 +402,7 @@ class PanasonicCameraInstance extends InstanceBase {
 
 				this.updateStatus(InstanceStatus.Ok)
 
-				await this.getPTZ('LPC1') // enable optional Lens Position Information updates
+				//await this.getPTZ('LPC1') // enable optional Lens Position Information updates
 			}
 		} catch (err) {
 			this.log('error', 'Error on subscribe: ' + String(err))
@@ -343,9 +414,7 @@ class PanasonicCameraInstance extends InstanceBase {
 		if (this.config.host) {
 			const url = `http://${this.config.host}:${this.config.httpPort}/live/camdata.html`
 
-			if (this.config.debug) {
-				this.log('info', 'camdata request: ' + url)
-			}
+			this.log('debug', 'camdata request: ' + url)
 
 			try {
 				const response = await this.httpRequest(url)
@@ -356,9 +425,7 @@ class PanasonicCameraInstance extends InstanceBase {
 					for (let line of lines) {
 						const str = line.replace(':0x', ':').trim()
 
-						if (this.config.debug) {
-							this.log('info', 'camdata response: ' + str)
-						}
+						this.log('debug', 'camdata response: ' + str)
 
 						parseUpdate(this, str.split(':'))
 					}
@@ -376,9 +443,8 @@ class PanasonicCameraInstance extends InstanceBase {
 
 	async getPTZ(cmd) {
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_ptz?cmd=%23${cmd}&res=1`
-		if (this.config.debug) {
-			this.log('info', 'PTZ request: ' + url)
-		}
+
+		this.log('debug', 'PTZ request: ' + url)
 
 		try {
 			const response = await this.httpRequest(url)
@@ -386,9 +452,7 @@ class PanasonicCameraInstance extends InstanceBase {
 				const body = await response.text()
 				const str = body.trim()
 
-				if (this.config.debug) {
-					this.log('info', 'PTZ response: ' + str)
-				}
+				this.log('debug', 'PTZ response: ' + str)
 
 				parseUpdate(this, str.split(':'))
 
@@ -405,9 +469,7 @@ class PanasonicCameraInstance extends InstanceBase {
 	async getCam(cmd) {
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_cam?cmd=${cmd}&res=1`
 
-		if (this.config.debug) {
-			this.log('info', 'Cam request: ' + url)
-		}
+		this.log('debug', 'Cam request: ' + url)
 
 		try {
 			const response = await this.httpRequest(url)
@@ -415,9 +477,7 @@ class PanasonicCameraInstance extends InstanceBase {
 				const body = await response.text()
 				const str = body.trim()
 
-				if (this.config.debug) {
-					this.log('info', 'Cam response: ' + str)
-				}
+				this.log('debug', 'Cam response: ' + str)
 
 				parseUpdate(this, str.split(':'))
 
@@ -435,9 +495,7 @@ class PanasonicCameraInstance extends InstanceBase {
 	async getWeb(cmd, username = '', password = '') {
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${cmd}`
 
-		if (this.config.debug) {
-			this.log('info', 'Web request: ' + url)
-		}
+		this.log('debug', 'Web request: ' + url)
 
 		try {
 			const response = await this.httpRequest(url, { username, password })
@@ -449,16 +507,12 @@ class PanasonicCameraInstance extends InstanceBase {
 					for (let line of lines) {
 						const str = line.trim()
 
-						if (this.config.debug) {
-							this.log('info', 'Web response [' + cmd + ']: ' + str)
-						}
+						this.log('debug', 'Web response [' + cmd + ']: ' + str)
 
 						parseWeb(this, str.split('='), cmd)
 					}
 				} else {
-					if (this.config.debug) {
-						this.log('info', 'Web response [' + cmd + ']: Response code ' + response.status.toString())
-					}
+					this.log('debug', 'Web response [' + cmd + ']: Response code ' + response.status.toString())
 
 					parseWebCode(this, response.status, cmd)
 				}
@@ -535,12 +589,10 @@ class PanasonicCameraInstance extends InstanceBase {
 			switch (error.name) {
 				case 'TimeoutError':
 					this.updateStatus(InstanceStatus.Disconnected, 'Timeout')
-					// Prevent multiple overlapping initializations
-					if (!this.abortController.signal.aborted) {
-						this.abortController.abort() // Abort the current requests
-						await this.destroy() // Clean up on timeout
-						this.init(this.config) // Reinitialize the instance
-					}
+					// Use safe reinitialize method to prevent race conditions
+					this.safeReinitialize().catch((err) => {
+						this.log('error', 'Failed to reinitialize after timeout: ' + String(err))
+					})
 					break
 				case 'AbortError':
 					// Request was cancelled
