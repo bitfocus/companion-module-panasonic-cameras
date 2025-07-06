@@ -6,14 +6,11 @@ import { getPresetDefinitions } from './presets.js'
 import { setVariables, checkVariables } from './variables.js'
 import { ConfigFields } from './config.js'
 import * as net from 'net'
-import JimpRaw from 'jimp'
+import { Jimp } from 'jimp'
 import EventEmitter from 'events'
 import { getAndUpdateSeries } from './common.js'
 import { parseUpdate, parseWeb, parseWebCode } from './parser.js'
 import { pollCameraStatus } from './polling.js'
-
-// Webpack makes a mess..
-const Jimp = JimpRaw.default || JimpRaw
 
 // ########################
 // #### Instance setup ####
@@ -45,267 +42,6 @@ class PanasonicCameraInstance extends InstanceBase {
 			// Close and delete server
 			this.server.close()
 			delete this.server
-		}
-	}
-
-	async unsubscribeTCPEvents(port) {
-		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/event?connect=stop&my_port=${port}&uid=0`
-
-		if (this.config.debug) {
-			this.log('debug', 'TCP unsubscription request: ' + url)
-		}
-
-		try {
-			await this.httpRequest(url, { timeout: this.config.timeout })
-
-			this.log('info', 'un-subscribed: ' + url)
-		} catch (err) {
-			if (this.handleConnectionError(err)) this.log('error', 'Error on TCP unsubscribe: ' + String(err))
-		}
-	}
-
-	async subscribeTCPEvents(port) {
-		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/event?connect=start&my_port=${port}&uid=0`
-
-		if (this.config.debug) {
-			this.log('debug', 'TCP subscription request: ' + url)
-		}
-
-		try {
-			await this.httpRequest(url, { timeout: this.config.timeout })
-
-			this.log('info', 'subscribed: ' + url)
-
-			this.updateStatus(InstanceStatus.Ok)
-
-			await this.getPTZ('LPC1') // enable optional Lens Position Information updates
-		} catch (err) {
-			if (this.handleConnectionError(err)) this.log('error', 'Error on subscribe: ' + String(err))
-			this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
-		}
-	}
-
-	init_subscription(port = 0) {
-		// Create a new TCP server.
-		this.server = net.createServer((socket) => {
-			socket.name = socket.remoteAddress + ':' + socket.remotePort
-
-			socket.on('end', () => {
-				this.log('error', 'Update notification channel was closed from camera side: ' + socket.name)
-				this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
-			})
-
-			socket.on('error', () => {
-				this.log('error', 'Update notification channel errored/died: ' + socket.name)
-				this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
-			})
-
-			// Receive data from the client (camera)
-			socket.on('data', (data) => {
-				// TODO - TCP doesn't guarantee messages will be chunked sensibly. When it doesnt, this logic will break
-
-				// Data layout in buffer: [22 Bytes][2 Bytes][4 Bytes][CR][LF]>>>DATA<<<[CR][LF]*optional Bytes*[24 Bytes]
-				// Convert binary buffer to string, split data in order to remove binary data before and after command
-				const str = data.toString().split('\r\n', 3)[1]
-
-				if (this.config.debug) {
-					this.log('info', 'Received Update: ' + str)
-				}
-
-				parseUpdate(this, str.split(':'))
-
-				// Update Variables and Feedbacks
-				this.checkVariables()
-				this.checkFeedbacks()
-			})
-		})
-
-		// Handle successful server startup
-		this.server.on('listening', () => {
-			this.tcpServerPort = this.server.address().port
-			this.log('info', 'Listening for camera updates on localhost:' + this.tcpServerPort)
-
-			// Automatically subscribe to camera events once server is listening
-			this.subscribeTCPEvents(this.tcpServerPort)
-		})
-
-		// common error handler
-		this.server.on('error', (err) => {
-			// Catch uncaught Exception"EADDRINUSE" error that occurs if the port is already in use
-			if (err.code === 'EADDRINUSE') {
-				this.log('error', 'TCP error: Please use another TCP port, ' + this.tcpServerPort + ' is already in use')
-				this.log('error', 'TCP error: The TCP port must be unique between instances')
-				this.log('error', 'TCP error: Please change it and click apply in ALL camera instances')
-				this.updateStatus(InstanceStatus.UnknownError, 'TCP Port in use')
-
-				// Cancel the subscription of info from the camera
-				this.unsubscribeTCPEvents(this.tcpServerPort).catch(() => null)
-			} else {
-				this.log('error', 'TCP server error: ' + String(err))
-			}
-		})
-
-		// Listens for a client (camera) to make a connection request.
-		try {
-			this.log('debug', 'Trying to listen to TCP from camera')
-			this.server.listen(port)
-		} catch (err) {
-			this.log('error', "Couldn't bind to TCP port " + port + ' on localhost: ' + String(err))
-			this.updateStatus(InstanceStatus.UnknownError, 'TCP Port failure')
-		}
-	}
-
-	async getCameraStatus() {
-		if (this.config.host) {
-			const url = `http://${this.config.host}:${this.config.httpPort}/live/camdata.html`
-
-			if (this.config.debug) {
-				this.log('info', 'camdata request: ' + url)
-			}
-
-			try {
-				const response = await this.httpRequest(url, { timeout: this.config.timeout })
-				if (response.body) {
-					const lines = response.body.trim().split('\r\n')
-
-					for (let line of lines) {
-						const str = line.replace(':0x', ':').trim()
-
-						if (this.config.debug) {
-							this.log('info', 'camdata response: ' + str)
-						}
-
-						parseUpdate(this, str.split(':'))
-					}
-
-					this.checkVariables()
-					this.checkFeedbacks()
-
-					this.updateStatus(InstanceStatus.Ok)
-				}
-			} catch (err) {
-				if (this.handleConnectionError(err)) this.log('error', 'camdata request  ' + url + ' failed: ' + String(err))
-			}
-		}
-	}
-
-	async getPTZ(cmd) {
-		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_ptz?cmd=%23${cmd}&res=1`
-		if (this.config.debug) {
-			this.log('info', 'PTZ request: ' + url)
-		}
-
-		try {
-			const response = await this.httpRequest(url, { timeout: this.config.timeout })
-			if (response.body) {
-				const str = response.body.trim()
-
-				if (this.config.debug) {
-					this.log('info', 'PTZ response: ' + str)
-				}
-
-				parseUpdate(this, str.split(':'))
-
-				this.checkVariables()
-				this.checkFeedbacks()
-
-				this.updateStatus(InstanceStatus.Ok)
-			}
-		} catch (err) {
-			if (this.handleConnectionError(err)) this.log('error', 'PTZ request ' + url + ' failed: ' + String(err))
-		}
-	}
-
-	async getCam(cmd) {
-		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_cam?cmd=${cmd}&res=1`
-
-		if (this.config.debug) {
-			this.log('info', 'Cam request: ' + url)
-		}
-
-		try {
-			const response = await this.httpRequest(url, { timeout: this.config.timeout })
-			if (response.body) {
-				const str = response.body.trim()
-
-				if (this.config.debug) {
-					this.log('info', 'Cam response: ' + str)
-				}
-
-				parseUpdate(this, str.split(':'))
-
-				this.checkVariables()
-				this.checkFeedbacks()
-
-				this.updateStatus(InstanceStatus.Ok)
-			}
-		} catch (err) {
-			if (this.handleConnectionError(err)) this.log('error', 'Cam request ' + url + ' failed: ' + String(err))
-		}
-	}
-
-	// Currently only for web commands that don't require admin rights
-	async getWeb(cmd, username = '', password = '') {
-		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${cmd}`
-
-		if (this.config.debug) {
-			this.log('info', 'Web request: ' + url)
-		}
-
-		try {
-			const response = await this.httpRequest(url, { username, password, timeout: this.config.timeout })
-			if (response.body) {
-				const lines = response.body.trim().split('\r\n')
-
-				for (let line of lines) {
-					const str = line.trim()
-
-					if (this.config.debug) {
-						this.log('info', 'Web response [' + cmd + ']: ' + str)
-					}
-
-					parseWeb(this, str.split('='), cmd)
-				}
-			} else {
-				if (this.config.debug) {
-					this.log('info', 'Web response [' + cmd + ']: Response code ' + response.statusCode.toString())
-				}
-
-				parseWebCode(this, response.statusCode, cmd)
-			}
-
-			this.checkVariables()
-			this.checkFeedbacks()
-
-			this.updateStatus(InstanceStatus.Ok)
-		} catch (err) {
-			if (this.handleConnectionError(err)) this.log('error', 'Web request ' + url + ' failed: ' + String(err))
-		}
-	}
-
-	async getThumbnail(id) {
-		if (this.SERIES.capabilities.presetThumbnails) {
-			const n = id + 1
-			const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/get_preset_thumbnail?preset_number=${n}`
-
-			if (this.config.debug) {
-				this.log('info', 'Thumbnail request: ' + url)
-			}
-
-			try {
-				const response = await this.httpRequest(url, { timeout: this.config.timeout })
-
-				const img = await Jimp.read(response.rawBody)
-				const png64 = await img.scaleToFit(288, 288).getBase64Async('image/png')
-
-				this.data.presetThumbnails[id] = png64
-
-				this.checkFeedbacks()
-
-				this.updateStatus(InstanceStatus.Ok)
-			} catch (err) {
-				this.log('error', 'Thumbnail request ' + url + ' failed: ' + String(err))
-			}
 		}
 	}
 
@@ -457,37 +193,12 @@ class PanasonicCameraInstance extends InstanceBase {
 		await this.init(config)
 	}
 
-	// Handle timeout and hide HTTP errors
-	handleConnectionError(err) {
-		switch (err.code) {
-			case 'ETIMEDOUT':
-				this.updateStatus(InstanceStatus.Disconnected, 'Timeout')
-				this.destroy()
-				this.init(this.config)
-				break
-			case 'ERR_NON_2XX_3XX_RESPONSE':
-				return this.config.debug // hide error
-		}
-
-		this.updateStatus(InstanceStatus.ConnectionFailure, String(err))
-		return true // print error
-	}
-
 	// Return config fields for web config
 	getConfigFields() {
 		return ConfigFields
 	}
 
-	// ##########################
-	// #### Instance Presets ####
-	// ##########################
-	init_presets() {
-		this.setPresetDefinitions(getPresetDefinitions(this))
-	}
-
-	// ############################
-	// #### Instance Variables ####
-	// ############################
+	// Instance Variables
 	init_variables() {
 		this.setVariableDefinitions(setVariables(this))
 	}
@@ -497,24 +208,295 @@ class PanasonicCameraInstance extends InstanceBase {
 		checkVariables(this)
 	}
 
-	// ############################
-	// #### Instance Feedbacks ####
-	// ############################
-	init_feedbacks() {
-		this.setFeedbackDefinitions(getFeedbackDefinitions(this))
-	}
-
+	// Instance Actions
 	init_actions() {
 		this.setActionDefinitions(getActionDefinitions(this))
 	}
 
+	// Instance Feedbacks
+	init_feedbacks() {
+		this.setFeedbackDefinitions(getFeedbackDefinitions(this))
+	}
+
+	// Instance Presets
+	init_presets() {
+		this.setPresetDefinitions(getPresetDefinitions(this))
+	}
+
+	init_subscription(port = 0) {
+		// Create a new TCP server.
+		this.server = net.createServer((socket) => {
+			socket.name = socket.remoteAddress + ':' + socket.remotePort
+
+			socket.on('end', () => {
+				this.log('error', 'Update notification channel was closed from camera side: ' + socket.name)
+				this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
+			})
+
+			socket.on('error', () => {
+				this.log('error', 'Update notification channel errored/died: ' + socket.name)
+				this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
+			})
+
+			// Receive data from the client (camera)
+			socket.on('data', (data) => {
+				// TODO - TCP doesn't guarantee messages will be chunked sensibly. When it doesnt, this logic will break
+
+				// Data layout in buffer: [22 Bytes][2 Bytes][4 Bytes][CR][LF]>>>DATA<<<[CR][LF]*optional Bytes*[24 Bytes]
+				// Convert binary buffer to string, split data in order to remove binary data before and after command
+				const str = data.toString().split('\r\n', 3)[1]
+
+				if (this.config.debug) {
+					this.log('info', 'Received Update: ' + str)
+				}
+
+				parseUpdate(this, str.split(':'))
+
+				// Update Variables and Feedbacks
+				this.checkVariables()
+				this.checkFeedbacks()
+			})
+		})
+
+		// Handle successful server startup
+		this.server.on('listening', () => {
+			this.tcpServerPort = this.server.address().port
+			this.log('info', 'Listening for camera updates on localhost:' + this.tcpServerPort)
+
+			// Automatically subscribe to camera events once server is listening
+			this.subscribeTCPEvents(this.tcpServerPort)
+		})
+
+		// common error handler
+		this.server.on('error', (err) => {
+			if (err.code === 'EADDRINUSE') {
+				this.updateStatus(InstanceStatus.UnknownError, 'Local TCP port ' + this.tcpServerPort + ' is already in use')
+			} else {
+				this.log('error', 'TCP server error: ' + String(err))
+			}
+		})
+
+		// Listens for a client (camera) to make a connection request.
+		try {
+			this.log('debug', 'Trying to listen to TCP from camera')
+			this.server.listen(port)
+		} catch (err) {
+			this.log('error', "Couldn't bind to TCP port " + port + ' on localhost: ' + String(err))
+			this.updateStatus(InstanceStatus.UnknownError, 'TCP Port failure')
+		}
+	}
+
+	async unsubscribeTCPEvents(port) {
+		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/event?connect=stop&my_port=${port}&uid=0`
+
+		if (this.config.debug) {
+			this.log('debug', 'TCP unsubscription request: ' + url)
+		}
+
+		try {
+			await this.httpRequest(url)
+
+			this.log('info', 'un-subscribed: ' + url)
+		} catch (err) {
+			this.log('error', 'Error on TCP unsubscribe: ' + String(err))
+		}
+	}
+
+	async subscribeTCPEvents(port) {
+		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/event?connect=start&my_port=${port}&uid=0`
+
+		if (this.config.debug) {
+			this.log('debug', 'TCP subscription request: ' + url)
+		}
+
+		try {
+			await this.httpRequest(url)
+
+			this.log('info', 'subscribed: ' + url)
+
+			this.updateStatus(InstanceStatus.Ok)
+
+			await this.getPTZ('LPC1') // enable optional Lens Position Information updates
+		} catch (err) {
+			this.log('error', 'Error on subscribe: ' + String(err))
+			this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
+		}
+	}
+
+	async getCameraStatus() {
+		if (this.config.host) {
+			const url = `http://${this.config.host}:${this.config.httpPort}/live/camdata.html`
+
+			if (this.config.debug) {
+				this.log('info', 'camdata request: ' + url)
+			}
+
+			try {
+				const response = await this.httpRequest(url)
+				if (response.body) {
+					const lines = response.body.trim().split('\r\n')
+
+					for (let line of lines) {
+						const str = line.replace(':0x', ':').trim()
+
+						if (this.config.debug) {
+							this.log('info', 'camdata response: ' + str)
+						}
+
+						parseUpdate(this, str.split(':'))
+					}
+
+					this.checkVariables()
+					this.checkFeedbacks()
+
+					this.updateStatus(InstanceStatus.Ok)
+				}
+			} catch (err) {
+				this.log('error', 'camdata request  ' + url + ' failed: ' + String(err))
+			}
+		}
+	}
+
+	async getPTZ(cmd) {
+		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_ptz?cmd=%23${cmd}&res=1`
+		if (this.config.debug) {
+			this.log('info', 'PTZ request: ' + url)
+		}
+
+		try {
+			const response = await this.httpRequest(url)
+			if (response.body) {
+				const str = response.body.trim()
+
+				if (this.config.debug) {
+					this.log('info', 'PTZ response: ' + str)
+				}
+
+				parseUpdate(this, str.split(':'))
+
+				this.checkVariables()
+				this.checkFeedbacks()
+
+				this.updateStatus(InstanceStatus.Ok)
+			}
+		} catch (err) {
+			this.log('error', 'PTZ request ' + url + ' failed: ' + String(err))
+		}
+	}
+
+	async getCam(cmd) {
+		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_cam?cmd=${cmd}&res=1`
+
+		if (this.config.debug) {
+			this.log('info', 'Cam request: ' + url)
+		}
+
+		try {
+			const response = await this.httpRequest(url)
+			if (response.body) {
+				const str = response.body.trim()
+
+				if (this.config.debug) {
+					this.log('info', 'Cam response: ' + str)
+				}
+
+				parseUpdate(this, str.split(':'))
+
+				this.checkVariables()
+				this.checkFeedbacks()
+
+				this.updateStatus(InstanceStatus.Ok)
+			}
+		} catch (err) {
+			this.log('error', 'Cam request ' + url + ' failed: ' + String(err))
+		}
+	}
+
+	// Currently only for web commands that don't require admin rights
+	async getWeb(cmd, username = '', password = '') {
+		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${cmd}`
+
+		if (this.config.debug) {
+			this.log('info', 'Web request: ' + url)
+		}
+
+		try {
+			const response = await this.httpRequest(url, { username, password })
+			if (response.body) {
+				const lines = response.body.trim().split('\r\n')
+
+				for (let line of lines) {
+					const str = line.trim()
+
+					if (this.config.debug) {
+						this.log('info', 'Web response [' + cmd + ']: ' + str)
+					}
+
+					parseWeb(this, str.split('='), cmd)
+				}
+			} else {
+				if (this.config.debug) {
+					this.log('info', 'Web response [' + cmd + ']: Response code ' + response.statusCode.toString())
+				}
+
+				parseWebCode(this, response.statusCode, cmd)
+			}
+
+			this.checkVariables()
+			this.checkFeedbacks()
+
+			this.updateStatus(InstanceStatus.Ok)
+		} catch (err) {
+			this.log('error', 'Web request ' + url + ' failed: ' + String(err))
+		}
+	}
+
+	/**
+	 * Retrieves and processes a preset thumbnail image from the camera for the given preset ID.
+	 * @param {number} id - The zero-based index of the preset whose thumbnail is to be retrieved.
+	 * @returns {Promise<void>} Resolves when the thumbnail has been fetched and processed.
+	 */
+	async getThumbnail(id) {
+		if (this.SERIES.capabilities.presetThumbnails) {
+			const n = id + 1
+			const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/get_preset_thumbnail?preset_number=${n}`
+
+			if (this.config.debug) {
+				this.log('info', 'Thumbnail request: ' + url)
+			}
+
+			try {
+				const response = await this.httpRequest(url)
+
+				const img = await Jimp.fromBuffer(response.rawBody)
+				const png64 = await img.scaleToFit(288, 288).getBase64Async('image/png')
+
+				this.data.presetThumbnails[id] = png64
+
+				this.checkFeedbacks()
+
+				this.updateStatus(InstanceStatus.Ok)
+			} catch (err) {
+				this.log('error', 'Thumbnail request ' + url + ' failed: ' + String(err))
+			}
+		}
+	}
+
 	// Helper method for making HTTP requests with fetch
+	/**
+	 * Helper method for making HTTP requests with fetch.
+	 * @param {string} url - The URL to request.
+	 * @param {Object} [options={}] - Optional parameters for the request.
+	 * @param {string} [options.username] - Username for basic authentication.
+	 * @param {string} [options.password] - Password for basic authentication.
+	 * @returns {Promise<Object|undefined>} Resolves with response data or undefined on error.
+	 */
 	async httpRequest(url, options = {}) {
-		const { username, password, timeout = this.config.timeout } = options
+		const { username, password } = options
 
 		try {
 			const fetchOptions = {
-				signal: AbortSignal.any([AbortSignal.timeout(timeout), this.controller.signal]),
+				signal: AbortSignal.any([AbortSignal.timeout(this.config.timeout), this.abortController.signal]),
 			}
 
 			// Handle basic authentication
@@ -527,34 +509,38 @@ class PanasonicCameraInstance extends InstanceBase {
 
 			const response = await fetch(url, fetchOptions)
 
-			// Check if response is ok first
-			if (!response.ok) {
-				const httpError = new Error(`HTTP ${response.status}`)
-				httpError.code = 'ERR_NON_2XX_3XX_RESPONSE'
-				throw httpError
+			// If response is empty, return an empty object
+			if (!response.body) {
+				return {
+					body: '',
+					rawBody: Buffer.from(''), // Return as Buffer for easier handling
+					statusCode: response.status,
+				}
 			}
 
-			// Get the response as arrayBuffer first, then convert for both body formats
-			const rawBody = await response.arrayBuffer()
-			const body = new TextDecoder().decode(rawBody)
+			// Get both text and binary data from response
+			const arrayBuffer = await response.arrayBuffer()
 
 			return {
-				body,
-				rawBody: new Uint8Array(rawBody),
+				body: new TextDecoder().decode(arrayBuffer),
+				rawBody: Buffer.from(arrayBuffer),
 				statusCode: response.status,
 			}
 		} catch (error) {
-			if (error.name === 'TimeoutError') {
-				this.updateStatus(InstanceStatus.Disconnected, 'Timeout')
+			switch (error.name) {
+				case 'TimeoutError':
+					this.updateStatus(InstanceStatus.Disconnected, 'Timeout')
+					// Reconnect after timeout
+					await this.destroy() // Clean up on timeout
+					this.init(this.config) // Reinitialize the instance
+					break
+				case 'AbortError':
+					// Request was cancelled
+					this.log('debug', String(error))
+					break
+				default:
+					this.log('error', String(error))
 			}
-
-			if (error.name === 'AbortError') {
-				const timeoutError = new Error('Request timeout')
-				timeoutError.code = 'ETIMEDOUT'
-				throw timeoutError
-			}
-
-			throw error
 		}
 	}
 }
