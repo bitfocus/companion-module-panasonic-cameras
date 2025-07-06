@@ -49,12 +49,7 @@ class PanasonicCameraInstance extends InstanceBase {
 	async init(config) {
 		this.config = config
 
-		// Initialize/reinitialize AbortController for new connection
-		this.abortController = new AbortController()
-
 		this.data = {
-			debug: false,
-
 			modelAuto: null,
 			model: 'Auto',
 			series: null,
@@ -153,8 +148,17 @@ class PanasonicCameraInstance extends InstanceBase {
 
 		this.speedChangeEmitter = new EventEmitter()
 
-		// Start initialization if we have a valid host
-		if (this.config.host.length > 0) {
+		// Initialize/reinitialize AbortController for new connection
+		this.abortController = new AbortController()
+
+		// Start initialization if we have a valid configuration
+		if (
+			this.config.host.length > 0 &&
+			this.config.timeout > 0 &&
+			this.config.pollDelay > 0 &&
+			this.config.httpPort >= 0 &&
+			this.config.tcpPort >= 1024
+		) {
 			this.updateStatus(InstanceStatus.Connecting, this.config.host + ':' + this.config.httpPort)
 
 			await this.getCam('QID') // pull model
@@ -286,6 +290,11 @@ class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
+	/**
+	 * Unsubscribes from camera TCP events by sending an unsubscription request to the camera.
+	 * @param {number} port - The local TCP port used for receiving camera events.
+	 * @returns {Promise<void>} Resolves when the unsubscription request completes.
+	 */
 	async unsubscribeTCPEvents(port) {
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/event?connect=stop&my_port=${port}&uid=0`
 
@@ -294,14 +303,20 @@ class PanasonicCameraInstance extends InstanceBase {
 		}
 
 		try {
-			await this.httpRequest(url)
-
-			this.log('info', 'un-subscribed: ' + url)
+			const response = await this.httpRequest(url)
+			if (response && response.ok) {
+				this.log('info', 'un-subscribed: ' + url)
+			}
 		} catch (err) {
 			this.log('error', 'Error on TCP unsubscribe: ' + String(err))
 		}
 	}
 
+	/**
+	 * Subscribes to camera TCP events by sending a subscription request to the camera.
+	 * @param {number} port - The local TCP port to use for receiving camera events.
+	 * @returns {Promise<void>} Resolves when the subscription request completes.
+	 */
 	async subscribeTCPEvents(port) {
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/event?connect=start&my_port=${port}&uid=0`
 
@@ -310,13 +325,14 @@ class PanasonicCameraInstance extends InstanceBase {
 		}
 
 		try {
-			await this.httpRequest(url)
+			const response = await this.httpRequest(url)
+			if (response && response.ok) {
+				this.log('info', 'subscribed: ' + url)
 
-			this.log('info', 'subscribed: ' + url)
+				this.updateStatus(InstanceStatus.Ok)
 
-			this.updateStatus(InstanceStatus.Ok)
-
-			await this.getPTZ('LPC1') // enable optional Lens Position Information updates
+				await this.getPTZ('LPC1') // enable optional Lens Position Information updates
+			}
 		} catch (err) {
 			this.log('error', 'Error on subscribe: ' + String(err))
 			this.updateStatus(InstanceStatus.UnknownWarning, 'TCP subscription failed')
@@ -333,8 +349,9 @@ class PanasonicCameraInstance extends InstanceBase {
 
 			try {
 				const response = await this.httpRequest(url)
-				if (response.body) {
-					const lines = response.body.trim().split('\r\n')
+				if (response && response.body) {
+					const body = await response.text()
+					const lines = body.trim().split('\r\n')
 
 					for (let line of lines) {
 						const str = line.replace(':0x', ':').trim()
@@ -365,8 +382,9 @@ class PanasonicCameraInstance extends InstanceBase {
 
 		try {
 			const response = await this.httpRequest(url)
-			if (response.body) {
-				const str = response.body.trim()
+			if (response && response.ok) {
+				const body = await response.text()
+				const str = body.trim()
 
 				if (this.config.debug) {
 					this.log('info', 'PTZ response: ' + str)
@@ -393,8 +411,9 @@ class PanasonicCameraInstance extends InstanceBase {
 
 		try {
 			const response = await this.httpRequest(url)
-			if (response.body) {
-				const str = response.body.trim()
+			if (response && response.body) {
+				const body = await response.text()
+				const str = body.trim()
 
 				if (this.config.debug) {
 					this.log('info', 'Cam response: ' + str)
@@ -412,7 +431,7 @@ class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	// Currently only for web commands that don't require admin rights
+	// Handles web commands, supporting both authenticated and unauthenticated requests
 	async getWeb(cmd, username = '', password = '') {
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${cmd}`
 
@@ -422,30 +441,33 @@ class PanasonicCameraInstance extends InstanceBase {
 
 		try {
 			const response = await this.httpRequest(url, { username, password })
-			if (response.body) {
-				const lines = response.body.trim().split('\r\n')
+			if (response) {
+				if (response.body) {
+					const body = await response.text()
+					const lines = body.trim().split('\r\n')
 
-				for (let line of lines) {
-					const str = line.trim()
+					for (let line of lines) {
+						const str = line.trim()
 
+						if (this.config.debug) {
+							this.log('info', 'Web response [' + cmd + ']: ' + str)
+						}
+
+						parseWeb(this, str.split('='), cmd)
+					}
+				} else {
 					if (this.config.debug) {
-						this.log('info', 'Web response [' + cmd + ']: ' + str)
+						this.log('info', 'Web response [' + cmd + ']: Response code ' + response.status.toString())
 					}
 
-					parseWeb(this, str.split('='), cmd)
-				}
-			} else {
-				if (this.config.debug) {
-					this.log('info', 'Web response [' + cmd + ']: Response code ' + response.statusCode.toString())
+					parseWebCode(this, response.status, cmd)
 				}
 
-				parseWebCode(this, response.statusCode, cmd)
+				this.checkVariables()
+				this.checkFeedbacks()
+
+				this.updateStatus(InstanceStatus.Ok)
 			}
-
-			this.checkVariables()
-			this.checkFeedbacks()
-
-			this.updateStatus(InstanceStatus.Ok)
 		} catch (err) {
 			this.log('error', 'Web request ' + url + ' failed: ' + String(err))
 		}
@@ -461,21 +483,18 @@ class PanasonicCameraInstance extends InstanceBase {
 			const n = id + 1
 			const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/get_preset_thumbnail?preset_number=${n}`
 
-			if (this.config.debug) {
-				this.log('info', 'Thumbnail request: ' + url)
-			}
-
 			try {
 				const response = await this.httpRequest(url)
+				if (response && response.ok && response.body) {
+					const img = await Jimp.fromBuffer(Buffer.from(await response.arrayBuffer()))
+					const png64 = await img.scaleToFit(288, 288).getBase64Async('image/png')
 
-				const img = await Jimp.fromBuffer(response.rawBody)
-				const png64 = await img.scaleToFit(288, 288).getBase64Async('image/png')
+					this.data.presetThumbnails[id] = png64
 
-				this.data.presetThumbnails[id] = png64
+					this.checkFeedbacks()
 
-				this.checkFeedbacks()
-
-				this.updateStatus(InstanceStatus.Ok)
+					this.updateStatus(InstanceStatus.Ok)
+				}
 			} catch (err) {
 				this.log('error', 'Thumbnail request ' + url + ' failed: ' + String(err))
 			}
@@ -489,7 +508,10 @@ class PanasonicCameraInstance extends InstanceBase {
 	 * @param {Object} [options={}] - Optional parameters for the request.
 	 * @param {string} [options.username] - Username for basic authentication.
 	 * @param {string} [options.password] - Password for basic authentication.
-	 * @returns {Promise<Object|undefined>} Resolves with response data or undefined on error.
+	 * @returns {Promise<Object|undefined>} Resolves with response data, or undefined on error.
+	 *
+	 * Note: This method may return `undefined` if an error occurs (such as a timeout or network error).
+	 * Callers should check for `undefined` before using the response.
 	 */
 	async httpRequest(url, options = {}) {
 		const { username, password } = options
@@ -497,42 +519,28 @@ class PanasonicCameraInstance extends InstanceBase {
 		try {
 			const fetchOptions = {
 				signal: AbortSignal.any([AbortSignal.timeout(this.config.timeout), this.abortController.signal]),
+				headers: {},
 			}
 
 			// Handle basic authentication
 			if (username && password) {
 				const credentials = Buffer.from(`${username}:${password}`).toString('base64')
-				fetchOptions.headers = {
-					Authorization: `Basic ${credentials}`,
-				}
+				fetchOptions.headers.Authorization = `Basic ${credentials}`
 			}
 
 			const response = await fetch(url, fetchOptions)
 
-			// If response is empty, return an empty object
-			if (!response.body) {
-				return {
-					body: '',
-					rawBody: Buffer.from(''), // Return as Buffer for easier handling
-					statusCode: response.status,
-				}
-			}
-
-			// Get both text and binary data from response
-			const arrayBuffer = await response.arrayBuffer()
-
-			return {
-				body: new TextDecoder().decode(arrayBuffer),
-				rawBody: Buffer.from(arrayBuffer),
-				statusCode: response.status,
-			}
+			return response
 		} catch (error) {
 			switch (error.name) {
 				case 'TimeoutError':
 					this.updateStatus(InstanceStatus.Disconnected, 'Timeout')
-					// Reconnect after timeout
-					await this.destroy() // Clean up on timeout
-					this.init(this.config) // Reinitialize the instance
+					// Prevent multiple overlapping initializations
+					if (!this.abortController.signal.aborted) {
+						this.abortController.abort() // Abort the current requests
+						await this.destroy() // Clean up on timeout
+						await this.init(this.config) // Reinitialize the instance
+					}
 					break
 				case 'AbortError':
 					// Request was cancelled
