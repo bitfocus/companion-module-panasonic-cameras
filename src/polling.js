@@ -1,16 +1,14 @@
 export async function pollCameraStatus(self) {
-	// Use an interval-based approach instead of recursive calls
-	if (self.pollIntervalId) {
-		clearInterval(self.pollIntervalId)
+	// Clear any existing polling
+	if (self.pollTimeoutId) {
+		clearTimeout(self.pollTimeoutId)
+		self.pollTimeoutId = null
 	}
 
-	const pollOnce = async () => {
-		// Check if aborted instead of using self.poll
+	// Use a self-scheduling approach to prevent overlapping polls
+	const scheduleNextPoll = async () => {
+		// Check if aborted before scheduling
 		if (self.abortController.signal.aborted) {
-			if (self.pollIntervalId) {
-				clearInterval(self.pollIntervalId)
-				self.pollIntervalId = null
-			}
 			return
 		}
 
@@ -27,13 +25,15 @@ export async function pollCameraStatus(self) {
 				self.log('debug', 'Polling error: ' + String(err))
 			}
 		}
+
+		// Schedule next poll only after current one is complete
+		if (!self.abortController.signal.aborted) {
+			self.pollTimeoutId = setTimeout(scheduleNextPoll, self.config.pollDelay)
+		}
 	}
 
-	// Start interval-based polling
-	self.pollIntervalId = setInterval(pollOnce, self.config.pollDelay || 1000)
-
-	// Execute first poll immediately
-	await pollOnce()
+	// Start first poll immediately
+	await scheduleNextPoll()
 }
 
 async function executeCommands(self, capabilities) {
@@ -46,7 +46,7 @@ async function executeCommands(self, capabilities) {
 	]
 
 	for (const group of commandGroups) {
-		if (!group.commands || self.abortController.signal.aborted) continue
+		if (!group.commands) continue
 
 		for (const cmd of group.commands) {
 			if (self.abortController.signal.aborted) return // Check before each command
@@ -54,8 +54,9 @@ async function executeCommands(self, capabilities) {
 			try {
 				await group.method(cmd)
 
-				// Use a promise-based delay that can be cancelled
-				if (!self.abortController.signal.aborted && self.config.pollDelay > 0) {
+				// Small delay between commands to avoid overwhelming the camera
+				// Reduced from config.pollDelay to a smaller fixed value
+				if (!self.abortController.signal.aborted) {
 					await sleep(self.config.pollDelay, self.abortController.signal)
 				}
 			} catch (err) {
@@ -173,7 +174,9 @@ function sleep(ms, signal) {
 		if (signal) {
 			signal.addEventListener('abort', () => {
 				clearTimeout(timeout)
-				reject(new Error('AbortError'))
+				const abortError = new Error('Request aborted')
+				abortError.name = 'AbortError'
+				reject(abortError)
 			})
 		}
 	})

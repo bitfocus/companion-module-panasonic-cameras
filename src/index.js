@@ -26,22 +26,12 @@ class PanasonicCameraInstance extends InstanceBase {
 
 	// When module gets deleted
 	async destroy() {
-		// Clear polling interval
-		if (this.pollIntervalId) {
-			clearInterval(this.pollIntervalId)
-			this.pollIntervalId = null
-		}
-
-		// Clear any timeouts
-		if (this.timeoutID) {
-			clearTimeout(this.timeoutID)
-			this.timeoutID = null
-		}
+		// Clear polling timeout (changed from interval to timeout-based scheduling)
+		clearTimeout(this.pollTimeoutId)
+		this.pollTimeoutId = null
 
 		// Abort all pending HTTP requests
-		if (this.abortController) {
-			this.abortController.abort()
-		}
+		this.abortController.abort()
 
 		// Remove TCP Server and close all connections
 		if (this.server) {
@@ -472,12 +462,8 @@ class PanasonicCameraInstance extends InstanceBase {
 		switch (err.code) {
 			case 'ETIMEDOUT':
 				this.updateStatus(InstanceStatus.Disconnected, 'Timeout')
-
-				this.timeoutID = clearTimeout(this.timeoutID)
-				this.timeoutID = setTimeout(async () => {
-					await this.destroy()
-					await this.init(this.config)
-				}, this.config.timeout + this.config.pollDelay)
+				this.destroy()
+				this.init(this.config)
 				break
 			case 'ERR_NON_2XX_3XX_RESPONSE':
 				return this.config.debug // hide error
@@ -526,38 +512,20 @@ class PanasonicCameraInstance extends InstanceBase {
 	async httpRequest(url, options = {}) {
 		const { username, password, timeout = this.config.timeout } = options
 
-		const controller = new AbortController()
-		const timeoutId = setTimeout(() => controller.abort(), timeout)
-
 		try {
 			const fetchOptions = {
-				signal: this.abortController.signal,
-				...options,
+				signal: AbortSignal.any([AbortSignal.timeout(timeout), this.controller.signal]),
 			}
 
 			// Handle basic authentication
 			if (username && password) {
 				const credentials = Buffer.from(`${username}:${password}`).toString('base64')
 				fetchOptions.headers = {
-					...fetchOptions.headers,
 					Authorization: `Basic ${credentials}`,
 				}
 			}
 
-			// Create a combined signal that aborts if either the instance abortController or timeout occurs
-			const combinedController = new AbortController()
-
-			const abortHandler = () => combinedController.abort()
-			this.abortController.signal.addEventListener('abort', abortHandler)
-			controller.signal.addEventListener('abort', abortHandler)
-
-			fetchOptions.signal = combinedController.signal
-
 			const response = await fetch(url, fetchOptions)
-
-			clearTimeout(timeoutId)
-			this.abortController.signal.removeEventListener('abort', abortHandler)
-			controller.signal.removeEventListener('abort', abortHandler)
 
 			// Check if response is ok first
 			if (!response.ok) {
@@ -576,7 +544,9 @@ class PanasonicCameraInstance extends InstanceBase {
 				statusCode: response.status,
 			}
 		} catch (error) {
-			clearTimeout(timeoutId)
+			if (error.name === 'TimeoutError') {
+				this.updateStatus(InstanceStatus.Disconnected, 'Timeout')
+			}
 
 			if (error.name === 'AbortError') {
 				const timeoutError = new Error('Request timeout')
