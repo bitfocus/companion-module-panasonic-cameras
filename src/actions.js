@@ -141,135 +141,135 @@ function optSetToggleNextPrev(choices, label = 'Setting', def = 0) {
 }
 
 function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
-  return [
-	{
-	  type: 'dropdown',
-	  label: 'Action',
-	  id: 'op',
-	  default: ACTION_SET,
-	  choices: [
-		{ id: ACTION_SET, label: 'Set' },
-		{ id: ACTION_INC, label: 'Increase' },
-		{ id: ACTION_DEC, label: 'Decrease' },
-	  ],
-	},
-	{
-	  id: 'set',
-	  type: 'number',
-	  label: label,
-	  default: def,
-	  min: min,
-	  max: max,
-	  step: step,
-	  required: true,
-	  range: true,
-	  isVisible: (options) => options.op === 's' && !options.useVar,
-	},
-	{
-	  id: 'setVar',
-	  type: 'textinput',
-	  label: label + ' variable',
-	  default: `${def}`,
-	  regex: Regex.SOMETHING,
-	  required: true,
-	  useVariables: true,
-	  tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-	  isVisible: (options) => options.op === 's' && options.useVar,
-	},
-	{
-	  id: 'step',
-	  type: 'number',
-	  label: 'Step size',
-	  default: step,
-	  min: step,
-	  max: max - min,
-	  required: true,
-	  isVisible: (options) => options.op !== 's' && !options.useVar,
-	},
-	{
-	  id: 'stepVar',
-	  type: 'textinput',
-	  label: 'Step size variable',
-	  default: `${step}`,
-	  regex: Regex.SOMETHING,
-	  required: true,
-	  useVariables: true,
-	  tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-	  isVisible: (options) => options.op !== 's' && options.useVar,
-	},
-	{
-	  id: 'useVar',
-	  type: 'checkbox',
-	  label: 'Use Variable',
-	  default: false,
-	},
-  ]
+	return [
+		{
+			type: 'dropdown',
+			label: 'Action',
+			id: 'op',
+			default: ACTION_SET,
+			choices: [
+				{ id: ACTION_SET, label: 'Set' },
+				{ id: ACTION_INC, label: 'Increase' },
+				{ id: ACTION_DEC, label: 'Decrease' },
+			],
+		},
+		{
+			id: 'set',
+			type: 'number',
+			label: label,
+			default: def,
+			min: min,
+			max: max,
+			step: step,
+			required: true,
+			range: true,
+			isVisible: (options) => options.op === 's' && !options.useVar,
+		},
+		{
+			id: 'setVar',
+			type: 'textinput',
+			label: label + ' variable',
+			default: `${def}`,
+			regex: Regex.SOMETHING,
+			required: true,
+			useVariables: true,
+			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+			isVisible: (options) => options.op === 's' && options.useVar,
+		},
+		{
+			id: 'step',
+			type: 'number',
+			label: 'Step size',
+			default: step,
+			min: step,
+			max: max - min,
+			required: true,
+			isVisible: (options) => options.op !== 's' && !options.useVar,
+		},
+		{
+			id: 'stepVar',
+			type: 'textinput',
+			label: 'Step size variable',
+			default: `${step}`,
+			regex: Regex.SOMETHING,
+			required: true,
+			useVariables: true,
+			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+			isVisible: (options) => options.op !== 's' && options.useVar,
+		},
+		{
+			id: 'useVar',
+			type: 'checkbox',
+			label: 'Use Variable',
+			default: false,
+		},
+	]
 }
 
 function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
-  return [
-	{
-	  type: 'dropdown',
-	  label: 'Action',
-	  id: 'op',
-	  default: ACTION_SET,
-	  choices: [
-		{ id: ACTION_SET, label: 'Set' },
-		{ id: ACTION_RAISE, label: 'Raise' },
-		{ id: ACTION_LOWER, label: 'Lower' },
-	  ],
-	},
-	{
-	  id: 'set',
-	  type: 'number',
-	  label: label,
-	  default: SPEED_DEFAULT,
-	  min: -SPEED_MIN,
-	  max: SPEED_MAX,
-	  step: step,
-	  required: true,
-	  range: true,
-	  isVisible: (options) => options.op === 's' && !options.useVar,
-	},
-	{
-	  id: 'setVar',
-	  type: 'textinput',
-	  label: label + ' variable',
-	  default: `${def}`,
-	  regex: Regex.SOMETHING,
-	  required: true,
-	  useVariables: true,
-	  tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-	  isVisible: (options) => options.op === 's' && options.useVar,
-	},
-	{
-	  id: 'step',
-	  type: 'number',
-	  label: 'Step size',
-	  default: step,
-	  min: step,
-	  max: max - min,
-	  required: true,
-	  isVisible: (options) => options.op !== 's' && !options.useVar,
-	},
-	{
-	  id: 'stepVar',
-	  type: 'textinput',
-	  label: 'Step size variable',
-	  default: `${step}`,
-	  regex: Regex.SOMETHING,
-	  required: true,
-	  useVariables: true,
-	  tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-	  isVisible: (options) => options.op !== 's' && options.useVar,
-	},
-	{
-	  id: 'useVar',
-	  type: 'checkbox',
-	  label: 'Use Variable',
-	  default: false,
-	},
-  ]
+	return [
+		{
+			type: 'dropdown',
+			label: 'Action',
+			id: 'op',
+			default: ACTION_SET,
+			choices: [
+				{ id: ACTION_SET, label: 'Set' },
+				{ id: ACTION_RAISE, label: 'Raise' },
+				{ id: ACTION_LOWER, label: 'Lower' },
+			],
+		},
+		{
+			id: 'set',
+			type: 'number',
+			label: label,
+			default: SPEED_DEFAULT,
+			min: -SPEED_MIN,
+			max: SPEED_MAX,
+			step: step,
+			required: true,
+			range: true,
+			isVisible: (options) => options.op === 's' && !options.useVar,
+		},
+		{
+			id: 'setVar',
+			type: 'textinput',
+			label: label + ' variable',
+			default: `${def}`,
+			regex: Regex.SOMETHING,
+			required: true,
+			useVariables: true,
+			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+			isVisible: (options) => options.op === 's' && options.useVar,
+		},
+		{
+			id: 'step',
+			type: 'number',
+			label: 'Step size',
+			default: step,
+			min: step,
+			max: max - min,
+			required: true,
+			isVisible: (options) => options.op !== 's' && !options.useVar,
+		},
+		{
+			id: 'stepVar',
+			type: 'textinput',
+			label: 'Step size variable',
+			default: `${step}`,
+			regex: Regex.SOMETHING,
+			required: true,
+			useVariables: true,
+			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+			isVisible: (options) => options.op !== 's' && options.useVar,
+		},
+		{
+			id: 'useVar',
+			type: 'checkbox',
+			label: 'Use Variable',
+			default: false,
+		},
+	]
 }
 
 async function parseSetIncDecVariables(action, self, min, max, step) {
@@ -279,7 +279,11 @@ async function parseSetIncDecVariables(action, self, min, max, step) {
 			if (isNaN(setVar)) return false
 			action.options.set = setVar
 		} else {
-			const stepVar = constrainRange(parseInt(await self.parseVariablesInString(action.options.stepVar)), step, max - min)
+			const stepVar = constrainRange(
+				parseInt(await self.parseVariablesInString(action.options.stepVar)),
+				step,
+				max - min,
+			)
 			if (isNaN(stepVar)) return false
 			action.options.step = stepVar
 		}
@@ -346,11 +350,15 @@ export function getActionDefinitions(self) {
 					let arr = Array.from(action.options.dir)
 					let pan = parseInt(arr[0]) - 1
 					let tilt = parseInt(arr[1]) - 1
-					await self.getPTZ('PTS' + cmdSpeed(pan * self.pSpeed + SPEED_OFFSET) + cmdSpeed(tilt * self.tSpeed + SPEED_OFFSET))
+					await self.getPTZ(
+						'PTS' + cmdSpeed(pan * self.pSpeed + SPEED_OFFSET) + cmdSpeed(tilt * self.tSpeed + SPEED_OFFSET),
+					)
 					if (action.options.liveSpeed) {
 						self.speedChangeEmitter.removeAllListeners('ptSpeed').then(
 							self.speedChangeEmitter.on('ptSpeed', async () => {
-								await self.getPTZ('PTS' + cmdSpeed(pan * self.pSpeed + SPEED_OFFSET) + cmdSpeed(tilt * self.tSpeed + SPEED_OFFSET))
+								await self.getPTZ(
+									'PTS' + cmdSpeed(pan * self.pSpeed + SPEED_OFFSET) + cmdSpeed(tilt * self.tSpeed + SPEED_OFFSET),
+								)
 							}),
 						)
 					}
@@ -386,15 +394,24 @@ export function getActionDefinitions(self) {
 				if (!(await parseSetIncDecVariables(action, self, SPEED_MIN, SPEED_MAX, 1))) return
 				switch (action.options.scope) {
 					case 'pt':
-						self.ptSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.ptSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
+						self.ptSpeed =
+							action.options.op === ACTION_SET
+								? action.options.set
+								: getNextValue(self.ptSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
 						self.pSpeed = self.ptSpeed
 						self.tSpeed = self.ptSpeed
 						break
 					case 'p':
-						self.pSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.pSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
+						self.pSpeed =
+							action.options.op === ACTION_SET
+								? action.options.set
+								: getNextValue(self.pSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
 						break
 					case 't':
-						self.tSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.tSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
+						self.tSpeed =
+							action.options.op === ACTION_SET
+								? action.options.set
+								: getNextValue(self.tSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
 						break
 				}
 				if (self.pSpeed === self.tSpeed) self.ptSpeed = self.pSpeed
@@ -433,7 +450,10 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Zoom Speed Control',
 			options: [speedOperation, speedControlSetting, speedStep],
 			callback: async (action) => {
-				self.data.zoomSpeedValue = action.options.op !== ACTION_SET ? getNextValue(self.data.zoomSpeedValue, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
+				self.data.zoomSpeedValue =
+					action.options.op !== ACTION_SET
+						? getNextValue(self.data.zoomSpeedValue, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step)
+						: action.options.set
 				await self.getPTZ('Z' + cmdSpeed(self.data.zoomSpeedValue + SPEED_OFFSET))
 			},
 		}
@@ -442,7 +462,10 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Zoom Speed',
 			options: [speedOperation, speedSetting, speedStep],
 			callback: async (action) => {
-				self.zSpeed = action.options.op !== ACTION_SET ? getNextValue(self.zSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step) : action.options.set
+				self.zSpeed =
+					action.options.op !== ACTION_SET
+						? getNextValue(self.zSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
+						: action.options.set
 				self.setVariableValues({ zSpeed: self.zSpeed })
 				self.speedChangeEmitter.emit('zSpeed')
 			},
@@ -470,7 +493,10 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Focus Speed Control',
 			options: [speedOperation, speedControlSetting, speedStep],
 			callback: async (action) => {
-				self.data.focusSpeedValue = action.options.op !== ACTION_SET ? getNextValue(self.data.focusSpeedValue, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step) : action.options.set
+				self.data.focusSpeedValue =
+					action.options.op !== ACTION_SET
+						? getNextValue(self.data.focusSpeedValue, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step)
+						: action.options.set
 				await self.getPTZ('F' + cmdSpeed(self.data.focusSpeedValue + SPEED_OFFSET))
 			},
 		}
@@ -479,7 +505,10 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Focus Speed',
 			options: [speedOperation, speedSetting, speedStep],
 			callback: async (action) => {
-				self.fSpeed = action.options.op !== ACTION_SET ? getNextValue(self.fSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step) : action.options.set
+				self.fSpeed =
+					action.options.op !== ACTION_SET
+						? getNextValue(self.fSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
+						: action.options.set
 				self.setVariableValues({ fSpeed: self.fSpeed })
 				self.speedChangeEmitter.emit('fSpeed')
 			},
@@ -578,7 +607,11 @@ export function getActionDefinitions(self) {
 				name: 'Exposure - Shutter',
 				options: optSetToggleNextPrev(SERIES.capabilities.shutter.dropdown),
 				callback: async (action) => {
-					await self.getCam(SERIES.capabilities.shutter.cmd + ':' + cmdEnum(action, SERIES.capabilities.shutter.dropdown, self.data.shutter))
+					await self.getCam(
+						SERIES.capabilities.shutter.cmd +
+							':' +
+							cmdEnum(action, SERIES.capabilities.shutter.dropdown, self.data.shutter),
+					)
 				},
 			}
 		}
@@ -621,7 +654,9 @@ export function getActionDefinitions(self) {
 			name: 'Image - Gain',
 			options: optSetToggleNextPrev(SERIES.capabilities.gain.dropdown),
 			callback: async (action) => {
-				await self.getCam(SERIES.capabilities.gain.cmd + ':' + cmdEnum(action, SERIES.capabilities.gain.dropdown, self.data.gain))
+				await self.getCam(
+					SERIES.capabilities.gain.cmd + ':' + cmdEnum(action, SERIES.capabilities.gain.dropdown, self.data.gain),
+				)
 			},
 		}
 	}
@@ -633,7 +668,19 @@ export function getActionDefinitions(self) {
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
 				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
-				await self.getCam(caps.cmd + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.masterPedValue))
+				await self.getCam(
+					caps.cmd +
+						':' +
+						cmdValue(
+							action,
+							caps.offset,
+							-caps.limit,
+							caps.limit,
+							action.options.step,
+							caps.hexlen,
+							self.data.masterPedValue,
+						),
+				)
 			},
 		}
 	}
@@ -645,7 +692,19 @@ export function getActionDefinitions(self) {
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
 				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
-				await self.getCam(caps.cmd.red + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.redPedValue))
+				await self.getCam(
+					caps.cmd.red +
+						':' +
+						cmdValue(
+							action,
+							caps.offset,
+							-caps.limit,
+							caps.limit,
+							action.options.step,
+							caps.hexlen,
+							self.data.redPedValue,
+						),
+				)
 			},
 		}
 	}
@@ -657,7 +716,19 @@ export function getActionDefinitions(self) {
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
 				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
-				await self.getCam(caps.cmd.blue + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.bluePedValue))
+				await self.getCam(
+					caps.cmd.blue +
+						':' +
+						cmdValue(
+							action,
+							caps.offset,
+							-caps.limit,
+							caps.limit,
+							action.options.step,
+							caps.hexlen,
+							self.data.bluePedValue,
+						),
+				)
 			},
 		}
 	}
@@ -669,7 +740,19 @@ export function getActionDefinitions(self) {
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
 				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
-				await self.getCam(caps.cmd.red + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.redGainValue))
+				await self.getCam(
+					caps.cmd.red +
+						':' +
+						cmdValue(
+							action,
+							caps.offset,
+							-caps.limit,
+							caps.limit,
+							action.options.step,
+							caps.hexlen,
+							self.data.redGainValue,
+						),
+				)
 			},
 		}
 	}
@@ -681,7 +764,19 @@ export function getActionDefinitions(self) {
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
 				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
-				await self.getCam(caps.cmd.blue + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.blueGainValue))
+				await self.getCam(
+					caps.cmd.blue +
+						':' +
+						cmdValue(
+							action,
+							caps.offset,
+							-caps.limit,
+							caps.limit,
+							action.options.step,
+							caps.hexlen,
+							self.data.blueGainValue,
+						),
+				)
 			},
 		}
 	}
@@ -719,7 +814,11 @@ export function getActionDefinitions(self) {
 			name: 'Image - Color Temperature',
 			options: optSetToggleNextPrev(SERIES.capabilities.colorTemperature.index.dropdown),
 			callback: async (action) => {
-				await self.getCam(SERIES.capabilities.colorTemperature.index.cmd + ':' + cmdEnum(action, SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature))
+				await self.getCam(
+					SERIES.capabilities.colorTemperature.index.cmd +
+						':' +
+						cmdEnum(action, SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature),
+				)
 			},
 		}
 	}
@@ -728,12 +827,29 @@ export function getActionDefinitions(self) {
 		if (SERIES.capabilities.colorTemperature.advanced.set) {
 			actions.colorTemperature = {
 				name: 'Image - Color Temperature',
-				options: optSetIncDecStep('Color Temperature [K]', 3200, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20),
+				options: optSetIncDecStep(
+					'Color Temperature [K]',
+					3200,
+					SERIES.capabilities.colorTemperature.advanced.min,
+					SERIES.capabilities.colorTemperature.advanced.max,
+					20,
+				),
 				callback: async (action) => {
-					if (!(await parseSetIncDecVariables(action, self, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20))) return
+					if (
+						!(await parseSetIncDecVariables(
+							action,
+							self,
+							SERIES.capabilities.colorTemperature.advanced.min,
+							SERIES.capabilities.colorTemperature.advanced.max,
+							20,
+						))
+					)
+						return
 					switch (action.options.op) {
 						case ACTION_SET:
-							await self.getCam(SERIES.capabilities.colorTemperature.advanced.set + ':' + toHexString(action.options.set, 5) + ':0')
+							await self.getCam(
+								SERIES.capabilities.colorTemperature.advanced.set + ':' + toHexString(action.options.set, 5) + ':0',
+							)
 							break
 						case ACTION_INC:
 							await self.getCam(SERIES.capabilities.colorTemperature.advanced.inc + ':1')
@@ -802,9 +918,16 @@ export function getActionDefinitions(self) {
 	if (SERIES.capabilities.presetSpeed) {
 		actions.presetSpeedTime = {
 			name: 'Preset - Recall Velocity',
-			options: optSetToggleNextPrev(SERIES.capabilities.presetTime ? e.ENUM_PRESET_SPEED_TIME : e.ENUM_PRESET_SPEED, 'Speed / Time'),
+			options: optSetToggleNextPrev(
+				SERIES.capabilities.presetTime ? e.ENUM_PRESET_SPEED_TIME : e.ENUM_PRESET_SPEED,
+				'Speed / Time',
+			),
 			callback: async (action) => {
-				const v = cmdEnum(action, SERIES.capabilities.presetTime ? e.ENUM_PRESET_SPEED_TIME : e.ENUM_PRESET_SPEED, self.data.presetSpeed)
+				const v = cmdEnum(
+					action,
+					SERIES.capabilities.presetTime ? e.ENUM_PRESET_SPEED_TIME : e.ENUM_PRESET_SPEED,
+					self.data.presetSpeed,
+				)
 				const r = parseInt(v, 16)
 				const s = r < 0x001 || r > 0x063
 				if (SERIES.capabilities.presetTime) await self.getCam('OSJ:29:' + (s ? '0' : '1'))
@@ -898,7 +1021,8 @@ export function getActionDefinitions(self) {
 	if (SERIES.capabilities.restart) {
 		actions.restart = {
 			name: 'System - Restart',
-			description: "To perform a remote restart of the camera the username and password for administrator authority are necessary. These are the same credentials that are used to log in to the camera's web interface. The factory default values are 'admin' and '12345'.",
+			description:
+				"To perform a remote restart of the camera the username and password for administrator authority are necessary. These are the same credentials that are used to log in to the camera's web interface. The factory default values are 'admin' and '12345'.",
 			options: [
 				{
 					id: 'username',
@@ -1028,7 +1152,8 @@ export function getActionDefinitions(self) {
 
 	actions.customCommand = {
 		name: 'Custom Command',
-		description: 'Sends a custom command to the camera. This enables operations that are not (yet) covered by this module. Please read the public protocol specifications for details!',
+		description:
+			'Sends a custom command to the camera. This enables operations that are not (yet) covered by this module. Please read the public protocol specifications for details!',
 		options: [
 			{
 				type: 'dropdown',
