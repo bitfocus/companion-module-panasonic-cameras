@@ -345,6 +345,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			autotrackingEnabled: null,
 			autotrackingMode: null,
 			autotrackingStatus: null,
+			chromaLevel: null,
 			colorbar: null,
 			colorTemperature: null,
 			error: null,

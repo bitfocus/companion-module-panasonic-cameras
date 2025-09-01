@@ -193,9 +193,11 @@ export function parseUpdate(self, str) {
 		case 'OBR':
 			self.data.colorbar = str[1]
 			break
+		case 'OCG':
+			self.data.chromaLevel = str[1].replace('0x', '')
 		case 'OID':
 			self.data.modelAuto = str[1]
-			// if a new model is detected or selected, re-initialise all actions, variables and feedbacks
+			// if another model is detected or selected, re-initialise all actions, variables and feedbacks
 			if (self.data.modelAuto !== self.data.model) {
 				self.log('info', 'Detected Camera Model: ' + self.data.modelAuto)
 				//self.reInitAll()
@@ -227,6 +229,9 @@ export function parseUpdate(self, str) {
 			break
 		case 'OSD':
 			switch (str[1]) {
+				case 'B0':
+					self.data.chromaLevel = str[2].replace('0x', '')
+					break
 				case 'B1':
 					self.data.colorTemperature = str[2].replace('0x', '')
 					break
