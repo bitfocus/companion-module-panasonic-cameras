@@ -600,6 +600,30 @@ export function getActionDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.colorPedestal && SERIES.capabilities.colorPedestal.cmd.green) {
+		const caps = SERIES.capabilities.colorPedestal
+		actions.pedGreen = {
+			name: 'Image - Green Pedestal',
+			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
+			callback: async (action) => {
+				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				await self.getCam(
+					caps.cmd.green +
+						':' +
+						cmdValue(
+							action,
+							caps.offset,
+							-caps.limit,
+							caps.limit,
+							action.options.step,
+							caps.hexlen,
+							self.data.greenPedValue,
+						),
+				)
+			},
+		}
+	}
+
 	if (SERIES.capabilities.colorGain && SERIES.capabilities.colorGain.cmd.red) {
 		const caps = SERIES.capabilities.colorGain
 		actions.gainRed = {
@@ -620,6 +644,30 @@ export function getActionDefinitions(self) {
 			callback: async (action) => {
 				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
 				await self.getCam(caps.cmd.blue + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.blueGainValue))
+			},
+		}
+	}
+
+	if (SERIES.capabilities.colorGain && SERIES.capabilities.colorGain.cmd.green) {
+		const caps = SERIES.capabilities.colorGain
+		actions.gainGreen = {
+			name: 'Image - Green Gain',
+			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
+			callback: async (action) => {
+				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				await self.getCam(
+					caps.cmd.green +
+						':' +
+						cmdValue(
+							action,
+							caps.offset,
+							-caps.limit,
+							caps.limit,
+							action.options.step,
+							caps.hexlen,
+							self.data.greenGainValue,
+						),
+				)
 			},
 		}
 	}
