@@ -1314,6 +1314,59 @@ export function getPresetDefinitions(self) {
 			],
 			feedbacks: [],
 		}
+
+		if (SERIES.capabilities.colorGain.cmd.green) {
+			presets['image-green-gain'] = {
+				type: 'button',
+				category: 'Image',
+				name: 'Green Gain',
+				style: {
+					text: 'Green Gain\\n$(generic-module:greenGain)',
+					size: '14',
+					color: colorWhite,
+					bgcolor: colorGreen,
+				},
+				options: {
+					rotaryActions: true,
+				},
+				steps: [
+					{
+						down: [
+							{
+								actionId: 'gainGreen',
+								options: {
+									op: 's',
+									set: 0,
+									useVar: false,
+								},
+							},
+						],
+						up: [],
+						rotate_left: [
+							{
+								actionId: 'gainGreen',
+								options: {
+									op: -1,
+									step: 1,
+									useVar: false,
+								},
+							},
+						],
+						rotate_right: [
+							{
+								actionId: 'gainGreen',
+								options: {
+									op: 1,
+									step: 1,
+									useVar: false,
+								},
+							},
+						],
+					},
+				],
+				feedbacks: [],
+			}
+		}
 	}
 
 	if (SERIES.capabilities.colorPedestal) {
@@ -1417,6 +1470,59 @@ export function getPresetDefinitions(self) {
 				},
 			],
 			feedbacks: [],
+		}
+
+		if (SERIES.capabilities.colorPedestal.cmd.green) {
+			presets['image-green-ped'] = {
+				type: 'button',
+				category: 'Image',
+				name: 'Green Pedestal',
+				style: {
+					text: 'Green Ped.\\n$(generic-module:greenPed)',
+					size: '14',
+					color: colorWhite,
+					bgcolor: colorDarkGreen,
+				},
+				options: {
+					rotaryActions: true,
+				},
+				steps: [
+					{
+						down: [
+							{
+								actionId: 'pedGreen',
+								options: {
+									op: 's',
+									set: 0,
+									useVar: false,
+								},
+							},
+						],
+						up: [],
+						rotate_left: [
+							{
+								actionId: 'pedGreen',
+								options: {
+									op: -1,
+									step: 1,
+									useVar: false,
+								},
+							},
+						],
+						rotate_right: [
+							{
+								actionId: 'pedGreen',
+								options: {
+									op: 1,
+									step: 1,
+									useVar: false,
+								},
+							},
+						],
+					},
+				],
+				feedbacks: [],
+			}
 		}
 	}
 
