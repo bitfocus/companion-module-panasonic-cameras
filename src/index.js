@@ -400,6 +400,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			shutterStepLabel: null,
 
 			// arrays
+			audioVolumeLevels: Array(4),
 			presetEntries0: Array(40),
 			presetEntries1: Array(40),
 			presetEntries2: Array(20),
