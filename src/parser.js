@@ -254,6 +254,13 @@ export function parseUpdate(self, str) {
 		case 'OFT':
 			self.data.filter = str[1]
 			break
+		case 'OSA':
+			switch (str[1]) {
+				case 'D5':
+					self.data.audioVolumeLevels[parseInt(str[2])] = parseInt(str[3], 16) - 0x80
+					break
+			}
+			break
 		case 'OSE':
 			if (str[1] === '71') {
 				self.data.presetScope = str[2]

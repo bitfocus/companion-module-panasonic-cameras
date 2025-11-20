@@ -820,6 +820,40 @@ export function getActionDefinitions(self) {
 	}
 
 	// ########################
+	// #### Audio Actions ####
+	// ########################
+
+	if (SERIES.capabilities.audioVolumeLevel) {
+		const caps = SERIES.capabilities.audioVolumeLevel
+		actions.audioVolumeLevel = {
+			name: 'Audio - Volume Level',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Audio Channel',
+					id: 'channel',
+					default: 1,
+					choices: Array.from({ length: caps.maxch }, (_, i) => ({ id: i + 1, label: `Ch ${i + 1}` })),
+				},
+				...optSetIncDecStep('Volume Level (dB)', 0, caps.min - 0x80, caps.max - 0x80, caps.step),
+			],
+			callback: async (action) => {
+				if (!(await parseSetIncDecVariables(action, self, caps.min - 0x80, caps.max - 0x80, caps.step))) return
+				
+				// Get current value for the specific channel
+				const currentValue = (self.data.audioVolumeLevels && self.data.audioVolumeLevels[action.options.channel]) || 0
+				const newValue = action.options.op === ACTION_SET 
+					? action.options.set 
+					: getNextValue(currentValue, caps.min - 0x80, caps.max - 0x80, action.options.op * action.options.step)
+				
+				// Convert to hex with 0x80 offset
+				const hexValue = toHexString(newValue + 0x80, 2)
+				await self.getCam(`OSA:D5:${action.options.channel}:${hexValue}`)
+			},
+		}
+	}
+
+	// ########################
 	// #### System Actions ####
 	// ########################
 

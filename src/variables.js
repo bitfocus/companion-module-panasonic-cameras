@@ -137,6 +137,11 @@ export function setVariables(self) {
 		variables.push({ variableId: 'autotrackingAngle', name: 'Autotracking Angle' })
 		variables.push({ variableId: 'autotrackingStatus', name: 'Autotracking Status' })
 	}
+	if (SERIES.capabilities.audioVolumeLevel) {
+		for (let ch = 1; ch <= SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
+			variables.push({ variableId: `audioVolumeLevel${ch}`, name: `Audio Volume Level Channel ${ch} (dB)` })
+		}
+	}
 
 	return variables
 }
@@ -298,4 +303,13 @@ export function checkVariables(self) {
 		zSpeed: self.zSpeed,
 		fSpeed: self.fSpeed,
 	})
+
+	// Set Audio Volume Level variables
+	if (SERIES.capabilities.audioVolumeLevel && self.data.audioVolumeLevels) {
+		const audioVars = {}
+		for (let ch = 1; ch <= SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
+			audioVars[`audioVolumeLevel${ch}`] = self.data.audioVolumeLevels[ch] !== undefined ? `${self.data.audioVolumeLevels[ch]}dB` : null
+		}
+		self.setVariableValues(audioVars)
+	}
 }
