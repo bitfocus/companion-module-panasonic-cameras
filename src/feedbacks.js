@@ -499,6 +499,30 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.dropdown) {
+		feedbacks.chromaLevel = {
+			type: 'boolean',
+			name: 'Image - Chroma Level',
+			description: 'Indicates if the selected chroma level is currently active',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Level',
+					id: 'option',
+					default: SERIES.capabilities.chromaLevel.dropdown[0].id,
+					choices: SERIES.capabilities.chromaLevel.dropdown,
+				},
+			],
+			callback: function (feedback) {
+				return self.data.chromaLevel === feedback.options.option
+			},
+		}
+	}
+
 	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
 		feedbacks.whiteBalance = {
 			type: 'boolean',

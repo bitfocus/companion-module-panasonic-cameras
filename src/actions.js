@@ -564,6 +564,16 @@ export function getActionDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.cmd) {
+		actions.chromaLevel = {
+			name: 'Image - Chroma Level',
+			options: optSetToggleNextPrev(SERIES.capabilities.chromaLevel.dropdown),
+			callback: async (action) => {
+				await self.getCam(SERIES.capabilities.chromaLevel.cmd + ':' + cmdEnum(action, SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel))
+			},
+		}
+	}
+
 	if (SERIES.capabilities.pedestal.cmd) {
 		const caps = SERIES.capabilities.pedestal
 		actions.ped = {

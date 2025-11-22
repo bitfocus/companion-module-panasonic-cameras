@@ -1159,6 +1159,53 @@ export function getPresetDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.dropdown) {
+		presets['image-chroma-level'] = {
+			type: 'button',
+			category: 'Image',
+			name: 'Chroma Level',
+			style: {
+				text: 'Chroma\\n$(generic-module:chromaLevel)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			options: {
+				rotaryActions: true,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'chromaLevel',
+							options: {
+								op: 't',
+							},
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'chromaLevel',
+							options: {
+								op: -1,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'chromaLevel',
+							options: {
+								op: 1,
+							},
+						},
+					],
+				},
+			],
+			feedbacks: [],
+		}
+	}
+
 	if (SERIES.capabilities.pedestal) {
 		presets['image-pedestal'] = {
 			type: 'button',
