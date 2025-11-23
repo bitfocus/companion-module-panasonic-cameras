@@ -496,7 +496,7 @@ export const SERIES_SPECS = [
 		// Specific for the AK-UB300 Camera
 		id: 'UB300',
 		capabilities: {
-			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_UB300 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_40 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 1000, step: 1, hexlen: 3 },
 			colorPedestal: { cmd: { red: 'OSG:4C', blue: 'OSG:4E' }, offset: 0x800, limit: 800, step: 1, hexlen: 3 },
 			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F' } },
