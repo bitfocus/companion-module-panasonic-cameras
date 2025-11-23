@@ -139,7 +139,7 @@ export const SERIES_SPECS = [
 			ois: { dropdown: e.ENUM_OIS_OTHER },
 			panTilt: false,
 			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 200, step: 1, hexlen: 3 },
-			poll: { ptz: ['GF', 'GI', 'GZ'], cam: ['QAF', 'QAW', 'QBR', 'QBP', 'QFT', 'QGU', 'QIS', 'QLR', 'QLG', 'QRP', 'QSD:4F', 'QSG:39', 'QSG:3A', 'QSG:B0', 'QSI:20', 'QSJ:0F'], web: ['get_state'] },
+			poll: { ptz: ['GF', 'GI', 'GZ'], cam: ['QAF', 'QAW', 'QBR', 'QBP', 'QFT', 'QGU', 'QIS', 'QLR', 'QLG', 'QRP', 'QSD:4F', 'QSD:B0', 'QSG:39', 'QSG:3A', 'QSI:20', 'QSJ:0F'], web: ['get_state'] },
 			power: false,
 			preset: false,
 			presetSpeed: false,
