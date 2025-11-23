@@ -161,7 +161,6 @@ export function checkVariables(self) {
 		: null
 
 	const chromaLevel = SERIES.capabilities.chromaLevel ? getLabel(SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel) : null
-	
 	const colorbar = SERIES.capabilities.colorbar ? getLabel(e.ENUM_OFF_ON, self.data.colorbar) : null
 
 	const colorTemperature = SERIES.capabilities.colorTemperature.index
