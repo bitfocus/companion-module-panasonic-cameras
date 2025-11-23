@@ -105,6 +105,9 @@ export function setVariables(self) {
 	if (SERIES.capabilities.pedestal) {
 		variables.push({ variableId: 'masterPed', name: 'Master Pedestal' })
 	}
+	if (SERIES.capabilities.chromaLevel) {
+		variables.push({ variableId: 'chromaLevel', name: 'Chroma Level' })
+	}
 	if (SERIES.capabilities.colorGain) {
 		variables.push({ variableId: 'redGain', name: 'Red Gain' })
 		variables.push({ variableId: 'blueGain', name: 'Blue Gain' })
@@ -163,6 +166,7 @@ export function checkVariables(self) {
 		? getLabel(e.ENUM_AUTOTRACKING_STATUS, self.data.autotrackingStatus)
 		: null
 
+	const chromaLevel = SERIES.capabilities.chromaLevel ? getLabel(SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel) : null
 	const colorbar = SERIES.capabilities.colorbar ? getLabel(e.ENUM_OFF_ON, self.data.colorbar) : null
 
 	const colorTemperature = SERIES.capabilities.colorTemperature.index
@@ -276,6 +280,7 @@ export function checkVariables(self) {
 		autotrackingAngle: autotrackingAngle,
 		autotrackingMode: autotrackingMode,
 		autotrackingStatus: autotrackingStatus,
+		chromaLevel: chromaLevel,
 		colorbar: colorbar,
 		error: error,
 		filter: filter,
