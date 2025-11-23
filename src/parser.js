@@ -195,6 +195,7 @@ export function parseUpdate(self, str) {
 			break
 		case 'OCG':
 			self.data.chromaLevel = str[1].replace('0x', '')
+			break
 		case 'OID':
 			self.data.modelAuto = str[1]
 			// if another model is detected or selected, re-initialise all actions, variables and feedbacks
