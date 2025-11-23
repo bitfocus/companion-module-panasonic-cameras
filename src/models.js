@@ -120,7 +120,7 @@ export const SERIES_SPECS = [
 		// Specific for the AG-CX350/4000 Series
 		id: 'CX350',
 		capabilities: {
-			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: { cmd: { red: 'ORP', blue: 'OBP', green: 'OSJ:10' }, offset: 0x96, limit: 100, step: 1, hexlen: 3 },
 			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F', set: 'OSI:20', min: 2000, max: 15000 } },
@@ -139,7 +139,7 @@ export const SERIES_SPECS = [
 			ois: { dropdown: e.ENUM_OIS_OTHER },
 			panTilt: false,
 			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 200, step: 1, hexlen: 3 },
-			poll: { ptz: ['GF', 'GI', 'GZ'], cam: ['QAF', 'QAW', 'QBR', 'QBP', 'QFT', 'QGU', 'QIS', 'QLR', 'QLG', 'QRP', 'QSD:4F', 'QSG:39', 'QSG:3A', 'QSI:20', 'QSJ:0F'], web: ['get_state'] },
+			poll: { ptz: ['GF', 'GI', 'GZ'], cam: ['QAF', 'QAW', 'QBR', 'QBP', 'QFT', 'QGU', 'QIS', 'QLR', 'QLG', 'QRP', 'QSD:4F', 'QSG:39', 'QSG:3A', 'QSG:B0', 'QSI:20', 'QSJ:0F'], web: ['get_state'] },
 			power: false,
 			preset: false,
 			presetSpeed: false,
@@ -844,7 +844,7 @@ export const SERIES_SPECS = [
 			ois: { dropdown: e.ENUM_OIS_OTHER },
 			panTilt: true,
 			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 200, step: 1, hexlen: 3 },
-			poll: { ptz: false, cam: ['QIF'], web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'] },
+			poll: { ptz: false, cam: ['QIF', 'QSD:B0'], web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'] },
 			power: true,
 			preset: 100,
 			presetSpeed: { dropdown: e.ENUM_PRESET_SPEED_TABLE_2 },
