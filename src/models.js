@@ -35,7 +35,6 @@ export const MODELS = [
 	{ id: 'AW-UE100', series: 'UE100', label: 'AW-UE100' },
 	{ id: 'AW-UR100', series: 'UE100', label: 'AW-UR100' },
 	{ id: 'AW-UE150', series: 'UE150', label: 'AW-UE150' },
-	{ id: 'AW-UE150A', series: 'UE150', label: 'AW-UE150A' },
 	{ id: 'AW-UE155', series: 'UE150', label: 'AW-UE155' },
 	{ id: 'AW-UE160', series: 'UE160', label: 'AW-UE160' },
 	{ id: 'AW-UN70', series: 'UE70', label: 'AW-UN70' },
