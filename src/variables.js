@@ -50,6 +50,9 @@ export function setVariables(self) {
 	if (SERIES.capabilities.gain) {
 		variables.push({ variableId: 'gain', name: 'Gain' })
 	}
+	if (SERIES.capabilities.shootingMode) {
+		variables.push({ variableId: 'shootingMode', name: 'Shooting Mode' })
+	}
 	if (SERIES.capabilities.night) {
 		variables.push({ variableId: 'nightMode', name: 'Night Mode' })
 	}
@@ -201,6 +204,8 @@ export function checkVariables(self) {
 
 	const rtmp = SERIES.capabilities.streamRTMP ? getLabel(e.ENUM_OFF_ON, self.data.rtmp) : null
 
+	const shootingMode = SERIES.capabilities.shootingMode ? getLabel(SERIES.capabilities.shootingMode.dropdown, self.data.shootingMode) : null
+
 	const shutter = SERIES.capabilities.shutter ? getLabel(SERIES.capabilities.shutter.dropdown, self.data.shutter) : null
 
 	const srt = SERIES.capabilities.streamSRT ? getLabel(e.ENUM_OFF_ON, self.data.srt) : null
@@ -287,6 +292,7 @@ export function checkVariables(self) {
 		presetSpeed: presetSpeed,
 		presetSpeedTable: presetSpeedTable,
 		presetSpeedUnit: presetSpeedUnit,
+		shootingMode: shootingMode,
 		shutter: shutter,
 		streamingSRT: srt,
 		streamingTS: ts,

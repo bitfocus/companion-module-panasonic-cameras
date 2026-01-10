@@ -883,9 +883,9 @@ export const e = {
 		{ id: '9', label: 'VAR' },
 	],
 
-	// ##############################
+	// ###############################
 	// #### Chroma Level Look Ups ####
-	// ##############################
+	// ###############################
 	ENUM_CHROMA_LEVEL_3: [
 		{ id: '00', label: '-3' },
 		{ id: '01', label: '-2' },
@@ -1421,6 +1421,11 @@ export const e = {
 	ENUM_STREAMING: [
 		{ id: 'start', label: 'Start Streaming' },
 		{ id: 'stop', label: 'Stop Streaming' },
+	],
+
+	ENUM_SHOOTING_MODE: [
+		{ id: '0', label: 'Normal' },
+		{ id: '1', label: 'High Sens.' },
 	],
 
 	ENUM_ERROR: [

@@ -499,6 +499,30 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.shootingMode) {
+		feedbacks.shootingMode = {
+			type: 'boolean',
+			name: 'Image - Shooting Mode',
+			description: 'Indicates if the selected shooting mode is currently active',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Shooting Mode',
+					id: 'option',
+					default: SERIES.capabilities.shootingMode.dropdown[0].id,
+					choices: SERIES.capabilities.shootingMode.dropdown,
+				},
+			],
+			callback: function (feedback) {
+				return self.data.shootingMode === feedback.options.option
+			},
+		}
+	}
+
 	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.dropdown) {
 		feedbacks.chromaLevel = {
 			type: 'boolean',
