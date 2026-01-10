@@ -294,6 +294,9 @@ export function parseUpdate(self, str) {
 				case '06':
 					self.data.shutterStepLabel = '1/' + parseInt(str[2], 16).toString()
 					break
+				case '0C':
+					self.data.shootingMode = str[2]
+					break
 				case '0F':
 					self.data.masterPedValue = parseInt(str[2], 16) - 0x800
 					break

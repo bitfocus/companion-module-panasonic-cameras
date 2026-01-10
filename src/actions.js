@@ -695,6 +695,16 @@ export function getActionDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.shootingMode) {
+		actions.shootingMode = {
+			name: 'Image - Shooting Mode',
+			options: optSetToggleNextPrev(SERIES.capabilities.shootingMode.dropdown),
+			callback: async (action) => {
+				await self.getCam(SERIES.capabilities.shootingMode.cmd + ':' + cmdEnum(action, SERIES.capabilities.shootingMode.dropdown, self.data.shootingMode))
+			},
+		}
+	}
+
 	// ########################
 	// #### Preset Actions ####
 	// ########################
