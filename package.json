@@ -15,15 +15,18 @@
 	},
 	"license": "MIT",
 	"dependencies": {
-		"@companion-module/base": "~1.11.2",
-		"got": "^13.0.0",
-		"jimp": "^0.22.12",
-		"yarn": "^1.22.22"
+		"@companion-module/base": "~1.13.6",
+		"got": "^14.6.6",
+		"jimp": "^1.6.0"
 	},
 	"devDependencies": {
-		"@companion-module/tools": "^2.3.0",
-		"eslint": "^9.23.0",
-		"prettier": "^3.5.3"
+		"@companion-module/tools": "^2.5.0",
+		"eslint": "^9.39.2",
+		"prettier": "^3.8.1"
+	},
+	"engines": {
+		"node": "^22.20",
+		"yarn": "^4"
 	},
 	"prettier": {
 		"printWidth": 360,
@@ -34,5 +37,5 @@
 		"useTabs": true,
 		"endOfLine": "lf"
 	},
-	"packageManager": "yarn@4.5.3"
+	"packageManager": "yarn@4.12.0"
 }
