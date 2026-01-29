@@ -206,6 +206,72 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 	]
 }
 
+function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
+	return [
+		{
+			type: 'dropdown',
+			label: 'Action',
+			id: 'op',
+			default: ACTION_SET,
+			choices: [
+				{ id: ACTION_SET, label: 'Set' },
+				{ id: ACTION_RAISE, label: 'Raise' },
+				{ id: ACTION_LOWER, label: 'Lower' },
+			],
+		},
+		{
+			id: 'set',
+			type: 'number',
+			label: label,
+			default: SPEED_DEFAULT,
+			min: -SPEED_MIN,
+			max: SPEED_MAX,
+			step: step,
+			required: true,
+			range: true,
+			isVisible: (options) => options.op === 's' && !options.useVar,
+		},
+		{
+			id: 'setVar',
+			type: 'textinput',
+			label: label + ' variable',
+			default: `${def}`,
+			regex: Regex.SOMETHING,
+			required: true,
+			useVariables: true,
+			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+			isVisible: (options) => options.op === 's' && options.useVar,
+		},
+		{
+			id: 'step',
+			type: 'number',
+			label: 'Step size',
+			default: step,
+			min: step,
+			max: max - min,
+			required: true,
+			isVisible: (options) => options.op !== 's' && !options.useVar,
+		},
+		{
+			id: 'stepVar',
+			type: 'textinput',
+			label: 'Step size variable',
+			default: `${step}`,
+			regex: Regex.SOMETHING,
+			required: true,
+			useVariables: true,
+			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+			isVisible: (options) => options.op !== 's' && options.useVar,
+		},
+		{
+			id: 'useVar',
+			type: 'checkbox',
+			label: 'Use Variable',
+			default: false,
+		},
+	]
+}
+
 async function parseSetIncDecVariables(action, self, min, max, step) {
 	if (action.options.useVar) {
 		if (action.options.op === ACTION_SET) {
@@ -314,11 +380,10 @@ export function getActionDefinitions(self) {
 						{ id: 't', label: 'Tilt' },
 					],
 				},
-				speedOperation,
-				speedSetting,
-				speedStep,
+				...optSetLowerRaise('Speed', SPEED_DEFAULT, SPEED_MIN, SPEED_MAX, 1),
 			],
 			callback: async (action) => {
+				if (!(await parseSetIncDecVariables(action, self, SPEED_MIN, SPEED_MAX, 1))) return
 				switch (action.options.scope) {
 					case 'pt':
 						self.ptSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.ptSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
@@ -332,15 +397,12 @@ export function getActionDefinitions(self) {
 						self.tSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.tSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
 						break
 				}
-
 				if (self.pSpeed === self.tSpeed) self.ptSpeed = self.pSpeed
-
 				self.setVariableValues({
 					ptSpeed: self.ptSpeed,
 					pSpeed: self.pSpeed,
 					tSpeed: self.tSpeed,
 				})
-
 				self.speedChangeEmitter.emit('ptSpeed')
 			},
 		}
