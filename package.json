@@ -15,12 +15,12 @@
 	},
 	"license": "MIT",
 	"dependencies": {
-		"@companion-module/base": "~1.13.6",
+		"@companion-module/base": "~1.14.1",
 		"got": "^14.6.6",
 		"jimp": "^1.6.0"
 	},
 	"devDependencies": {
-		"@companion-module/tools": "^2.5.0",
+		"@companion-module/tools": "^2.6.1",
 		"eslint": "^9.39.2",
 		"prettier": "^3.8.1"
 	},
