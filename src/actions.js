@@ -172,7 +172,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			default: `${def}`,
 			regex: Regex.SOMETHING,
 			required: true,
-			useVariables: true,
+			useVariables:  { local: true },
 			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
 			isVisible: (options) => options.op === 's' && options.useVar,
 		},
@@ -193,7 +193,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			default: `${step}`,
 			regex: Regex.SOMETHING,
 			required: true,
-			useVariables: true,
+			useVariables: { local: true },
 			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
 			isVisible: (options) => options.op !== 's' && options.useVar,
 		},
@@ -206,14 +206,14 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 	]
 }
 
-async function parseSetIncDecVariables(action, self, min, max, step) {
+function parseSetIncDecVariables(action, min, max, step) {
 	if (action.options.useVar) {
 		if (action.options.op === ACTION_SET) {
-			const setVar = constrainRange(parseInt(await self.parseVariablesInString(action.options.setVar)), min, max)
+			const setVar = constrainRange(parseInt(action.options.setVar), min, max)
 			if (isNaN(setVar)) return false
 			action.options.set = setVar
 		} else {
-			const stepVar = constrainRange(parseInt(await self.parseVariablesInString(action.options.stepVar)), step, max - min)
+			const stepVar = constrainRange(parseInt(action.options.stepVar), step, max - min)
 			if (isNaN(stepVar)) return false
 			action.options.step = stepVar
 		}
@@ -427,7 +427,7 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Follow Focus',
 			options: optSetIncDecStep('Focus setting', 0x555, 0x0, 0xaaa, 10),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, 0x0, 0xaaa, 10))) return
+				if (!(parseSetIncDecVariables(action, 0x0, 0xaaa, 10))) throw new Error (`Variable is a NaN: Aborting action`)
 				await self.getPTZ('AXF' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.focusPosition))
 			},
 		}
@@ -472,7 +472,7 @@ export function getActionDefinitions(self) {
 			name: 'Exposure - Iris',
 			options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, 0x0, 0xaaa, 0x1e))) return
+				if (!(parseSetIncDecVariables(action, self, 0x0, 0xaaa, 0x1e))) throw new Error(`Variable is a NaN: Aborting action`)
 				await self.getPTZ('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
 			},
 		}
@@ -484,7 +484,7 @@ export function getActionDefinitions(self) {
 			name: 'Exposure - Iris',
 			options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, 0x0, 0x3ff, 0xa))) return
+				if (!(parseSetIncDecVariables(action, 0x0, 0x3ff, 0xa))) throw new Error(`Variable is a NaN: Aborting action`)
 				await self.getCam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
 			},
 		}
@@ -580,7 +580,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!(parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step))) throw new Error(`Variable is a NaN: Aborting action`)
 				await self.getCam(caps.cmd + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.masterPedValue))
 			},
 		}
@@ -592,7 +592,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Red Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!(parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step))) throw new Error(`Variable is a NaN: Aborting action`)
 				await self.getCam(caps.cmd.red + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.redPedValue))
 			},
 		}
@@ -604,7 +604,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Blue Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!(parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step))) throw new Error(`Variable is a NaN: Aborting action`)
 				await self.getCam(caps.cmd.blue + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.bluePedValue))
 			},
 		}
@@ -616,7 +616,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Red Gain',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!(parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step))) throw new Error(`Variable is a NaN: Aborting action`)
 				await self.getCam(caps.cmd.red + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.redGainValue))
 			},
 		}
@@ -628,7 +628,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Blue Gain',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!(parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step))) throw new Error(`Variable is a NaN: Aborting action`)
 				await self.getCam(caps.cmd.blue + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.blueGainValue))
 			},
 		}
@@ -678,7 +678,7 @@ export function getActionDefinitions(self) {
 				name: 'Image - Color Temperature',
 				options: optSetIncDecStep('Color Temperature [K]', 3200, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20),
 				callback: async (action) => {
-					if (!(await parseSetIncDecVariables(action, self, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20))) return
+					if (!(parseSetIncDecVariables(action, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20))) throw new Error(`Variable is a NaN: Aborting action`)
 					switch (action.options.op) {
 						case ACTION_SET:
 							await self.getCam(SERIES.capabilities.colorTemperature.advanced.set + ':' + toHexString(action.options.set, 5) + ':0')
