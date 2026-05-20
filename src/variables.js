@@ -114,10 +114,16 @@ export function setVariables(self) {
 	if (SERIES.capabilities.colorGain) {
 		variables.push({ variableId: 'redGain', name: 'Red Gain' })
 		variables.push({ variableId: 'blueGain', name: 'Blue Gain' })
+		if (SERIES.capabilities.colorGain.cmd.green) {
+			variables.push({ variableId: 'greenGain', name: 'Green Gain' })
+		}
 	}
 	if (SERIES.capabilities.colorPedestal) {
 		variables.push({ variableId: 'redPed', name: 'Red Pedestal' })
 		variables.push({ variableId: 'bluePed', name: 'Blue Pedestal' })
+		if (SERIES.capabilities.colorPedestal.cmd.green) {
+			variables.push({ variableId: 'greenPed', name: 'Green Pedestal' })
+		}
 	}
 	if (SERIES.capabilities.presetSpeed) {
 		variables.push({ variableId: 'presetSpeed', name: 'Preset Recall Speed/Time' })
@@ -264,8 +270,10 @@ export function checkVariables(self) {
 		focusSpeed: self.data.focusSpeedValue,
 		redGain: self.data.redGainValue,
 		blueGain: self.data.blueGainValue,
+		greenGain: self.data.greenGainValue,
 		redPed: self.data.redPedValue,
 		bluePed: self.data.bluePedValue,
+		greenPed: self.data.greenPedValue,
 		masterPed: self.data.masterPedValue,
 		zoomSpeed: self.data.zoomSpeedValue,
 
