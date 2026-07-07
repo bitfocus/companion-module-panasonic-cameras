@@ -574,6 +574,40 @@ export function getActionDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.chromaPhase && SERIES.capabilities.chromaPhase.cmd) {
+		actions.chromaPhase = {
+			name: 'Image - Chroma Phase',
+			options: optSetToggleNextPrev(
+				SERIES.capabilities.chromaPhase.dropdown,
+				'Setting',
+				SERIES.capabilities.chromaPhase.dropdown.findIndex((v) => v.id === '80'),
+			),
+			callback: async (action) => {
+				await self.getCam(SERIES.capabilities.chromaPhase.cmd + ':' + cmdEnum(action, SERIES.capabilities.chromaPhase.dropdown, self.data.chromaPhase))
+			},
+		}
+	}
+
+	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.cmd) {
+		actions.dnr = {
+			name: 'Image - DNR (Digital Noise Reduction)',
+			options: optSetToggleNextPrev(SERIES.capabilities.dnr.dropdown),
+			callback: async (action) => {
+				await self.getCam(SERIES.capabilities.dnr.cmd + ':' + cmdEnum(action, SERIES.capabilities.dnr.dropdown, self.data.dnr))
+			},
+		}
+	}
+
+	if (SERIES.capabilities.drs && SERIES.capabilities.drs.cmd) {
+		actions.drs = {
+			name: 'Image - DRS (Dynamic Range Stretch)',
+			options: optSetToggleNextPrev(SERIES.capabilities.drs.dropdown),
+			callback: async (action) => {
+				await self.getCam(SERIES.capabilities.drs.cmd + ':' + cmdEnum(action, SERIES.capabilities.drs.dropdown, self.data.drs))
+			},
+		}
+	}
+
 	if (SERIES.capabilities.pedestal.cmd) {
 		const caps = SERIES.capabilities.pedestal
 		actions.ped = {

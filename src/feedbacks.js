@@ -547,6 +547,78 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.chromaPhase && SERIES.capabilities.chromaPhase.dropdown) {
+		feedbacks.chromaPhase = {
+			type: 'boolean',
+			name: 'Image - Chroma Phase',
+			description: 'Indicates if the selected chroma phase is currently active',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Phase',
+					id: 'option',
+					default: '80',
+					choices: SERIES.capabilities.chromaPhase.dropdown,
+				},
+			],
+			callback: function (feedback) {
+				return self.data.chromaPhase === feedback.options.option
+			},
+		}
+	}
+
+	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
+		feedbacks.dnr = {
+			type: 'boolean',
+			name: 'Image - DNR (Digital Noise Reduction)',
+			description: 'Indicates if the selected digital noise reduction mode is currently active',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Mode',
+					id: 'option',
+					default: SERIES.capabilities.dnr.dropdown[0].id,
+					choices: SERIES.capabilities.dnr.dropdown,
+				},
+			],
+			callback: function (feedback) {
+				return self.data.dnr === feedback.options.option
+			},
+		}
+	}
+
+	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
+		feedbacks.drs = {
+			type: 'boolean',
+			name: 'Image - DRS (Dynamic Range Stretch)',
+			description: 'Indicates if the selected dynamic range stretch mode is currently active',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Mode',
+					id: 'option',
+					default: SERIES.capabilities.drs.dropdown[0].id,
+					choices: SERIES.capabilities.drs.dropdown,
+				},
+			],
+			callback: function (feedback) {
+				return self.data.drs === feedback.options.option
+			},
+		}
+	}
+
 	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
 		feedbacks.whiteBalance = {
 			type: 'boolean',

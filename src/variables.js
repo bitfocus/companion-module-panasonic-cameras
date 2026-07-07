@@ -111,6 +111,15 @@ export function setVariables(self) {
 	if (SERIES.capabilities.chromaLevel) {
 		variables.push({ variableId: 'chromaLevel', name: 'Chroma Level' })
 	}
+	if (SERIES.capabilities.chromaPhase) {
+		variables.push({ variableId: 'chromaPhase', name: 'Chroma Phase' })
+	}
+	if (SERIES.capabilities.dnr) {
+		variables.push({ variableId: 'dnr', name: 'Digital Noise Reduction' })
+	}
+	if (SERIES.capabilities.drs) {
+		variables.push({ variableId: 'drs', name: 'Dynamic Range Stretch' })
+	}
 	if (SERIES.capabilities.colorGain) {
 		variables.push({ variableId: 'redGain', name: 'Red Gain' })
 		variables.push({ variableId: 'blueGain', name: 'Blue Gain' })
@@ -138,6 +147,9 @@ export function setVariables(self) {
 	if (SERIES.capabilities.streamTS) {
 		variables.push({ variableId: 'streamingTS', name: 'MPEG-TS Output Status' })
 	}
+	if (SERIES.capabilities.videoFormat) {
+		variables.push({ variableId: 'videoFormat', name: 'Video Format' })
+	}
 	if (SERIES.capabilities.trackingAuto) {
 		variables.push({ variableId: 'autotrackingMode', name: 'Autotracking Mode' })
 		variables.push({ variableId: 'autotrackingAngle', name: 'Autotracking Angle' })
@@ -164,7 +176,14 @@ export function checkVariables(self) {
 		: null
 
 	const chromaLevel = SERIES.capabilities.chromaLevel ? getLabel(SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel) : null
+	const chromaPhase = SERIES.capabilities.chromaPhase ? getLabel(SERIES.capabilities.chromaPhase.dropdown, self.data.chromaPhase) : null
 	const colorbar = SERIES.capabilities.colorbar ? getLabel(e.ENUM_OFF_ON, self.data.colorbar) : null
+
+	const dnr = SERIES.capabilities.dnr ? getLabel(SERIES.capabilities.dnr.dropdown, self.data.dnr) : null
+
+	const drs = SERIES.capabilities.drs ? getLabel(SERIES.capabilities.drs.dropdown, self.data.drs) : null
+
+	const videoFormat = SERIES.capabilities.videoFormat ? getLabel(e.ENUM_VIDEO_FORMAT, self.data.videoFormat) : null
 
 	const colorTemperature = SERIES.capabilities.colorTemperature.index
 		? getLabel(SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature)
@@ -278,7 +297,10 @@ export function checkVariables(self) {
 		autotrackingMode: autotrackingMode,
 		autotrackingStatus: autotrackingStatus,
 		chromaLevel: chromaLevel,
+		chromaPhase: chromaPhase,
 		colorbar: colorbar,
+		dnr: dnr,
+		drs: drs,
 		error: error,
 		filter: filter,
 		focusMode: focusMode,
@@ -301,6 +323,7 @@ export function checkVariables(self) {
 		tally2: tally2,
 		tally3: tally3,
 		recording: recording,
+		videoFormat: videoFormat,
 		whiteBalance: whiteBalance,
 
 		ptSpeed: self.ptSpeed,

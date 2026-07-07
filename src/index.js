@@ -346,8 +346,11 @@ class PanasonicCameraInstance extends InstanceBase {
 			autotrackingMode: null,
 			autotrackingStatus: null,
 			chromaLevel: null,
+			chromaPhase: null,
 			colorbar: null,
 			colorTemperature: null,
+			dnr: null,
+			drs: null,
 			error: null,
 			filter: null,
 			focusMode: null,
@@ -371,6 +374,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			tally2: null,
 			tally3: null,
 			ts: null,
+			videoFormat: null,
 			whiteBalance: null,
 
 			// numeric index
@@ -449,9 +453,18 @@ class PanasonicCameraInstance extends InstanceBase {
 	// Handle timout and hide HTTP errors
 	handleConnectionError(err) {
 		switch (err.code) {
+			// Camera unreachable or connection lost (e.g. power-cycled camera).
+			// Keep retrying a full re-initialisation so state and the update
+			// notification subscription are restored once the camera returns.
 			case 'ETIMEDOUT':
+			case 'ECONNABORTED':
+			case 'ECONNREFUSED':
+			case 'ECONNRESET':
+			case 'EHOSTDOWN':
+			case 'EHOSTUNREACH':
+			case 'ENETUNREACH':
 				this.poll = false
-				this.updateStatus(InstanceStatus.Disconnected, 'Timeout')
+				this.updateStatus(InstanceStatus.Disconnected, String(err.code))
 
 				this.timeoutID = clearTimeout(this.timeoutID)
 				this.timeoutID = setTimeout(() => {

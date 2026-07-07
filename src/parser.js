@@ -228,8 +228,17 @@ export function parseUpdate(self, str) {
 		case 'OIS':
 			self.data.ois = str[1]
 			break
+		case 'OSA':
+			if (str[1] === '87') {
+				// hex data arrives with or without 0x prefix and leading zeros, normalize to match enum ids
+				self.data.videoFormat = parseInt(str[2].replace('0x', ''), 16).toString(16).toUpperCase()
+			}
+			break
 		case 'OSD':
 			switch (str[1]) {
+				case '3A':
+					self.data.dnr = str[2].replace('0x', '')
+					break
 				case 'B0':
 					self.data.chromaLevel = str[2].replace('0x', '')
 					break
@@ -261,8 +270,13 @@ export function parseUpdate(self, str) {
 			self.data.filter = str[1]
 			break
 		case 'OSE':
-			if (str[1] === '71') {
-				self.data.presetScope = str[2]
+			switch (str[1]) {
+				case '33':
+					self.data.drs = str[2]
+					break
+				case '71':
+					self.data.presetScope = str[2]
+					break
 			}
 			break
 		case 'OSG':
@@ -293,6 +307,9 @@ export function parseUpdate(self, str) {
 					break
 				case '06':
 					self.data.shutterStepLabel = '1/' + parseInt(str[2], 16).toString()
+					break
+				case '0B':
+					self.data.chromaPhase = str[2].replace('0x', '')
 					break
 				case '0C':
 					self.data.shootingMode = str[2]

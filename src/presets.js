@@ -1206,6 +1206,227 @@ export function getPresetDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.chromaPhase && SERIES.capabilities.chromaPhase.dropdown) {
+		presets['image-chroma-phase'] = {
+			type: 'button',
+			category: 'Image',
+			name: 'Chroma Phase',
+			style: {
+				text: 'Phase\\n$(generic-module:chromaPhase)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			options: {
+				rotaryActions: true,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'chromaPhase',
+							options: {
+								op: 't',
+							},
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'chromaPhase',
+							options: {
+								op: -1,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'chromaPhase',
+							options: {
+								op: 1,
+							},
+						},
+					],
+				},
+			],
+			feedbacks: [],
+		}
+	}
+
+	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
+		presets['image-dnr'] = {
+			type: 'button',
+			category: 'Image',
+			name: 'DNR',
+			style: {
+				text: 'DNR\\n$(generic-module:dnr)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			options: {
+				rotaryActions: true,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'dnr',
+							options: {
+								op: 't',
+							},
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'dnr',
+							options: {
+								op: -1,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'dnr',
+							options: {
+								op: 1,
+							},
+						},
+					],
+				},
+			],
+			feedbacks: [],
+		}
+
+		for (const v of SERIES.capabilities.dnr.dropdown) {
+			presets[`image-dnr-${v.id}`] = {
+				type: 'button',
+				category: 'Image',
+				name: 'DNR ' + v.label,
+				style: {
+					text: 'DNR\\n' + v.label,
+					size: '14',
+					color: colorWhite,
+					bgcolor: colorBlack,
+				},
+				steps: [
+					{
+						down: [
+							{
+								actionId: 'dnr',
+								options: {
+									op: 's',
+									set: v.id,
+								},
+							},
+						],
+						up: [],
+					},
+				],
+				feedbacks: [
+					{
+						feedbackId: 'dnr',
+						options: {
+							option: v.id,
+						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorRed,
+						},
+					},
+				],
+			}
+		}
+	}
+
+	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
+		presets['image-drs'] = {
+			type: 'button',
+			category: 'Image',
+			name: 'DRS',
+			style: {
+				text: 'DRS\\n$(generic-module:drs)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			options: {
+				rotaryActions: true,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'drs',
+							options: {
+								op: 't',
+							},
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'drs',
+							options: {
+								op: -1,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'drs',
+							options: {
+								op: 1,
+							},
+						},
+					],
+				},
+			],
+			feedbacks: [],
+		}
+
+		for (const v of SERIES.capabilities.drs.dropdown) {
+			presets[`image-drs-${v.id}`] = {
+				type: 'button',
+				category: 'Image',
+				name: 'DRS ' + v.label,
+				style: {
+					text: 'DRS\\n' + v.label,
+					size: '14',
+					color: colorWhite,
+					bgcolor: colorBlack,
+				},
+				steps: [
+					{
+						down: [
+							{
+								actionId: 'drs',
+								options: {
+									op: 's',
+									set: v.id,
+								},
+							},
+						],
+						up: [],
+					},
+				],
+				feedbacks: [
+					{
+						feedbackId: 'drs',
+						options: {
+							option: v.id,
+						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorRed,
+						},
+					},
+				],
+			}
+		}
+	}
+
 	if (SERIES.capabilities.pedestal) {
 		presets['image-pedestal'] = {
 			type: 'button',
@@ -1877,6 +2098,103 @@ export function getPresetDefinitions(self) {
 							},
 						},
 					],
+					up: [],
+				},
+			],
+			feedbacks: [],
+		}
+
+		presets['system-install-desktop'] = {
+			type: 'button',
+			category: 'System',
+			name: 'Install Position Desktop',
+			style: {
+				text: 'Desktop',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'installPosition',
+							options: {
+								op: 's',
+								set: '0',
+							},
+						},
+					],
+					up: [],
+				},
+			],
+			feedbacks: [
+				{
+					feedbackId: 'installState',
+					options: {
+						option: '0',
+					},
+					style: {
+						color: colorWhite,
+						bgcolor: colorRed,
+					},
+				},
+			],
+		}
+
+		presets['system-install-hanging'] = {
+			type: 'button',
+			category: 'System',
+			name: 'Install Position Hanging',
+			style: {
+				text: 'Hanging',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'installPosition',
+							options: {
+								op: 's',
+								set: '1',
+							},
+						},
+					],
+					up: [],
+				},
+			],
+			feedbacks: [
+				{
+					feedbackId: 'installState',
+					options: {
+						option: '1',
+					},
+					style: {
+						color: colorWhite,
+						bgcolor: colorRed,
+					},
+				},
+			],
+		}
+	}
+
+	if (SERIES.capabilities.videoFormat) {
+		presets['system-video-format'] = {
+			type: 'button',
+			category: 'System',
+			name: 'Video Format',
+			style: {
+				text: 'Format\\n$(generic-module:videoFormat)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			steps: [
+				{
+					down: [],
 					up: [],
 				},
 			],

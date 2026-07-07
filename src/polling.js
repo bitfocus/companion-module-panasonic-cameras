@@ -106,6 +106,7 @@ export async function getAllCameraStatus(self) {
 			'QRD', // R Pedestal
 			'QRS', // Iris Mode
 			'QRV', // Iris Volume (0x0-0x3FF)
+			'QSA:87', // Video Format
 			'QSH', // Shutter
 			'QSV', // Software Version
 			'QTD', // T Pedestal
@@ -113,8 +114,10 @@ export async function getAllCameraStatus(self) {
 			'QLR', // R-Tally Control
 			'QLG', // G-Tally Control
 			'QLY', // Y-Tally Control
+			'QSD:3A', // Digital Noise Reduction*
 			'QSD:4F', // Iris Follow
 			'QSD:B1', // Color Temperature (enumerated)
+			'QSE:33', // Dynamic Range Stretch*
 			'QSE:71', // Preset Scope
 			'QSG:39', // R Gain
 			'QSG:3A', // B Gain
@@ -131,6 +134,7 @@ export async function getAllCameraStatus(self) {
 			'QSJ:03', // Shutter Mode
 			'QSJ:06', // Shutter Step Value
 			'QSJ:09', // Shutter Synchro Value
+			'QSJ:0B', // Chroma Phase*
 			'QSJ:0F', // Master Pedestal
 			'QSJ:10', // G Pedestal
 			'QSJ:29', // Preset Speed Unit
