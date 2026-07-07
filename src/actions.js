@@ -8,6 +8,10 @@ const SPEED_MIN = 0
 const SPEED_MAX = 49
 const SPEED_DEFAULT = 25
 
+function sleep(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 const ACTION_SET = 's'
 const ACTION_TOGGLE = 't'
 const ACTION_STOP = 0
@@ -787,6 +791,26 @@ export function getActionDefinitions(self) {
 			options: optSetToggleNextPrev(e.ENUM_PRESET_SCOPE, 'Preset Recall Scope'),
 			callback: async (action) => {
 				await self.getCam('OSE:71:' + cmdEnum(action, e.ENUM_PRESET_SCOPE, self.data.presetScope))
+			},
+		}
+
+		actions.presetClearAll = {
+			name: 'Preset - Clear All',
+			description: `Permanently deletes all ${SERIES.capabilities.preset} stored preset memories on the camera. This cannot be undone - every saved shot position will need to be re-taught. Requires the confirmation option to be checked to take effect.`,
+			options: [
+				{
+					id: 'confirm',
+					type: 'checkbox',
+					label: 'I understand this will permanently delete all presets',
+					default: false,
+				},
+			],
+			callback: async (action) => {
+				if (!action.options.confirm) return
+				for (let i = 0; i < SERIES.capabilities.preset; i++) {
+					await self.getPTZ('C' + i.toString(10).padStart(2, '0'))
+					await sleep(self.config.pollDelay)
+				}
 			},
 		}
 	}

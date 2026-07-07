@@ -2687,6 +2687,39 @@ export function getPresetDefinitions(self) {
 			],
 		}
 
+		presets['preset-clear-all'] = {
+			type: 'button',
+			category: 'Preset Memory',
+			name: 'Clear All Presets (hold 3s)',
+			style: {
+				text: 'CLEAR ALL\\nPRESETS\\nHOLD 3s',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: {
+				relativeDelay: false,
+			},
+			steps: [
+				{
+					down: [],
+					up: [],
+					3000: {
+						options: { runWhileHeld: true },
+						actions: [
+							{
+								actionId: 'presetClearAll',
+								options: {
+									confirm: true,
+								},
+							},
+						],
+					},
+				},
+			],
+			feedbacks: [],
+		}
+
 		for (let i = 0; i < 100; i++) {
 			presets[`preset-memory-${i}`] = {
 				type: 'button',
