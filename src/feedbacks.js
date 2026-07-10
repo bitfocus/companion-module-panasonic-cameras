@@ -699,5 +699,48 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.audioVolumeLevel) {
+		const caps = SERIES.capabilities.audioVolumeLevel
+		feedbacks.audioVolumeLevel = {
+			type: 'boolean',
+			name: 'Audio - Volume Level Range',
+			description: 'Indicates if the audio volume level of the selected channel is within the specified range',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Audio Channel',
+					id: 'channel',
+					default: 0,
+					choices: Array.from({ length: caps.maxch }, (_, i) => ({ id: i, label: `Channel ${i + 1}` })),
+				},
+				{
+					type: 'number',
+					label: 'Minimum Level (dB)',
+					id: 'minLevel',
+					default: caps.min,
+					min: caps.min,
+					max: caps.max,
+				},
+				{
+					type: 'number',
+					label: 'Maximum Level (dB)',
+					id: 'maxLevel',
+					default: caps.max,
+					min: caps.min,
+					max: caps.max,
+				},
+			],
+			callback: function (feedback) {
+				const currentLevel = self.data.audioVolumeLevels && self.data.audioVolumeLevels[feedback.options.channel]
+				if (currentLevel === undefined) return false
+				return currentLevel >= feedback.options.minLevel && currentLevel <= feedback.options.maxLevel
+			},
+		}
+	}
+
 	return feedbacks
 }

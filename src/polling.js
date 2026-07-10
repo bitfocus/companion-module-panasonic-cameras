@@ -93,6 +93,10 @@ export async function getAllCameraStatus(self) {
 			'QLG', // G-Tally Control
 			'QLY', // Y-Tally Control
 			'QSA:87', // Video Format
+			'QSA:D5:0', // Audio Volume Level Ch 1
+			'QSA:D5:1', // Audio Volume Level Ch 2
+			'QSA:D5:2', // Audio Volume Level Ch 3
+			'QSA:D5:3', // Audio Volume Level Ch 4
 			'QSD:3A', // Digital Noise Reduction
 			'QSD:4F', // Iris Follow
 			'QSD:B0', // Chroma Level

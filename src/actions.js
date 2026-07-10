@@ -891,6 +891,32 @@ export function getActionDefinitions(self) {
 	}
 
 	// ########################
+	// #### Audio Actions ####
+	// ########################
+
+	if (SERIES.capabilities.audioVolumeLevel) {
+		const caps = SERIES.capabilities.audioVolumeLevel
+		actions.audioVolumeLevel = {
+			name: 'Audio - Volume Level',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Audio Channel',
+					id: 'channel',
+					default: 0,
+					choices: Array.from({ length: caps.maxch }, (_, i) => ({ id: i, label: `Ch ${i + 1}` })),
+				},
+				...optSetIncDecStep('Volume Level (dB)', 0, caps.min, caps.max, caps.step),
+			],
+			callback: async (action) => {
+				if (!(await parseSetIncDecVariables(action, self, caps.min, caps.max, caps.step))) return
+				const value = cmdValue(action, 0x80, caps.min, caps.max, action.options.step, 2, self.data.audioVolumeLevels[action.options.channel] ?? 0)
+				await self.getCam(`OSA:D5:${action.options.channel}:${value}`)
+			},
+		}
+	}
+
+	// ########################
 	// #### System Actions ####
 	// ########################
 

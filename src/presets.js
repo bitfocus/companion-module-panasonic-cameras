@@ -2800,5 +2800,93 @@ export function getPresetDefinitions(self) {
 		}
 	}
 
+	// ########################
+	// #### Audio Presets ####
+	// ########################
+
+	if (SERIES.capabilities.audioVolumeLevel) {
+		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
+			const disp = ch + 1 // channel is 0-based internally; display/variables are 1-based
+			presets[`audio-volume-ch${disp}`] = {
+				type: 'button',
+				category: 'Audio',
+				name: `Audio Volume Level Channel ${disp}`,
+				style: {
+					text: `Audio CH${disp}\\n$(generic-module:audioVolumeLevel${disp})`,
+					size: '14',
+					color: colorWhite,
+					bgcolor: colorBlack,
+				},
+				options: {
+					rotaryActions: true,
+				},
+				steps: [
+					{
+						down: [
+							{
+								actionId: 'audioVolumeLevel',
+								options: {
+									channel: ch,
+									op: 's',
+									set: 0,
+									useVar: false,
+								},
+							},
+						],
+						up: [],
+						rotate_left: [
+							{
+								actionId: 'audioVolumeLevel',
+								options: {
+									channel: ch,
+									op: -1,
+									step: 1,
+									useVar: false,
+								},
+							},
+						],
+						rotate_right: [
+							{
+								actionId: 'audioVolumeLevel',
+								options: {
+									channel: ch,
+									op: 1,
+									step: 1,
+									useVar: false,
+								},
+							},
+						],
+					},
+				],
+				feedbacks: [
+					{
+						feedbackId: 'audioVolumeLevel',
+						options: {
+							channel: ch,
+							minLevel: -5,
+							maxLevel: 5,
+						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorGreen,
+						},
+					},
+					{
+						feedbackId: 'audioVolumeLevel',
+						options: {
+							channel: ch,
+							minLevel: 6,
+							maxLevel: 20,
+						},
+						style: {
+							color: colorWhite,
+							bgcolor: colorOrange,
+						},
+					},
+				],
+			}
+		}
+	}
+
 	return presets
 }
