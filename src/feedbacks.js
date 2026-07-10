@@ -499,6 +499,102 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.shootingMode) {
+		feedbacks.shootingMode = {
+			type: 'boolean',
+			name: 'Image - Shooting Mode',
+			description: 'Indicates if the selected shooting mode is currently active',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Shooting Mode',
+					id: 'option',
+					default: SERIES.capabilities.shootingMode.dropdown[0].id,
+					choices: SERIES.capabilities.shootingMode.dropdown,
+				},
+			],
+			callback: function (feedback) {
+				return self.data.shootingMode === feedback.options.option
+			},
+		}
+	}
+
+	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.dropdown) {
+		feedbacks.chromaLevel = {
+			type: 'boolean',
+			name: 'Image - Chroma Level',
+			description: 'Indicates if the selected chroma level is currently active',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Level',
+					id: 'option',
+					default: SERIES.capabilities.chromaLevel.dropdown[0].id,
+					choices: SERIES.capabilities.chromaLevel.dropdown,
+				},
+			],
+			callback: function (feedback) {
+				return self.data.chromaLevel === feedback.options.option
+			},
+		}
+	}
+
+	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
+		feedbacks.dnr = {
+			type: 'boolean',
+			name: 'Image - Digital Noise Reduction',
+			description: 'Indicates if the selected digital noise reduction mode is currently active',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Mode',
+					id: 'option',
+					default: SERIES.capabilities.dnr.dropdown[0].id,
+					choices: SERIES.capabilities.dnr.dropdown,
+				},
+			],
+			callback: function (feedback) {
+				return self.data.dnr === feedback.options.option
+			},
+		}
+	}
+
+	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
+		feedbacks.drs = {
+			type: 'boolean',
+			name: 'Image - Dynamic Range Stretch',
+			description: 'Indicates if the selected dynamic range stretch mode is currently active',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Mode',
+					id: 'option',
+					default: SERIES.capabilities.drs.dropdown[0].id,
+					choices: SERIES.capabilities.drs.dropdown,
+				},
+			],
+			callback: function (feedback) {
+				return self.data.drs === feedback.options.option
+			},
+		}
+	}
+
 	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
 		feedbacks.whiteBalance = {
 			type: 'boolean',
@@ -599,6 +695,49 @@ export function getFeedbackDefinitions(self) {
 			options: [],
 			callback: function () {
 				return self.data.ts === '1'
+			},
+		}
+	}
+
+	if (SERIES.capabilities.audioVolumeLevel) {
+		const caps = SERIES.capabilities.audioVolumeLevel
+		feedbacks.audioVolumeLevel = {
+			type: 'boolean',
+			name: 'Audio - Volume Level Range',
+			description: 'Indicates if the audio volume level of the selected channel is within the specified range',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Audio Channel',
+					id: 'channel',
+					default: 0,
+					choices: Array.from({ length: caps.maxch }, (_, i) => ({ id: i, label: `Channel ${i + 1}` })),
+				},
+				{
+					type: 'number',
+					label: 'Minimum Level (dB)',
+					id: 'minLevel',
+					default: caps.min,
+					min: caps.min,
+					max: caps.max,
+				},
+				{
+					type: 'number',
+					label: 'Maximum Level (dB)',
+					id: 'maxLevel',
+					default: caps.max,
+					min: caps.min,
+					max: caps.max,
+				},
+			],
+			callback: function (feedback) {
+				const currentLevel = self.data.audioVolumeLevels && self.data.audioVolumeLevels[feedback.options.channel]
+				if (currentLevel === undefined) return false
+				return currentLevel >= feedback.options.minLevel && currentLevel <= feedback.options.maxLevel
 			},
 		}
 	}
