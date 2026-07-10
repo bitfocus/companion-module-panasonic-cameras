@@ -1341,7 +1341,7 @@ export const e = {
 		{ id: '4', label: 'Preset 3200K' },
 		{ id: '5', label: 'Preset 5600K' },
 	],
-	ENUM_WHITEBALANCE_GET: [
+	ENUM_WHITEBALANCE_SET: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
 		{ id: '2', label: 'AWC B' },
