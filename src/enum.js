@@ -883,9 +883,9 @@ export const e = {
 		{ id: '9', label: 'VAR' },
 	],
 
-	// ##############################
+	// ###############################
 	// #### Chroma Level Look Ups ####
-	// ##############################
+	// ###############################
 	ENUM_CHROMA_LEVEL_3: [
 		{ id: '00', label: '-3' },
 		{ id: '01', label: '-2' },
@@ -1253,6 +1253,76 @@ export const e = {
 		{ id: 'E2', label: '+98%' },
 		{ id: 'E3', label: '+99%' },
 	],
+
+	// ######################################
+	// #### Dynamic Range Stretch (DRS) #####
+	// ######################################
+	ENUM_DRS: [
+		{ id: '0', label: 'Off' },
+		{ id: '1', label: 'Low' },
+		{ id: '2', label: 'Mid' },
+		{ id: '3', label: 'High' },
+	],
+	ENUM_DRS_OFF_LOW_HIGH: [
+		{ id: '0', label: 'Off' },
+		{ id: '1', label: 'Low' },
+		{ id: '3', label: 'High' },
+	],
+
+	// ##########################################
+	// #### Digital Noise Reduction (DNR) #######
+	// ##########################################
+	ENUM_DNR: [
+		{ id: '00', label: 'Off' },
+		{ id: '01', label: 'Low' },
+		{ id: '02', label: 'High' },
+	],
+
+	// #######################################
+	// #### Video Format Look Ups (OSA:87) ###
+	// #######################################
+	ENUM_VIDEO_FORMAT: [
+		{ id: '00', label: '720/60p' },
+		{ id: '01', label: '720/59.94p' },
+		{ id: '02', label: '720/50p' },
+		{ id: '03', label: '1080/60i' },
+		{ id: '04', label: '1080/59.94i' },
+		{ id: '05', label: '1080/50i' },
+		{ id: '07', label: '1080/29.97PsF' },
+		{ id: '08', label: '1080/25PsF' },
+		{ id: '0A', label: '1080/23.98PsF' },
+		{ id: '0B', label: '480/59.94i' },
+		{ id: '0D', label: '576/50i' },
+		{ id: '10', label: '1080/59.94p' },
+		{ id: '11', label: '1080/50p' },
+		{ id: '12', label: '480/59.94p' },
+		{ id: '13', label: '576/50p' },
+		{ id: '14', label: '1080/29.97p' },
+		{ id: '15', label: '1080/25p' },
+		{ id: '16', label: '1080/23.98p (59.94i)' },
+		{ id: '17', label: '2160/29.97p' },
+		{ id: '18', label: '2160/25p' },
+		{ id: '19', label: '2160/59.94p' },
+		{ id: '1A', label: '2160/50p' },
+		{ id: '1B', label: '2160/23.98p' },
+		{ id: '1C', label: '2160/29.97PsF' },
+		{ id: '1D', label: '2160/25PsF' },
+		{ id: '1E', label: '2160/23.98PsF' },
+		{ id: '1F', label: '2160/60p' },
+		{ id: '20', label: '1080/60p' },
+		{ id: '21', label: '2160/24p' },
+		{ id: '22', label: '1080/24p' },
+		{ id: '23', label: '1080/23.98p' },
+		{ id: '24', label: '2160/30p' },
+		{ id: '25', label: '1080/30p' },
+		{ id: '26', label: '1080/119.88p' },
+		{ id: '27', label: '1080/100p' },
+		{ id: '44', label: '1080/59.94i CROP' },
+		{ id: '45', label: '1080/50i CROP' },
+		{ id: '50', label: '1080/59.94p CROP' },
+		{ id: '51', label: '1080/50p CROP' },
+		{ id: '80', label: 'Auto' },
+	],
 	ENUM_WHITEBALANCE_SET_HE2: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
@@ -1271,7 +1341,7 @@ export const e = {
 		{ id: '4', label: 'Preset 3200K' },
 		{ id: '5', label: 'Preset 5600K' },
 	],
-	ENUM_WHITEBALANCE_GET: [
+	ENUM_WHITEBALANCE_SET: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
 		{ id: '2', label: 'AWC B' },
@@ -1421,6 +1491,11 @@ export const e = {
 	ENUM_STREAMING: [
 		{ id: 'start', label: 'Start Streaming' },
 		{ id: 'stop', label: 'Stop Streaming' },
+	],
+
+	ENUM_SHOOTING_MODE: [
+		{ id: '0', label: 'Normal' },
+		{ id: '1', label: 'High Sens.' },
 	],
 
 	ENUM_ERROR: [

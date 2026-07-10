@@ -1,59 +1,37 @@
+// Maps each transport group of a model's pull/poll capabilities to the instance method that queries it.
+const transports = { ptz: 'getPTZ', cam: 'getCam', web: 'getWeb' }
+
 export async function pollCameraStatus(self) {
-	// Poll all remaining data if subscription is disabled
-	if (!self.config.subscriptionEnable) {
-		if (self.SERIES.capabilities.pull.ptz) {
-			for (let cmd of self.SERIES.capabilities.pull.ptz) {
-				if (self.poll) await self.getPTZ(cmd)
-				else return
-				if (self.poll) await sleep(self.config.pollDelay)
-				else return
-			}
-		}
-		if (self.SERIES.capabilities.pull.cam) {
-			for (let cmd of self.SERIES.capabilities.pull.cam) {
-				if (self.poll) await self.getCam(cmd)
-				else return
-				if (self.poll) await sleep(self.config.pollDelay)
-				else return
-			}
-		}
-		if (self.SERIES.capabilities.pull.web) {
-			for (let cmd of self.SERIES.capabilities.pull.web) {
-				if (self.poll) await self.getWeb(cmd)
-				else return
-				if (self.poll) await sleep(self.config.pollDelay)
-				else return
-			}
-		}
-	}
+	while (self.poll) {
+		// When subscription is disabled, also poll the data it would otherwise push (pull).
+		// The additional data (poll) is always queried, regardless of subscription.
+		const groups = self.config.subscriptionEnable
+			? [self.SERIES.capabilities.poll]
+			: [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]
 
-	// Poll additional data which is not covered by subscription
-	if (self.SERIES.capabilities.poll.ptz) {
-		for (let cmd of self.SERIES.capabilities.poll.ptz) {
-			if (self.poll) await self.getPTZ(cmd)
-			else return
-			if (self.poll) await sleep(self.config.pollDelay)
-			else return
+		for (const caps of groups) {
+			if (!caps) continue
+			for (const [key, method] of Object.entries(transports)) {
+				for (const cmd of caps[key] || []) {
+					if (!self.poll) return
+					await self[method](cmd)
+					if (!self.poll) return
+					await sleep(self.config.pollDelay)
+				}
+			}
 		}
 	}
-	if (self.SERIES.capabilities.poll.cam) {
-		for (let cmd of self.SERIES.capabilities.poll.cam) {
-			if (self.poll) await self.getCam(cmd)
-			else return
-			if (self.poll) await sleep(self.config.pollDelay)
-			else return
-		}
-	}
-	if (self.SERIES.capabilities.poll.web) {
-		for (let cmd of self.SERIES.capabilities.poll.web) {
-			if (self.poll) await self.getWeb(cmd)
-			else return
-			if (self.poll) await sleep(self.config.pollDelay)
-			else return
-		}
-	}
+}
 
-	pollCameraStatus(self) // Keep polling in loop
+// One-shot query of all data defined by the model's pull and poll capabilities.
+// Functional, capability-driven alternative to getAllCameraStatus for use at initialisation.
+export async function getCameraStatusOnce(self) {
+	for (const caps of [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]) {
+		if (!caps) continue
+		for (const [key, method] of Object.entries(transports)) {
+			for (const cmd of caps[key] || []) await self[method](cmd)
+		}
+	}
 }
 
 export async function getAllCameraStatus(self) {
@@ -94,6 +72,7 @@ export async function getAllCameraStatus(self) {
 			'QBP', // B Pedestal
 			'QGB', // B Gain
 			'QBD', // B Pedestal
+			'QCG', // Chroma Level
 			'QFT', // ND Filter
 			'QGS', // Gain Select (UB300 only)
 			'QGU', // Gain
@@ -113,8 +92,16 @@ export async function getAllCameraStatus(self) {
 			'QLR', // R-Tally Control
 			'QLG', // G-Tally Control
 			'QLY', // Y-Tally Control
+			'QSA:87', // Video Format
+			'QSA:D5:0', // Audio Volume Level Ch 1
+			'QSA:D5:1', // Audio Volume Level Ch 2
+			'QSA:D5:2', // Audio Volume Level Ch 3
+			'QSA:D5:3', // Audio Volume Level Ch 4
+			'QSD:3A', // Digital Noise Reduction
 			'QSD:4F', // Iris Follow
+			'QSD:B0', // Chroma Level
 			'QSD:B1', // Color Temperature (enumerated)
+			'QSE:33', // Dynamic Range Stretch
 			'QSE:71', // Preset Scope
 			'QSG:39', // R Gain
 			'QSG:3A', // B Gain
@@ -131,6 +118,7 @@ export async function getAllCameraStatus(self) {
 			'QSJ:03', // Shutter Mode
 			'QSJ:06', // Shutter Step Value
 			'QSJ:09', // Shutter Synchro Value
+			'QSJ:0B', // Chroma Phase
 			'QSJ:0F', // Master Pedestal
 			'QSJ:10', // G Pedestal
 			'QSJ:29', // Preset Speed Unit
@@ -148,22 +136,8 @@ export async function getAllCameraStatus(self) {
 		web: ['get_state', 'get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 	}
 
-	if (cmds) {
-		if (cmds.ptz) {
-			for (let cmd of cmds.ptz) {
-				await self.getPTZ(cmd)
-			}
-		}
-		if (cmds.cam) {
-			for (let cmd of cmds.cam) {
-				await self.getCam(cmd)
-			}
-		}
-		if (cmds.web) {
-			for (let cmd of cmds.web) {
-				await self.getWeb(cmd)
-			}
-		}
+	for (const [key, method] of Object.entries(transports)) {
+		for (const cmd of cmds[key] || []) await self[method](cmd)
 	}
 }
 

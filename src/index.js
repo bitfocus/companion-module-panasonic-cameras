@@ -11,7 +11,7 @@ import JimpRaw from 'jimp'
 import EventEmitter from 'events'
 import { getAndUpdateSeries } from './common.js'
 import { parseUpdate, parseWeb, parseWebCode } from './parser.js'
-import { pollCameraStatus } from './polling.js'
+import { pollCameraStatus, getCameraStatusOnce } from './polling.js'
 
 // Webpack makes a mess..
 const Jimp = JimpRaw.default || JimpRaw
@@ -348,6 +348,8 @@ class PanasonicCameraInstance extends InstanceBase {
 			chromaLevel: null,
 			colorbar: null,
 			colorTemperature: null,
+			dnr: null,
+			drs: null,
 			error: null,
 			filter: null,
 			focusMode: null,
@@ -371,6 +373,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			tally2: null,
 			tally3: null,
 			ts: null,
+			videoFormat: null,
 			whiteBalance: null,
 
 			// numeric index
@@ -386,6 +389,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			zoomPosition: null,
 
 			// numeric signed values
+			chromaPhaseValue: 0,
 			focusSpeedValue: 0,
 			redGainValue: 0,
 			blueGainValue: 0,
@@ -401,6 +405,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			shutterStepLabel: null,
 
 			// arrays
+			audioVolumeLevels: Array(4),
 			presetEntries0: Array(40),
 			presetEntries1: Array(40),
 			presetEntries2: Array(20),
@@ -449,9 +454,18 @@ class PanasonicCameraInstance extends InstanceBase {
 	// Handle timout and hide HTTP errors
 	handleConnectionError(err) {
 		switch (err.code) {
+			// Camera unreachable or connection lost (e.g. power-cycled camera).
+			// Keep retrying a full re-initialisation so state and the update
+			// notification subscription are restored once the camera returns.
 			case 'ETIMEDOUT':
+			case 'ECONNABORTED':
+			case 'ECONNREFUSED':
+			case 'ECONNRESET':
+			case 'EHOSTDOWN':
+			case 'EHOSTUNREACH':
+			case 'ENETUNREACH':
 				this.poll = false
-				this.updateStatus(InstanceStatus.Disconnected, 'Timeout')
+				this.updateStatus(InstanceStatus.Disconnected, String(err.code))
 
 				this.timeoutID = clearTimeout(this.timeoutID)
 				this.timeoutID = setTimeout(() => {
@@ -478,11 +492,13 @@ class PanasonicCameraInstance extends InstanceBase {
 		this.getWeb('getinfo?FILE=1') // pull model, mac, version and serial
 		this.getWeb('get_basic') // pull cam_title
 
-		// getAllCameraStatus(this)
+		getCameraStatusOnce(this)
 
-		if (this.SERIES.capabilities.subscription && this.config.subscriptionEnable) {
+		if (this.SERIES.capabilities.subscription) {
 			this.getCameraStatus() // initial bulk retrieve of "all" data (camdata.html)
-			this.init_tcp() // setup tcp push updates
+			if (this.config.subscriptionEnable) {
+				this.init_tcp() // setup tcp push updates
+			}
 		}
 
 		if (this.SERIES.capabilities.poll && this.config.pollAllow) {
@@ -490,10 +506,10 @@ class PanasonicCameraInstance extends InstanceBase {
 			pollCameraStatus(this) // start async polling
 		}
 
-		this.init_actions()
-		this.init_presets()
 		this.init_variables()
+		this.init_actions()
 		this.init_feedbacks()
+		this.init_presets()
 
 		this.subscribeFeedbacks()
 	}
