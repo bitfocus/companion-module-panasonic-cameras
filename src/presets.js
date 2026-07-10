@@ -1304,46 +1304,6 @@ export function getPresetDefinitions(self) {
 			],
 			feedbacks: [],
 		}
-
-		for (const v of SERIES.capabilities.dnr.dropdown) {
-			presets[`image-dnr-${v.id}`] = {
-				type: 'button',
-				category: 'Image',
-				name: 'DNR ' + v.label,
-				style: {
-					text: 'DNR\\n' + v.label,
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'dnr',
-								options: {
-									op: 's',
-									set: v.id,
-								},
-							},
-						],
-						up: [],
-					},
-				],
-				feedbacks: [
-					{
-						feedbackId: 'dnr',
-						options: {
-							option: v.id,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorRed,
-						},
-					},
-				],
-			}
-		}
 	}
 
 	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
@@ -1390,46 +1350,6 @@ export function getPresetDefinitions(self) {
 				},
 			],
 			feedbacks: [],
-		}
-
-		for (const v of SERIES.capabilities.drs.dropdown) {
-			presets[`image-drs-${v.id}`] = {
-				type: 'button',
-				category: 'Image',
-				name: 'DRS ' + v.label,
-				style: {
-					text: 'DRS\\n' + v.label,
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'drs',
-								options: {
-									op: 's',
-									set: v.id,
-								},
-							},
-						],
-						up: [],
-					},
-				],
-				feedbacks: [
-					{
-						feedbackId: 'drs',
-						options: {
-							option: v.id,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorRed,
-						},
-					},
-				],
-			}
 		}
 	}
 
@@ -1860,15 +1780,17 @@ export function getPresetDefinitions(self) {
 				bgcolor: colorBlack,
 			},
 			steps: [],
-			feedbacks: [
-				{
-					feedbackId: 'error',
-					style: {
-						color: colorRed,
-						bgcolor: colorBlack,
-					},
-				},
-			],
+			feedbacks: SERIES.capabilities.error
+				? [
+						{
+							feedbackId: 'error',
+							style: {
+								color: colorRed,
+								bgcolor: colorBlack,
+							},
+						},
+					]
+				: [],
 		}
 	}
 
@@ -2108,82 +2030,6 @@ export function getPresetDefinitions(self) {
 				},
 			],
 			feedbacks: [],
-		}
-
-		presets['system-install-desktop'] = {
-			type: 'button',
-			category: 'System',
-			name: 'Install Position Desktop',
-			style: {
-				text: 'Desktop',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'installPosition',
-							options: {
-								op: 's',
-								set: '0',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'installState',
-					options: {
-						option: '0',
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
-
-		presets['system-install-hanging'] = {
-			type: 'button',
-			category: 'System',
-			name: 'Install Position Hanging',
-			style: {
-				text: 'Hanging',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'installPosition',
-							options: {
-								op: 's',
-								set: '1',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'installState',
-					options: {
-						option: '1',
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
 		}
 	}
 
@@ -2698,10 +2544,10 @@ export function getPresetDefinitions(self) {
 			category: 'Preset Memory',
 			name: 'Clear All Presets (hold 3s)',
 			style: {
-				text: 'CLEAR ALL\\nPRESETS\\nHOLD 3s',
+				text: 'CLEAR ALL\\nPRESETS',
 				size: '14',
 				color: colorWhite,
-				bgcolor: colorRed,
+				bgcolor: colorBlack,
 			},
 			options: {
 				relativeDelay: false,
@@ -2794,12 +2640,16 @@ export function getPresetDefinitions(self) {
 							bgcolor: colorGrey,
 						},
 					},
-					{
-						feedbackId: 'presetThumbnail',
-						options: {
-							option: i.toString(10).padStart(2, '0'),
-						},
-					},
+					...(SERIES.capabilities.presetThumbnails
+						? [
+								{
+									feedbackId: 'presetThumbnail',
+									options: {
+										option: i.toString(10).padStart(2, '0'),
+									},
+								},
+							]
+						: []),
 					{
 						feedbackId: 'presetSelected',
 						options: {
