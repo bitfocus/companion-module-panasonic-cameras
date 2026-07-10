@@ -257,7 +257,7 @@ export const SERIES_SPECS = [
 			presetSpeed: { dropdown: e.ENUM_PRESET_SPEED_TABLE_2 },
 			presetThumbnails: false,
 			presetTime: false,
-			pull: { ptz: ['O', 'PE00', 'PE01', 'PE02', 'DA', 'INS', 'LPI', 'PST', 'RER', 'S', 'UPVS'], cam: ['QAF', 'QAW', 'QBR', 'QGB', 'QGU', 'QIS', 'QGR', 'QRS', 'QSH', 'QTD', 'QSA:87', 'QSD:3A', 'QSD:4F', 'QSD:B1', 'QSE:33', 'QSE:71'], web: false },
+			pull: { ptz: ['O', 'PE00', 'PE01', 'PE02', 'D6', 'DA', 'INS', 'LPI', 'PST', 'RER', 'S', 'UPVS'], cam: ['QAF', 'QAW', 'QBR', 'QCG', 'QGB', 'QGU', 'QIS', 'QGR', 'QRS', 'QSH', 'QTD', 'QSA:87', 'QSD:3A', 'QSD:4F', 'QSD:B1', 'QSE:33', 'QSE:71'], web: false },
 			recordSD: true,
 			restart: true,
 			shootingMode: false,
