@@ -393,9 +393,10 @@ class PanasonicCameraInstance extends InstanceBase {
 			focusSpeedValue: 0,
 			redGainValue: 0,
 			blueGainValue: 0,
+			greenGainValue: 0,
 			redPedValue: 0,
 			bluePedValue: 0,
-			//greenPedValue: 0,
+			greenPedValue: 0,
 			masterPedValue: 0,
 			zoomSpeedValue: 0,
 

@@ -69,21 +69,15 @@ export function parseUpdate(self, str) {
 		switch (str[0].substring(2, 4)) {
 			case '00':
 				self.data.presetEntries0 = parseInt(str[0].substring(4), 16).toString(2).padStart(40, 0).split('').reverse()
-				self.data.presetEntries0.forEach((p, i) =>
-					p === '1' ? self.getThumbnail(i) : (self.data.presetThumbnails[i] = undefined),
-				)
+				self.data.presetEntries0.forEach((p, i) => (p === '1' ? self.getThumbnail(i) : (self.data.presetThumbnails[i] = undefined)))
 				break
 			case '01':
 				self.data.presetEntries1 = parseInt(str[0].substring(4), 16).toString(2).padStart(40, 0).split('').reverse()
-				self.data.presetEntries1.forEach((p, i) =>
-					p === '1' ? self.getThumbnail(i + 40) : (self.data.presetThumbnails[i + 40] = undefined),
-				)
+				self.data.presetEntries1.forEach((p, i) => (p === '1' ? self.getThumbnail(i + 40) : (self.data.presetThumbnails[i + 40] = undefined)))
 				break
 			case '02':
 				self.data.presetEntries2 = parseInt(str[0].substring(4), 16).toString(2).padStart(20, 0).split('').reverse()
-				self.data.presetEntries2.forEach((p, i) =>
-					p === '1' ? self.getThumbnail(i + 80) : (self.data.presetThumbnails[i + 80] = undefined),
-				)
+				self.data.presetEntries2.forEach((p, i) => (p === '1' ? self.getThumbnail(i + 80) : (self.data.presetThumbnails[i + 80] = undefined)))
 				break
 		}
 
@@ -110,8 +104,7 @@ export function parseUpdate(self, str) {
 		//self.data.tiltPosition = parseInt(str[0].substring(7, 11), 16)
 		//self.data.zoom999Position = parseInt(str[0].substring(11, 14), 16)
 		//self.data.focus99Position = parseInt(str[0].substring(14, 16), 16)
-		self.data.irisLabel =
-			str[0].substring(16, 18) === 'FF' ? 'CLOSE' : 'f/' + (parseInt(str[0].substring(16, 18), 16) / 10).toFixed(1)
+		self.data.irisLabel = str[0].substring(16, 18) === 'FF' ? 'CLOSE' : 'f/' + (parseInt(str[0].substring(16, 18), 16) / 10).toFixed(1)
 	}
 
 	if (str[0].substring(0, 3) === 'pTG') {
@@ -233,6 +226,9 @@ export function parseUpdate(self, str) {
 				case '87':
 					self.data.videoFormat = str[2].replace('0x', '')
 					break
+				case 'D5':
+					self.data.audioVolumeLevels[parseInt(str[2])] = parseInt(str[3], 16) - 0x80
+					break
 			}
 			break
 		case 'OSD':
@@ -270,13 +266,6 @@ export function parseUpdate(self, str) {
 		case 'OFT':
 			self.data.filter = str[1]
 			break
-		case 'OSA':
-			switch (str[1]) {
-				case 'D5':
-					self.data.audioVolumeLevels[parseInt(str[2])] = parseInt(str[3], 16) - 0x80
-					break
-			}
-			break
 		case 'OSE':
 			switch (str[1]) {
 				case '33':
@@ -301,7 +290,9 @@ export function parseUpdate(self, str) {
 				case '4C':
 					self.data.redPedValue = parseInt(str[2], 16) - 0x800
 					break
-				//case '4D': self.data.greenPedValue = parseInt(str[2], 16) - 0x800; break
+				case '4D':
+					self.data.greenPedValue = parseInt(str[2], 16) - 0x800
+					break
 				case '4E':
 					self.data.bluePedValue = parseInt(str[2], 16) - 0x800
 					break
@@ -325,16 +316,16 @@ export function parseUpdate(self, str) {
 				case '0F':
 					self.data.masterPedValue = parseInt(str[2], 16) - 0x800
 					break
-				//case '10': self.data.greenPedValue = parseInt(str[2], 16) - 0x96; break
+				case '10':
+					self.data.greenPedValue = parseInt(str[2], 16) - 0x96
+					break
 				case '29':
 					self.data.presetSpeedUnit = str[2]
 					break
 				//case '3C': break; // Preset Name / Preset Thumbnail Counter
 				case '4A':
 					self.data.colorTempLabel = parseInt(str[2], 16).toString() + 'K'
-					break // AWB A/B
-				//case '4B': self.data.redGainValue = parseInt(str[2], 16) - 0x800; break // AWB A/B
-				//case '4C': self.data.blueGainValue = parseInt(str[2], 16) - 0x800; break // AWB A/B
+					break
 				case 'D2':
 					self.data.filter = str[2]
 					break
@@ -342,6 +333,15 @@ export function parseUpdate(self, str) {
 			break
 		case 'OSL':
 			switch (str[1]) {
+				case '36':
+					self.data.redGainValue = parseInt(str[2], 16) - 0x800
+					break
+				case '37':
+					self.data.greenGainValue = parseInt(str[2], 16) - 0x800
+					break
+				case '38':
+					self.data.blueGainValue = parseInt(str[2], 16) - 0x800
+					break
 				case 'B6':
 					self.data.autotrackingMode = str[2]
 					break
