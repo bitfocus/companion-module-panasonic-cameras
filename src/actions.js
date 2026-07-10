@@ -711,19 +711,7 @@ export function getActionDefinitions(self) {
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
 				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
-				await self.getCam(
-					caps.cmd.green +
-						':' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.greenPedValue,
-						),
-				)
+				await self.getCam(caps.cmd.green + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.greenPedValue))
 			},
 		}
 	}
@@ -759,19 +747,7 @@ export function getActionDefinitions(self) {
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
 				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
-				await self.getCam(
-					caps.cmd.green +
-						':' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.greenGainValue,
-						),
-				)
+				await self.getCam(caps.cmd.green + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.greenGainValue))
 			},
 		}
 	}

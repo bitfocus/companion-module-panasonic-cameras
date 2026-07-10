@@ -871,18 +871,6 @@ export const e = {
 		{ id: '078', label: '15000K' },
 	],
 
-	// ################################
-	// #### White Balance Look Ups ####
-	// ################################
-	ENUM_WHITEBALANCE_SET: [
-		{ id: '0', label: 'ATW' },
-		{ id: '1', label: 'AWC A' },
-		{ id: '2', label: 'AWC B' },
-		{ id: '4', label: 'Preset 3200K' },
-		{ id: '5', label: 'Preset 5600K' },
-		{ id: '9', label: 'VAR' },
-	],
-
 	// ###############################
 	// #### Chroma Level Look Ups ####
 	// ###############################
@@ -1323,6 +1311,18 @@ export const e = {
 		{ id: '51', label: '1080/50p CROP' },
 		{ id: '80', label: 'Auto' },
 	],
+
+	// ################################
+	// #### White Balance Look Ups ####
+	// ################################
+	ENUM_WHITEBALANCE_SET: [
+		{ id: '0', label: 'ATW' },
+		{ id: '1', label: 'AWC A' },
+		{ id: '2', label: 'AWC B' },
+		{ id: '4', label: 'Preset 3200K' },
+		{ id: '5', label: 'Preset 5600K' },
+		{ id: '9', label: 'VAR' },
+	],
 	ENUM_WHITEBALANCE_SET_HE2: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
@@ -1341,7 +1341,7 @@ export const e = {
 		{ id: '4', label: 'Preset 3200K' },
 		{ id: '5', label: 'Preset 5600K' },
 	],
-	ENUM_WHITEBALANCE_SET: [
+	ENUM_WHITEBALANCE_GET: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
 		{ id: '2', label: 'AWC B' },
