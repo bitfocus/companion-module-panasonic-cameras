@@ -74,7 +74,7 @@ export const SERIES_SPECS = [
 		id: 'Other',
 		capabilities: {
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 },
-			chromaPhase: false, // Has Chroma Phase (OSJ:0B)
+			chromaPhase: { offset: 0x80, limit: 31, step: 1, hexlen: 2 }, // Has Chroma Phase (OSJ:0B)
 			colorGain: { cmd: { red: 'ORI', blue: 'OBI' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 }, // Has numbered red/blue Gain (ORG and OBG)
 			colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 }, // Has numbered red/blue Pedestal (ORP or OBP)
 			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F', set: 'OSI:20', min: 2000, max: 15000 } }, // Has Color Temperature (OSD:B1 or OSI:20)

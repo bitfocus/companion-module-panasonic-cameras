@@ -550,7 +550,7 @@ export function getFeedbackDefinitions(self) {
 	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
 		feedbacks.dnr = {
 			type: 'boolean',
-			name: 'Image - DNR (Digital Noise Reduction)',
+			name: 'Image - Digital Noise Reduction',
 			description: 'Indicates if the selected digital noise reduction mode is currently active',
 			defaultStyle: {
 				color: colorWhite,
@@ -574,7 +574,7 @@ export function getFeedbackDefinitions(self) {
 	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
 		feedbacks.drs = {
 			type: 'boolean',
-			name: 'Image - DRS (Dynamic Range Stretch)',
+			name: 'Image - Dynamic Range Stretch',
 			description: 'Indicates if the selected dynamic range stretch mode is currently active',
 			defaultStyle: {
 				color: colorWhite,

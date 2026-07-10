@@ -1281,19 +1281,18 @@ export const e = {
 	// #######################################
 	// #### Video Format Look Ups (OSA:87) ###
 	// #######################################
-	// Read-only lookup: ids are hex without leading zeros, as normalized by the parser
 	ENUM_VIDEO_FORMAT: [
-		{ id: '0', label: '720/60p' },
-		{ id: '1', label: '720/59.94p' },
-		{ id: '2', label: '720/50p' },
-		{ id: '3', label: '1080/60i' },
-		{ id: '4', label: '1080/59.94i' },
-		{ id: '5', label: '1080/50i' },
-		{ id: '7', label: '1080/29.97PsF' },
-		{ id: '8', label: '1080/25PsF' },
-		{ id: 'A', label: '1080/23.98PsF' },
-		{ id: 'B', label: '480/59.94i' },
-		{ id: 'D', label: '576/50i' },
+		{ id: '00', label: '720/60p' },
+		{ id: '01', label: '720/59.94p' },
+		{ id: '02', label: '720/50p' },
+		{ id: '03', label: '1080/60i' },
+		{ id: '04', label: '1080/59.94i' },
+		{ id: '05', label: '1080/50i' },
+		{ id: '07', label: '1080/29.97PsF' },
+		{ id: '08', label: '1080/25PsF' },
+		{ id: '0A', label: '1080/23.98PsF' },
+		{ id: '0B', label: '480/59.94i' },
+		{ id: '0D', label: '576/50i' },
 		{ id: '10', label: '1080/59.94p' },
 		{ id: '11', label: '1080/50p' },
 		{ id: '12', label: '480/59.94p' },

@@ -588,7 +588,7 @@ export function getActionDefinitions(self) {
 
 	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
 		actions.dnr = {
-			name: 'Image - Digital Noise Reduction (DNR)',
+			name: 'Image - Digital Noise Reduction',
 			options: optSetToggleNextPrev(SERIES.capabilities.dnr.dropdown),
 			callback: async (action) => {
 				await self.getCam('OSD:3A:' + cmdEnum(action, SERIES.capabilities.dnr.dropdown, self.data.dnr))
@@ -598,7 +598,7 @@ export function getActionDefinitions(self) {
 
 	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
 		actions.drs = {
-			name: 'Image - Dynamic Range Stretch (DRS)',
+			name: 'Image - Dynamic Range Stretch',
 			options: optSetToggleNextPrev(SERIES.capabilities.drs.dropdown),
 			callback: async (action) => {
 				await self.getCam('OSE:33:' + cmdEnum(action, SERIES.capabilities.drs.dropdown, self.data.drs))
