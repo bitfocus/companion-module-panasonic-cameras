@@ -11,7 +11,7 @@ import JimpRaw from 'jimp'
 import EventEmitter from 'events'
 import { getAndUpdateSeries } from './common.js'
 import { parseUpdate, parseWeb, parseWebCode } from './parser.js'
-import { pollCameraStatus } from './polling.js'
+import { pollCameraStatus, getCameraStatusOnce } from './polling.js'
 
 // Webpack makes a mess..
 const Jimp = JimpRaw.default || JimpRaw
@@ -491,11 +491,13 @@ class PanasonicCameraInstance extends InstanceBase {
 		this.getWeb('getinfo?FILE=1') // pull model, mac, version and serial
 		this.getWeb('get_basic') // pull cam_title
 
-		// getAllCameraStatus(this)
+		getCameraStatusOnce(this)
 
-		if (this.SERIES.capabilities.subscription && this.config.subscriptionEnable) {
+		if (this.SERIES.capabilities.subscription) {
 			this.getCameraStatus() // initial bulk retrieve of "all" data (camdata.html)
-			this.init_tcp() // setup tcp push updates
+			if (this.config.subscriptionEnable) {
+				this.init_tcp() // setup tcp push updates
+			}
 		}
 
 		if (this.SERIES.capabilities.poll && this.config.pollAllow) {

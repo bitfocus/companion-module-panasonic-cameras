@@ -72,6 +72,7 @@
 				'QBR', // Color Bar*
 				'QBI', // B Gain*
 				'QBP', // B Pedestal*
+				'QCG', // Chroma Level
 				'QGB', // B Gain
 				'QBD', // B Pedestal
 				'QFT', // ND Filter*
@@ -96,6 +97,7 @@
 				'QSA:87', // Video Format
 				'QSD:3A', // Digital Noise Reduction
 				'QSD:4F', // Iris Follow*
+				'QSD:B0', // Chroma Level
 				'QSD:B1', // Color Temperature (enumerated)
 				'QSE:33', // Dynamic Range Stretch
 				'QSE:71', // Preset Scope
