@@ -700,6 +700,7 @@ export function getFeedbackDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.audioVolumeLevel) {
+		const caps = SERIES.capabilities.audioVolumeLevel
 		feedbacks.audioVolumeLevel = {
 			type: 'boolean',
 			name: 'Audio - Volume Level Range',
@@ -713,24 +714,24 @@ export function getFeedbackDefinitions(self) {
 					type: 'dropdown',
 					label: 'Audio Channel',
 					id: 'channel',
-					default: 1,
-					choices: Array.from({ length: SERIES.capabilities.audioVolumeLevel.maxch }, (_, i) => ({ id: i + 1, label: `Channel ${i + 1}` })),
+					default: 0,
+					choices: Array.from({ length: caps.maxch }, (_, i) => ({ id: i, label: `Channel ${i + 1}` })),
 				},
 				{
 					type: 'number',
 					label: 'Minimum Level (dB)',
 					id: 'minLevel',
-					default: -10,
-					min: SERIES.capabilities.audioVolumeLevel.min - 0x80,
-					max: SERIES.capabilities.audioVolumeLevel.max - 0x80,
+					default: caps.min,
+					min: caps.min,
+					max: caps.max,
 				},
 				{
 					type: 'number',
 					label: 'Maximum Level (dB)',
 					id: 'maxLevel',
-					default: 10,
-					min: SERIES.capabilities.audioVolumeLevel.min - 0x80,
-					max: SERIES.capabilities.audioVolumeLevel.max - 0x80,
+					default: caps.max,
+					min: caps.min,
+					max: caps.max,
 				},
 			],
 			callback: function (feedback) {

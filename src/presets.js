@@ -2805,13 +2805,14 @@ export function getPresetDefinitions(self) {
 	// ########################
 
 	if (SERIES.capabilities.audioVolumeLevel) {
-		for (let ch = 1; ch <= SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
-			presets[`audio-volume-ch${ch}`] = {
+		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
+			const disp = ch + 1 // channel is 0-based internally; display/variables are 1-based
+			presets[`audio-volume-ch${disp}`] = {
 				type: 'button',
 				category: 'Audio',
-				name: `Audio Volume Level Channel ${ch}`,
+				name: `Audio Volume Level Channel ${disp}`,
 				style: {
-					text: `Audio CH${ch}\\n$(generic-module:audioVolumeLevel${ch})`,
+					text: `Audio CH${disp}\\n$(generic-module:audioVolumeLevel${disp})`,
 					size: '14',
 					color: colorWhite,
 					bgcolor: colorBlack,

@@ -73,8 +73,8 @@ export const SERIES_SPECS = [
 		// Basic set of common features. Use this as base when integrating new camera models.
 		id: 'Other',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 }, // Has Audio Volume Level control (OSA:D5)
-			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 },
+			audioVolumeLevel: { maxch: 2, min: -40, max: 20, step: 1 }, // Has Audio Volume Level control (OSA:D5)
+			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 }, // Has Chroma Level control (OCG)
 			chromaPhase: { offset: 0x80, limit: 31, step: 1, hexlen: 2 }, // Has Chroma Phase (OSJ:0B)
 			colorGain: { cmd: { red: 'ORI', blue: 'OBI' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 }, // Has numbered red/blue Gain (ORG and OBG)
 			colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 }, // Has numbered red/blue Pedestal (ORP or OBP)
@@ -126,7 +126,7 @@ export const SERIES_SPECS = [
 		// Specific for the AG-CX350/4000 Series
 		id: 'CX350',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_99 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
@@ -179,7 +179,7 @@ export const SERIES_SPECS = [
 		// Specific for the AW-HE2 Camera
 		id: 'HE2',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: false,
 			chromaPhase: false,
 			colorGain: false,
@@ -232,7 +232,7 @@ export const SERIES_SPECS = [
 		// Specific for the HE40 Series
 		id: 'HE40',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
@@ -285,7 +285,7 @@ export const SERIES_SPECS = [
 		// Specific for the AW-HE50 Camera
 		id: 'HE50',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
@@ -338,7 +338,7 @@ export const SERIES_SPECS = [
 		// Specific for the AW-HE60 Camera
 		id: 'HE60',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
@@ -391,7 +391,7 @@ export const SERIES_SPECS = [
 		// Specific for the AW-HE120 Camera
 		id: 'HE120',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORI', blue: 'OBI' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 },
@@ -444,7 +444,7 @@ export const SERIES_SPECS = [
 		// Specific for the AW-HE130 Camera
 		id: 'HE130',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_40 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORI', blue: 'OBI' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 },
@@ -497,7 +497,7 @@ export const SERIES_SPECS = [
 		// Specific for the AW-HR140 Camera
 		id: 'HR140',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: { maxch: 4, min: -40, max: 12, step: 1 },
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_40 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORI', blue: 'OBI' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 },
@@ -526,7 +526,7 @@ export const SERIES_SPECS = [
 			presetSpeed: { dropdown: e.ENUM_PRESET_SPEED_TABLE_2 },
 			presetThumbnails: false,
 			presetTime: false,
-			pull: { ptz: ['O', 'PE00', 'PE01', 'PE02', 'DA', 'INS', 'LPI', 'PST', 'RER', 'S', 'UPVS'], cam: ['QAF', 'QAW', 'QBR', 'QBI', 'QBP', 'QFT', 'QGU', 'QIS', 'QRI', 'QRP', 'QSV', 'QTP', 'QSA:87', 'QSD:3A', 'QSD:4F', 'QSD:B1', 'QSE:33', 'QSE:71'], web: false },
+			pull: { ptz: ['O', 'PE00', 'PE01', 'PE02', 'DA', 'INS', 'LPI', 'PST', 'RER', 'S', 'UPVS'], cam: ['QAF', 'QAW', 'QBR', 'QBI', 'QBP', 'QFT', 'QGU', 'QIS', 'QRI', 'QRP', 'QSV', 'QTP', 'QSA:87', 'QSD:3A', 'QSD:4F', 'QSD:B1', 'QSE:33', 'QSE:71', 'QSA:D5:0', 'QSA:D5:1', 'QSA:D5:2', 'QSA:D5:3'], web: false },
 			recordSD: false,
 			restart: true,
 			shootingMode: false,
@@ -550,7 +550,7 @@ export const SERIES_SPECS = [
 		// Specific for the AK-UB300 Camera
 		id: 'UB300',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_40 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 1000, step: 1, hexlen: 3 },
@@ -603,7 +603,7 @@ export const SERIES_SPECS = [
 		// Specific for the AW-UE4 Camera
 		id: 'UE4',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_10 },
 			chromaPhase: false,
 			colorGain: false,
@@ -656,7 +656,7 @@ export const SERIES_SPECS = [
 		// Specific for the UE20/HE20
 		id: 'UE20',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_10 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 30, step: 1, hexlen: 3 },
@@ -685,7 +685,7 @@ export const SERIES_SPECS = [
 			presetSpeed: { dropdown: e.ENUM_PRESET_SPEED_TABLE_2 },
 			presetThumbnails: true,
 			presetTime: false,
-			pull: false,
+			pull: { ptz: false, cam: ['QSA:D5:0'], web: false },
 			recordSD: false,
 			restart: true,
 			shootingMode: false,
@@ -709,7 +709,7 @@ export const SERIES_SPECS = [
 		// Specific for the UE50/40
 		id: 'UE50',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: { maxch: 2, min: -36, max: 12, step: 3 },
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 },
 			chromaPhase: { offset: 0x80, limit: 31, step: 1, hexlen: 2 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
@@ -739,7 +739,7 @@ export const SERIES_SPECS = [
 			presetSpeed: { dropdown: e.ENUM_PRESET_SPEED_TABLE_2 },
 			presetThumbnails: true,
 			presetTime: true,
-			pull: { ptz: false, cam: ['QSA:87', 'QSD:3A', 'QSE:33', 'QSJ:0B', 'QSL:B6', 'QSL:B7', 'QSL:BB'], web: false }, // ToDo
+			pull: { ptz: false, cam: ['QSA:87', 'QSD:3A', 'QSE:33', 'QSJ:0B', 'QSL:B6', 'QSL:B7', 'QSL:BB', 'QSA:D5:0', 'QSA:D5:1'], web: false }, // ToDo
 			recordSD: false,
 			restart: true,
 			shutter: { cmd: 'OSJ:03', inc: 'OSJ:04', dec: 'OSJ:05', dropdown: e.ENUM_SHUTTER_ADV },
@@ -762,7 +762,7 @@ export const SERIES_SPECS = [
 		// Specific for the UE70 Series
 		id: 'UE70',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: false,
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
@@ -815,7 +815,7 @@ export const SERIES_SPECS = [
 		// Specific for the UE80
 		id: 'UE80',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: { maxch: 2, min: -36, max: 12, step: 3 },
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_99 },
 			chromaPhase: { offset: 0x80, limit: 31, step: 1, hexlen: 2 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
@@ -845,7 +845,7 @@ export const SERIES_SPECS = [
 			presetSpeed: { dropdown: e.ENUM_PRESET_SPEED_TABLE_2 },
 			presetThumbnails: true,
 			presetTime: true,
-			pull: { ptz: false, cam: ['QSA:87', 'QSD:3A', 'QSE:33', 'QSJ:0B', 'QSL:B6', 'QSL:B7', 'QSL:BB'], web: false }, // ToDo
+			pull: { ptz: false, cam: ['QSA:87', 'QSD:3A', 'QSE:33', 'QSJ:0B', 'QSL:B6', 'QSL:B7', 'QSL:BB', 'QSA:D5:0', 'QSA:D5:1'], web: false }, // ToDo
 			recordSD: false,
 			restart: true,
 			shutter: { cmd: 'OSJ:03', inc: 'OSJ:04', dec: 'OSJ:05', dropdown: e.ENUM_SHUTTER_ADV },
@@ -868,7 +868,7 @@ export const SERIES_SPECS = [
 		// Specific for the UE100 Series
 		id: 'UE100',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_99 },
 			chromaPhase: { offset: 0x80, limit: 31, step: 1, hexlen: 2 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
@@ -897,7 +897,7 @@ export const SERIES_SPECS = [
 			presetSpeed: { dropdown: e.ENUM_PRESET_SPEED_TABLE_2 },
 			presetThumbnails: true,
 			presetTime: true,
-			pull: { ptz: ['O', 'PE00', 'PE01', 'PE02', 'D6', 'INS', 'PST', 'PTD', 'PTG', 'PTV', 'RER', 'S', 'TAA', 'UPVS'], cam: ['QAF', 'QAW', 'QBR', 'QBP', 'QIS', 'QRP', 'QRS', 'QSA:87', 'QSD:3A', 'QSE:33', 'QSE:71', 'QSG:39', 'QSG:3A', 'QSJ:0B', 'QSJ:0F', 'QSJ:10', 'QSJ:29'], web: false },
+			pull: { ptz: ['O', 'PE00', 'PE01', 'PE02', 'D6', 'INS', 'PST', 'PTD', 'PTG', 'PTV', 'RER', 'S', 'TAA', 'UPVS'], cam: ['QAF', 'QAW', 'QBR', 'QBP', 'QIS', 'QRP', 'QRS', 'QSA:87', 'QSD:3A', 'QSE:33', 'QSE:71', 'QSG:39', 'QSG:3A', 'QSJ:0B', 'QSJ:0F', 'QSJ:10', 'QSJ:29', 'QSA:D5:0'], web: false },
 			recordSD: false,
 			restart: true,
 			shootingMode: { cmd: 'OSJ:0C', dropdown: e.ENUM_SHOOTING_MODE },
@@ -921,7 +921,7 @@ export const SERIES_SPECS = [
 		// Specific for the UE150 Series
 		id: 'UE150',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_99 },
 			chromaPhase: { offset: 0x80, limit: 31, step: 1, hexlen: 2 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
@@ -974,7 +974,7 @@ export const SERIES_SPECS = [
 		// Specific for the AW-UE160 Camera
 		id: 'UE160',
 		capabilities: {
-			audioVolumeLevel: { maxch: 4, min: 0x58, max: 0x94, step: 1 },
+			audioVolumeLevel: { maxch: 2, min: -40, max: 20, step: 1 },
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_40 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSL:36', blue: 'OSL:38', green: 'OSL:37' }, offset: 0x800, limit: 1000, step: 1, hexlen: 3 },

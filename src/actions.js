@@ -903,23 +903,15 @@ export function getActionDefinitions(self) {
 					type: 'dropdown',
 					label: 'Audio Channel',
 					id: 'channel',
-					default: 1,
-					choices: Array.from({ length: caps.maxch }, (_, i) => ({ id: i + 1, label: `Ch ${i + 1}` })),
+					default: 0,
+					choices: Array.from({ length: caps.maxch }, (_, i) => ({ id: i, label: `Ch ${i + 1}` })),
 				},
-				...optSetIncDecStep('Volume Level (dB)', 0, caps.min - 0x80, caps.max - 0x80, caps.step),
+				...optSetIncDecStep('Volume Level (dB)', 0, caps.min, caps.max, caps.step),
 			],
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, caps.min - 0x80, caps.max - 0x80, caps.step))) return
-				
-				// Get current value for the specific channel
-				const currentValue = (self.data.audioVolumeLevels && self.data.audioVolumeLevels[action.options.channel]) || 0
-				const newValue = action.options.op === ACTION_SET 
-					? action.options.set 
-					: getNextValue(currentValue, caps.min - 0x80, caps.max - 0x80, action.options.op * action.options.step)
-				
-				// Convert to hex with 0x80 offset
-				const hexValue = toHexString(newValue + 0x80, 2)
-				await self.getCam(`OSA:D5:${action.options.channel}:${hexValue}`)
+				if (!(await parseSetIncDecVariables(action, self, caps.min, caps.max, caps.step))) return
+				const value = cmdValue(action, 0x80, caps.min, caps.max, action.options.step, 2, self.data.audioVolumeLevels[action.options.channel] ?? 0)
+				await self.getCam(`OSA:D5:${action.options.channel}:${value}`)
 			},
 		}
 	}
