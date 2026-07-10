@@ -25,6 +25,14 @@
 		"eslint": "^9.23.0",
 		"prettier": "^3.5.3"
 	},
-	"prettier": "@companion-module/tools/.prettierrc.json",
+	"prettier": {
+		"printWidth": 360,
+		"arrowParens": "always",
+		"bracketSpacing": true,
+		"semi": false,
+		"singleQuote": true,
+		"useTabs": true,
+		"endOfLine": "lf"
+	},
 	"packageManager": "yarn@4.5.3"
 }
