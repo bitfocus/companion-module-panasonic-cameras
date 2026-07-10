@@ -178,19 +178,47 @@ export const e = {
 	ENUM_GAIN_UE100: [
 		{ id: '80', label: 'Auto' },
 		{ id: '08', label: '0 dB' },
+		{ id: '09', label: '1 dB' },
+		{ id: '0A', label: '2 dB' },
 		{ id: '0B', label: '3 dB' },
+		{ id: '0C', label: '4 dB' },
+		{ id: '0D', label: '5 dB' },
 		{ id: '0E', label: '6 dB' },
+		{ id: '0F', label: '7 dB' },
+		{ id: '10', label: '8 dB' },
 		{ id: '11', label: '9 dB' },
+		{ id: '12', label: '10 dB' },
+		{ id: '13', label: '11 dB' },
 		{ id: '14', label: '12 dB' },
+		{ id: '15', label: '13 dB' },
+		{ id: '16', label: '14 dB' },
 		{ id: '17', label: '15 dB' },
+		{ id: '18', label: '16 dB' },
+		{ id: '19', label: '17 dB' },
 		{ id: '1A', label: '18 dB' },
+		{ id: '1B', label: '19 dB' },
+		{ id: '1C', label: '20 dB' },
 		{ id: '1D', label: '21 dB' },
+		{ id: '1E', label: '22 dB' },
+		{ id: '1F', label: '23 dB' },
 		{ id: '20', label: '24 dB' },
+		{ id: '21', label: '25 dB' },
+		{ id: '22', label: '26 dB' },
 		{ id: '23', label: '27 dB' },
+		{ id: '24', label: '28 dB' },
+		{ id: '25', label: '29 dB' },
 		{ id: '26', label: '30 dB' },
+		{ id: '27', label: '31 dB' },
+		{ id: '28', label: '32 dB' },
 		{ id: '29', label: '33 dB' },
+		{ id: '2A', label: '34 dB' },
+		{ id: '2B', label: '35 dB' },
 		{ id: '2C', label: '36 dB' },
+		{ id: '2D', label: '37 dB' }, // needs Super Gain On
+		{ id: '2E', label: '38 dB' }, // needs Super Gain On
 		{ id: '2F', label: '39 dB' }, // needs Super Gain On
+		{ id: '30', label: '40 dB' }, // needs Super Gain On
+		{ id: '31', label: '41 dB' }, // needs Super Gain On
 		{ id: '32', label: '42 dB' }, // needs Super Gain On
 	],
 	ENUM_GAIN_UE150: [
