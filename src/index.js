@@ -503,10 +503,10 @@ class PanasonicCameraInstance extends InstanceBase {
 			pollCameraStatus(this) // start async polling
 		}
 
-		this.init_actions()
-		this.init_presets()
 		this.init_variables()
+		this.init_actions()
 		this.init_feedbacks()
+		this.init_presets()
 
 		this.subscribeFeedbacks()
 	}
