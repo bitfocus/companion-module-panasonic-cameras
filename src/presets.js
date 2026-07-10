@@ -1206,6 +1206,153 @@ export function getPresetDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.chromaPhase) {
+		presets['image-chroma-phase'] = {
+			type: 'button',
+			category: 'Image',
+			name: 'Chroma Phase',
+			style: {
+				text: 'Phase\\n$(generic-module:chromaPhase)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			options: {
+				rotaryActions: true,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'chromaPhase',
+							options: {
+								op: 's',
+								set: 0,
+								useVar: false,
+							},
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'chromaPhase',
+							options: {
+								op: -1,
+								step: 1,
+								useVar: false,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'chromaPhase',
+							options: {
+								op: 1,
+								step: 1,
+								useVar: false,
+							},
+						},
+					],
+				},
+			],
+			feedbacks: [],
+		}
+	}
+
+	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
+		presets['image-dnr'] = {
+			type: 'button',
+			category: 'Image',
+			name: 'DNR',
+			style: {
+				text: 'DNR\\n$(generic-module:dnr)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			options: {
+				rotaryActions: true,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'dnr',
+							options: {
+								op: 't',
+							},
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'dnr',
+							options: {
+								op: -1,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'dnr',
+							options: {
+								op: 1,
+							},
+						},
+					],
+				},
+			],
+			feedbacks: [],
+		}
+	}
+
+	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
+		presets['image-drs'] = {
+			type: 'button',
+			category: 'Image',
+			name: 'DRS',
+			style: {
+				text: 'DRS\\n$(generic-module:drs)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			options: {
+				rotaryActions: true,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'drs',
+							options: {
+								op: 't',
+							},
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'drs',
+							options: {
+								op: -1,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'drs',
+							options: {
+								op: 1,
+							},
+						},
+					],
+				},
+			],
+			feedbacks: [],
+		}
+	}
+
 	if (SERIES.capabilities.pedestal) {
 		presets['image-pedestal'] = {
 			type: 'button',
@@ -1633,15 +1780,17 @@ export function getPresetDefinitions(self) {
 				bgcolor: colorBlack,
 			},
 			steps: [],
-			feedbacks: [
-				{
-					feedbackId: 'error',
-					style: {
-						color: colorRed,
-						bgcolor: colorBlack,
-					},
-				},
-			],
+			feedbacks: SERIES.capabilities.error
+				? [
+						{
+							feedbackId: 'error',
+							style: {
+								color: colorRed,
+								bgcolor: colorBlack,
+							},
+						},
+					]
+				: [],
 		}
 	}
 
@@ -1877,6 +2026,27 @@ export function getPresetDefinitions(self) {
 							},
 						},
 					],
+					up: [],
+				},
+			],
+			feedbacks: [],
+		}
+	}
+
+	if (SERIES.capabilities.videoFormat) {
+		presets['system-video-format'] = {
+			type: 'button',
+			category: 'System',
+			name: 'Video Format',
+			style: {
+				text: 'Format\\n$(generic-module:videoFormat)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			steps: [
+				{
+					down: [],
 					up: [],
 				},
 			],
@@ -2369,6 +2539,39 @@ export function getPresetDefinitions(self) {
 			],
 		}
 
+		presets['preset-clear-all'] = {
+			type: 'button',
+			category: 'Preset Memory',
+			name: 'Clear All Presets (hold 3s)',
+			style: {
+				text: 'CLEAR ALL\\nPRESETS',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			options: {
+				relativeDelay: false,
+			},
+			steps: [
+				{
+					down: [],
+					up: [],
+					3000: {
+						options: { runWhileHeld: true },
+						actions: [
+							{
+								actionId: 'presetClearAll',
+								options: {
+									confirm: true,
+								},
+							},
+						],
+					},
+				},
+			],
+			feedbacks: [],
+		}
+
 		for (let i = 0; i < 100; i++) {
 			presets[`preset-memory-${i}`] = {
 				type: 'button',
@@ -2437,12 +2640,16 @@ export function getPresetDefinitions(self) {
 							bgcolor: colorGrey,
 						},
 					},
-					{
-						feedbackId: 'presetThumbnail',
-						options: {
-							option: i.toString(10).padStart(2, '0'),
-						},
-					},
+					...(SERIES.capabilities.presetThumbnails
+						? [
+								{
+									feedbackId: 'presetThumbnail',
+									options: {
+										option: i.toString(10).padStart(2, '0'),
+									},
+								},
+							]
+						: []),
 					{
 						feedbackId: 'presetSelected',
 						options: {
