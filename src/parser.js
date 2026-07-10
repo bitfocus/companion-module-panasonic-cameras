@@ -309,7 +309,7 @@ export function parseUpdate(self, str) {
 					self.data.shutterStepLabel = '1/' + parseInt(str[2], 16).toString()
 					break
 				case '0B':
-					self.data.chromaPhase = str[2].replace('0x', '')
+					self.data.chromaPhaseValue = parseInt(str[2], 16) - 0x80
 					break
 				case '0C':
 					self.data.shootingMode = str[2]

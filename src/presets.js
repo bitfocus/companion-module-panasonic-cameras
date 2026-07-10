@@ -1206,7 +1206,7 @@ export function getPresetDefinitions(self) {
 		}
 	}
 
-	if (SERIES.capabilities.chromaPhase && SERIES.capabilities.chromaPhase.dropdown) {
+	if (SERIES.capabilities.chromaPhase) {
 		presets['image-chroma-phase'] = {
 			type: 'button',
 			category: 'Image',
@@ -1226,7 +1226,9 @@ export function getPresetDefinitions(self) {
 						{
 							actionId: 'chromaPhase',
 							options: {
-								op: 't',
+								op: 's',
+								set: 0,
+								useVar: false,
 							},
 						},
 					],
@@ -1236,6 +1238,8 @@ export function getPresetDefinitions(self) {
 							actionId: 'chromaPhase',
 							options: {
 								op: -1,
+								step: 1,
+								useVar: false,
 							},
 						},
 					],
@@ -1244,6 +1248,8 @@ export function getPresetDefinitions(self) {
 							actionId: 'chromaPhase',
 							options: {
 								op: 1,
+								step: 1,
+								useVar: false,
 							},
 						},
 					],

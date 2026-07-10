@@ -176,7 +176,7 @@ export function checkVariables(self) {
 		: null
 
 	const chromaLevel = SERIES.capabilities.chromaLevel ? getLabel(SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel) : null
-	const chromaPhase = SERIES.capabilities.chromaPhase ? getLabel(SERIES.capabilities.chromaPhase.dropdown, self.data.chromaPhase) : null
+
 	const colorbar = SERIES.capabilities.colorbar ? getLabel(e.ENUM_OFF_ON, self.data.colorbar) : null
 
 	const dnr = SERIES.capabilities.dnr ? getLabel(SERIES.capabilities.dnr.dropdown, self.data.dnr) : null
@@ -280,6 +280,7 @@ export function checkVariables(self) {
 
 		irisVolume: self.data.irisVolume,
 
+		chromaPhase: self.data.chromaPhaseValue,
 		focusSpeed: self.data.focusSpeedValue,
 		redGain: self.data.redGainValue,
 		blueGain: self.data.blueGainValue,
@@ -297,7 +298,6 @@ export function checkVariables(self) {
 		autotrackingMode: autotrackingMode,
 		autotrackingStatus: autotrackingStatus,
 		chromaLevel: chromaLevel,
-		chromaPhase: chromaPhase,
 		colorbar: colorbar,
 		dnr: dnr,
 		drs: drs,

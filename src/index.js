@@ -346,7 +346,6 @@ class PanasonicCameraInstance extends InstanceBase {
 			autotrackingMode: null,
 			autotrackingStatus: null,
 			chromaLevel: null,
-			chromaPhase: null,
 			colorbar: null,
 			colorTemperature: null,
 			dnr: null,
@@ -390,6 +389,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			zoomPosition: null,
 
 			// numeric signed values
+			chromaPhaseValue: 0,
 			focusSpeedValue: 0,
 			redGainValue: 0,
 			blueGainValue: 0,

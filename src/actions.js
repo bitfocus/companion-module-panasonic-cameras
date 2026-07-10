@@ -8,10 +8,6 @@ const SPEED_MIN = 0
 const SPEED_MAX = 49
 const SPEED_DEFAULT = 25
 
-function sleep(ms) {
-	return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 const ACTION_SET = 's'
 const ACTION_TOGGLE = 't'
 const ACTION_STOP = 0
@@ -578,36 +574,34 @@ export function getActionDefinitions(self) {
 		}
 	}
 
-	if (SERIES.capabilities.chromaPhase && SERIES.capabilities.chromaPhase.cmd) {
+	if (SERIES.capabilities.chromaPhase) {
+		const caps = SERIES.capabilities.chromaPhase
 		actions.chromaPhase = {
 			name: 'Image - Chroma Phase',
-			options: optSetToggleNextPrev(
-				SERIES.capabilities.chromaPhase.dropdown,
-				'Setting',
-				SERIES.capabilities.chromaPhase.dropdown.findIndex((v) => v.id === '80'),
-			),
+			options: optSetIncDecStep('Setting', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				await self.getCam(SERIES.capabilities.chromaPhase.cmd + ':' + cmdEnum(action, SERIES.capabilities.chromaPhase.dropdown, self.data.chromaPhase))
+				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				await self.getCam('OSJ:0B:' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.chromaPhaseValue))
 			},
 		}
 	}
 
-	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.cmd) {
+	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
 		actions.dnr = {
-			name: 'Image - DNR (Digital Noise Reduction)',
+			name: 'Image - Digital Noise Reduction (DNR)',
 			options: optSetToggleNextPrev(SERIES.capabilities.dnr.dropdown),
 			callback: async (action) => {
-				await self.getCam(SERIES.capabilities.dnr.cmd + ':' + cmdEnum(action, SERIES.capabilities.dnr.dropdown, self.data.dnr))
+				await self.getCam('OSD:3A:' + cmdEnum(action, SERIES.capabilities.dnr.dropdown, self.data.dnr))
 			},
 		}
 	}
 
-	if (SERIES.capabilities.drs && SERIES.capabilities.drs.cmd) {
+	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
 		actions.drs = {
-			name: 'Image - DRS (Dynamic Range Stretch)',
+			name: 'Image - Dynamic Range Stretch (DRS)',
 			options: optSetToggleNextPrev(SERIES.capabilities.drs.dropdown),
 			callback: async (action) => {
-				await self.getCam(SERIES.capabilities.drs.cmd + ':' + cmdEnum(action, SERIES.capabilities.drs.dropdown, self.data.drs))
+				await self.getCam('OSE:33:' + cmdEnum(action, SERIES.capabilities.drs.dropdown, self.data.drs))
 			},
 		}
 	}
@@ -796,12 +790,12 @@ export function getActionDefinitions(self) {
 
 		actions.presetClearAll = {
 			name: 'Preset - Clear All',
-			description: `Permanently deletes all ${SERIES.capabilities.preset} stored preset memories on the camera. This cannot be undone - every saved shot position will need to be re-taught. Requires the confirmation option to be checked to take effect.`,
+			description: `Wipes all ${SERIES.capabilities.preset} stored preset memories on the camera. This cannot be undone. Requires the confirmation option to be checked to take effect.`,
 			options: [
 				{
 					id: 'confirm',
 					type: 'checkbox',
-					label: 'I understand this will permanently delete all presets',
+					label: 'I understand this will instantly clear all presets',
 					default: false,
 				},
 			],
@@ -809,7 +803,6 @@ export function getActionDefinitions(self) {
 				if (!action.options.confirm) return
 				for (let i = 0; i < SERIES.capabilities.preset; i++) {
 					await self.getPTZ('C' + i.toString(10).padStart(2, '0'))
-					await sleep(self.config.pollDelay)
 				}
 			},
 		}

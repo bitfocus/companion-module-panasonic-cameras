@@ -547,30 +547,6 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
-	if (SERIES.capabilities.chromaPhase && SERIES.capabilities.chromaPhase.dropdown) {
-		feedbacks.chromaPhase = {
-			type: 'boolean',
-			name: 'Image - Chroma Phase',
-			description: 'Indicates if the selected chroma phase is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Phase',
-					id: 'option',
-					default: '80',
-					choices: SERIES.capabilities.chromaPhase.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.chromaPhase === feedback.options.option
-			},
-		}
-	}
-
 	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
 		feedbacks.dnr = {
 			type: 'boolean',
