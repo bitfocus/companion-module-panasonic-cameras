@@ -229,9 +229,10 @@ export function parseUpdate(self, str) {
 			self.data.ois = str[1]
 			break
 		case 'OSA':
-			if (str[1] === '87') {
-				// hex data arrives with or without 0x prefix and leading zeros, normalize to match enum ids
-				self.data.videoFormat = parseInt(str[2].replace('0x', ''), 16).toString(16).toUpperCase()
+			switch (str[1]) {
+				case '87':
+					self.data.videoFormat = str[2].replace('0x', '')
+					break
 			}
 			break
 		case 'OSD':
