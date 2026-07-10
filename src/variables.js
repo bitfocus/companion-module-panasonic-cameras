@@ -50,6 +50,9 @@ export function setVariables(self) {
 	if (SERIES.capabilities.gain) {
 		variables.push({ variableId: 'gain', name: 'Gain' })
 	}
+	if (SERIES.capabilities.shootingMode) {
+		variables.push({ variableId: 'shootingMode', name: 'Shooting Mode' })
+	}
 	if (SERIES.capabilities.night) {
 		variables.push({ variableId: 'nightMode', name: 'Night Mode' })
 	}
@@ -105,6 +108,18 @@ export function setVariables(self) {
 	if (SERIES.capabilities.pedestal) {
 		variables.push({ variableId: 'masterPed', name: 'Master Pedestal' })
 	}
+	if (SERIES.capabilities.chromaLevel) {
+		variables.push({ variableId: 'chromaLevel', name: 'Chroma Level' })
+	}
+	if (SERIES.capabilities.chromaPhase) {
+		variables.push({ variableId: 'chromaPhase', name: 'Chroma Phase' })
+	}
+	if (SERIES.capabilities.dnr) {
+		variables.push({ variableId: 'dnr', name: 'Digital Noise Reduction' })
+	}
+	if (SERIES.capabilities.drs) {
+		variables.push({ variableId: 'drs', name: 'Dynamic Range Stretch' })
+	}
 	if (SERIES.capabilities.colorGain) {
 		variables.push({ variableId: 'redGain', name: 'Red Gain' })
 		variables.push({ variableId: 'blueGain', name: 'Blue Gain' })
@@ -131,6 +146,9 @@ export function setVariables(self) {
 	}
 	if (SERIES.capabilities.streamTS) {
 		variables.push({ variableId: 'streamingTS', name: 'MPEG-TS Output Status' })
+	}
+	if (SERIES.capabilities.videoFormat) {
+		variables.push({ variableId: 'videoFormat', name: 'Video Format' })
 	}
 	if (SERIES.capabilities.trackingAuto) {
 		variables.push({ variableId: 'autotrackingMode', name: 'Autotracking Mode' })
@@ -162,7 +180,15 @@ export function checkVariables(self) {
 		? getLabel(e.ENUM_AUTOTRACKING_STATUS, self.data.autotrackingStatus)
 		: null
 
+	const chromaLevel = SERIES.capabilities.chromaLevel ? getLabel(SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel) : null
+
 	const colorbar = SERIES.capabilities.colorbar ? getLabel(e.ENUM_OFF_ON, self.data.colorbar) : null
+
+	const dnr = SERIES.capabilities.dnr ? getLabel(SERIES.capabilities.dnr.dropdown, self.data.dnr) : null
+
+	const drs = SERIES.capabilities.drs ? getLabel(SERIES.capabilities.drs.dropdown, self.data.drs) : null
+
+	const videoFormat = SERIES.capabilities.videoFormat ? getLabel(e.ENUM_VIDEO_FORMAT, self.data.videoFormat) : null
 
 	const colorTemperature = SERIES.capabilities.colorTemperature.index
 		? getLabel(SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature)
@@ -201,6 +227,8 @@ export function checkVariables(self) {
 	const recording = SERIES.capabilities.recordSD ? getLabel(e.ENUM_OFF_ON, self.data.recording) : null
 
 	const rtmp = SERIES.capabilities.streamRTMP ? getLabel(e.ENUM_OFF_ON, self.data.rtmp) : null
+
+	const shootingMode = SERIES.capabilities.shootingMode ? getLabel(SERIES.capabilities.shootingMode.dropdown, self.data.shootingMode) : null
 
 	const shutter = SERIES.capabilities.shutter ? getLabel(SERIES.capabilities.shutter.dropdown, self.data.shutter) : null
 
@@ -257,6 +285,7 @@ export function checkVariables(self) {
 
 		irisVolume: self.data.irisVolume,
 
+		chromaPhase: self.data.chromaPhaseValue,
 		focusSpeed: self.data.focusSpeedValue,
 		redGain: self.data.redGainValue,
 		blueGain: self.data.blueGainValue,
@@ -273,7 +302,10 @@ export function checkVariables(self) {
 		autotrackingAngle: autotrackingAngle,
 		autotrackingMode: autotrackingMode,
 		autotrackingStatus: autotrackingStatus,
+		chromaLevel: chromaLevel,
 		colorbar: colorbar,
+		dnr: dnr,
+		drs: drs,
 		error: error,
 		filter: filter,
 		focusMode: focusMode,
@@ -287,6 +319,7 @@ export function checkVariables(self) {
 		presetSpeed: presetSpeed,
 		presetSpeedTable: presetSpeedTable,
 		presetSpeedUnit: presetSpeedUnit,
+		shootingMode: shootingMode,
 		shutter: shutter,
 		streamingSRT: srt,
 		streamingTS: ts,
@@ -295,6 +328,7 @@ export function checkVariables(self) {
 		tally2: tally2,
 		tally3: tally3,
 		recording: recording,
+		videoFormat: videoFormat,
 		whiteBalance: whiteBalance,
 
 		ptSpeed: self.ptSpeed,

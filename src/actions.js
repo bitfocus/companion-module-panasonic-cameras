@@ -564,6 +564,48 @@ export function getActionDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.cmd) {
+		actions.chromaLevel = {
+			name: 'Image - Chroma Level',
+			options: optSetToggleNextPrev(SERIES.capabilities.chromaLevel.dropdown),
+			callback: async (action) => {
+				await self.getCam(SERIES.capabilities.chromaLevel.cmd + ':' + cmdEnum(action, SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel))
+			},
+		}
+	}
+
+	if (SERIES.capabilities.chromaPhase) {
+		const caps = SERIES.capabilities.chromaPhase
+		actions.chromaPhase = {
+			name: 'Image - Chroma Phase',
+			options: optSetIncDecStep('Setting', 0, -caps.limit, +caps.limit, caps.step),
+			callback: async (action) => {
+				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				await self.getCam('OSJ:0B:' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.chromaPhaseValue))
+			},
+		}
+	}
+
+	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
+		actions.dnr = {
+			name: 'Image - Digital Noise Reduction',
+			options: optSetToggleNextPrev(SERIES.capabilities.dnr.dropdown),
+			callback: async (action) => {
+				await self.getCam('OSD:3A:' + cmdEnum(action, SERIES.capabilities.dnr.dropdown, self.data.dnr))
+			},
+		}
+	}
+
+	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
+		actions.drs = {
+			name: 'Image - Dynamic Range Stretch',
+			options: optSetToggleNextPrev(SERIES.capabilities.drs.dropdown),
+			callback: async (action) => {
+				await self.getCam('OSE:33:' + cmdEnum(action, SERIES.capabilities.drs.dropdown, self.data.drs))
+			},
+		}
+	}
+
 	if (SERIES.capabilities.pedestal.cmd) {
 		const caps = SERIES.capabilities.pedestal
 		actions.ped = {
@@ -685,6 +727,16 @@ export function getActionDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.shootingMode) {
+		actions.shootingMode = {
+			name: 'Image - Shooting Mode',
+			options: optSetToggleNextPrev(SERIES.capabilities.shootingMode.dropdown),
+			callback: async (action) => {
+				await self.getCam(SERIES.capabilities.shootingMode.cmd + ':' + cmdEnum(action, SERIES.capabilities.shootingMode.dropdown, self.data.shootingMode))
+			},
+		}
+	}
+
 	// ########################
 	// #### Preset Actions ####
 	// ########################
@@ -733,6 +785,25 @@ export function getActionDefinitions(self) {
 			options: optSetToggleNextPrev(e.ENUM_PRESET_SCOPE, 'Preset Recall Scope'),
 			callback: async (action) => {
 				await self.getCam('OSE:71:' + cmdEnum(action, e.ENUM_PRESET_SCOPE, self.data.presetScope))
+			},
+		}
+
+		actions.presetClearAll = {
+			name: 'Preset - Clear All',
+			description: `Wipes all ${SERIES.capabilities.preset} stored preset memories on the camera. This cannot be undone. Requires the confirmation option to be checked to take effect.`,
+			options: [
+				{
+					id: 'confirm',
+					type: 'checkbox',
+					label: 'I understand this will instantly clear all presets',
+					default: false,
+				},
+			],
+			callback: async (action) => {
+				if (!action.options.confirm) return
+				for (let i = 0; i < SERIES.capabilities.preset; i++) {
+					await self.getPTZ('C' + i.toString(10).padStart(2, '0'))
+				}
 			},
 		}
 	}

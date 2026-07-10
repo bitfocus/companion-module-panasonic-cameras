@@ -193,9 +193,12 @@ export function parseUpdate(self, str) {
 		case 'OBR':
 			self.data.colorbar = str[1]
 			break
+		case 'OCG':
+			self.data.chromaLevel = str[1].replace('0x', '')
+			break
 		case 'OID':
 			self.data.modelAuto = str[1]
-			// if a new model is detected or selected, re-initialise all actions, variables and feedbacks
+			// if another model is detected or selected, re-initialise all actions, variables and feedbacks
 			if (self.data.modelAuto !== self.data.model) {
 				self.log('info', 'Detected Camera Model: ' + self.data.modelAuto)
 				//self.reInitAll()
@@ -225,8 +228,21 @@ export function parseUpdate(self, str) {
 		case 'OIS':
 			self.data.ois = str[1]
 			break
+		case 'OSA':
+			switch (str[1]) {
+				case '87':
+					self.data.videoFormat = str[2].replace('0x', '')
+					break
+			}
+			break
 		case 'OSD':
 			switch (str[1]) {
+				case '3A':
+					self.data.dnr = str[2].replace('0x', '')
+					break
+				case 'B0':
+					self.data.chromaLevel = str[2].replace('0x', '')
+					break
 				case 'B1':
 					self.data.colorTemperature = str[2].replace('0x', '')
 					break
@@ -262,8 +278,13 @@ export function parseUpdate(self, str) {
 			}
 			break
 		case 'OSE':
-			if (str[1] === '71') {
-				self.data.presetScope = str[2]
+			switch (str[1]) {
+				case '33':
+					self.data.drs = str[2]
+					break
+				case '71':
+					self.data.presetScope = str[2]
+					break
 			}
 			break
 		case 'OSG':
@@ -294,6 +315,12 @@ export function parseUpdate(self, str) {
 					break
 				case '06':
 					self.data.shutterStepLabel = '1/' + parseInt(str[2], 16).toString()
+					break
+				case '0B':
+					self.data.chromaPhaseValue = parseInt(str[2], 16) - 0x80
+					break
+				case '0C':
+					self.data.shootingMode = str[2]
 					break
 				case '0F':
 					self.data.masterPedValue = parseInt(str[2], 16) - 0x800
