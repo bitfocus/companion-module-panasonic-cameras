@@ -835,7 +835,7 @@ export function getActionDefinitions(self) {
 					type: 'dropdown',
 					label: 'Action',
 					id: 'op',
-					default: e.ENUM_PRESET[0].id,
+					default: 'R',
 					choices: [
 						{ id: 'R', label: 'Recall / Play' },
 						{ id: 'M', label: 'Memorize / Save' },
@@ -844,14 +844,38 @@ export function getActionDefinitions(self) {
 				},
 				{
 					type: 'dropdown',
-					label: 'Preset Nr.',
+					label: 'Preset #',
 					id: 'val',
 					default: e.ENUM_PRESET[0].id,
 					choices: e.ENUM_PRESET,
+					isVisible: (options) => !options.useVar,
+				},
+				{
+					id: 'valVar',
+					type: 'textinput',
+					label: 'Preset # variable',
+					default: '1',
+					regex: Regex.SOMETHING,
+					required: true,
+					useVariables: true,
+					tooltip: `This expression should return a preset number in the range 1 to ${SERIES.capabilities.preset}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+					isVisible: (options) => options.useVar,
+				},
+				{
+					id: 'useVar',
+					type: 'checkbox',
+					label: 'Use Variable',
+					default: false,
 				},
 			],
 			callback: async (action) => {
-				await self.getPTZ(action.options.op + action.options.val)
+				let val = action.options.val
+				if (action.options.useVar) {
+					const num = constrainRange(parseInt(await self.parseVariablesInString(action.options.valVar)), 1, SERIES.capabilities.preset)
+					if (isNaN(num)) return
+					val = (num - 1).toString(10).padStart(2, '0')
+				}
+				await self.getPTZ(action.options.op + val)
 			},
 		}
 

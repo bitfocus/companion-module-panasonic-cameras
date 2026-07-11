@@ -1,7 +1,48 @@
-import { combineRgb } from '@companion-module/base'
-import { getAndUpdateSeries } from './common.js'
+import { combineRgb, Regex } from '@companion-module/base'
+import { getAndUpdateSeries, constrainRange } from './common.js'
 import { e } from './enum.js'
 import ICONS from './icons.js'
+
+// Preset number option set with optional variable support (dropdown / variable toggled by checkbox)
+function optPreset(max) {
+	return [
+		{
+			type: 'dropdown',
+			label: 'Preset',
+			id: 'option',
+			default: e.ENUM_PRESET[0].id,
+			choices: e.ENUM_PRESET,
+			isVisible: (options) => !options.useVar,
+		},
+		{
+			id: 'optionVar',
+			type: 'textinput',
+			label: 'Preset # variable',
+			default: '1',
+			regex: Regex.SOMETHING,
+			required: true,
+			useVariables: true,
+			tooltip: `This expression should return a preset number in the range 1 to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values disable the feedback.`,
+			isVisible: (options) => options.useVar,
+		},
+		{
+			id: 'useVar',
+			type: 'checkbox',
+			label: 'Use Variable',
+			default: false,
+		},
+	]
+}
+
+// Resolve the selected preset to its 0-based index, or null when a variable expression is unreadable
+async function parsePresetIdx(feedback, context, max) {
+	if (feedback.options.useVar) {
+		const num = constrainRange(parseInt(await context.parseVariablesInString(feedback.options.optionVar)), 1, max)
+		if (isNaN(num)) return null
+		return num - 1
+	}
+	return parseInt(feedback.options.option)
+}
 
 // ##########################
 // #### Define Feedbacks ####
@@ -325,17 +366,11 @@ export function getFeedbackDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorOrange,
 			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Preset',
-					id: 'option',
-					default: e.ENUM_PRESET[0].id,
-					choices: e.ENUM_PRESET,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.presetEntries[parseInt(feedback.options.option)] === '1' && self.data.presetSelectedIdx === parseInt(feedback.options.option)
+			options: optPreset(SERIES.capabilities.preset),
+			callback: async (feedback, context) => {
+				const idx = await parsePresetIdx(feedback, context, SERIES.capabilities.preset)
+				if (idx === null) return false
+				return self.data.presetEntries[idx] === '1' && self.data.presetSelectedIdx === idx
 			},
 		}
 
@@ -347,17 +382,11 @@ export function getFeedbackDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlue,
 			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Preset',
-					id: 'option',
-					default: e.ENUM_PRESET[0].id,
-					choices: e.ENUM_PRESET,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.presetEntries[parseInt(feedback.options.option)] === '1' && self.data.presetCompletedIdx === parseInt(feedback.options.option)
+			options: optPreset(SERIES.capabilities.preset),
+			callback: async (feedback, context) => {
+				const idx = await parsePresetIdx(feedback, context, SERIES.capabilities.preset)
+				if (idx === null) return false
+				return self.data.presetEntries[idx] === '1' && self.data.presetCompletedIdx === idx
 			},
 		}
 
@@ -369,17 +398,11 @@ export function getFeedbackDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorGrey,
 			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Preset',
-					id: 'option',
-					default: e.ENUM_PRESET[0].id,
-					choices: e.ENUM_PRESET,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.presetEntries[parseInt(feedback.options.option)] === '1'
+			options: optPreset(SERIES.capabilities.preset),
+			callback: async (feedback, context) => {
+				const idx = await parsePresetIdx(feedback, context, SERIES.capabilities.preset)
+				if (idx === null) return false
+				return self.data.presetEntries[idx] === '1'
 			},
 		}
 
@@ -388,18 +411,11 @@ export function getFeedbackDefinitions(self) {
 				type: 'advanced',
 				name: 'Preset - Thumbnail',
 				description: 'Provides the thumbnail of the selected preset as the button background image',
-				options: [
-					{
-						type: 'dropdown',
-						label: 'Preset',
-						id: 'option',
-						default: e.ENUM_PRESET[0].id,
-						choices: e.ENUM_PRESET,
-					},
-				],
-				callback: function (feedback) {
-					const id = parseInt(feedback.options.option)
-					return { png64: self.data.presetThumbnails[id] }
+				options: optPreset(SERIES.capabilities.preset),
+				callback: async (feedback, context) => {
+					const idx = await parsePresetIdx(feedback, context, SERIES.capabilities.preset)
+					if (idx === null) return {}
+					return { png64: self.data.presetThumbnails[idx] }
 				},
 			}
 		}
