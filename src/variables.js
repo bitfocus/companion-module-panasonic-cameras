@@ -60,7 +60,7 @@ export function setVariables(self) {
 		variables.push({ variableId: 'presetScope', name: 'Preset Recall Scope' })
 		variables.push({ variableId: 'presetCompleted', name: 'Preset # Completed' })
 		variables.push({ variableId: 'presetSelected', name: 'Preset # Selected' })
-		variables.push({ variableId: 'presetMemory', name: 'Saved Preset Memory slots (list)' })
+		variables.push({ variableId: 'presetMemory', name: 'Used Preset Memory slots' })
 	}
 	if (SERIES.capabilities.shutter) {
 		variables.push({ variableId: 'shutter', name: 'Shutter Mode' })
