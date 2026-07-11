@@ -60,6 +60,7 @@ export function setVariables(self) {
 		variables.push({ variableId: 'presetScope', name: 'Preset Recall Scope' })
 		variables.push({ variableId: 'presetCompleted', name: 'Preset # Completed' })
 		variables.push({ variableId: 'presetSelected', name: 'Preset # Selected' })
+		variables.push({ variableId: 'presetMemory', name: 'Saved Preset Memory slots (list)' })
 	}
 	if (SERIES.capabilities.shutter) {
 		variables.push({ variableId: 'shutter', name: 'Shutter Mode' })
@@ -214,6 +215,13 @@ export function checkVariables(self) {
 
 	const presetScope = SERIES.capabilities.preset ? getLabel(e.ENUM_PRESET_SCOPE, self.data.presetScope) : null
 
+	const presetMemory = SERIES.capabilities.preset
+		? self.data.presetEntries
+				.map((p, i) => (p === '1' ? i + 1 : null))
+				.filter((n) => n !== null)
+				.join(',')
+		: null
+
 	const presetSpeed = SERIES.capabilities.presetSpeed ? getLabel(e.ENUM_PRESET_SPEED_TIME, self.data.presetSpeed) : null
 
 	const presetSpeedTable = SERIES.capabilities.presetSpeed ? getLabel(SERIES.capabilities.presetSpeed.dropdown, self.data.presetSpeedTable) : null
@@ -261,6 +269,7 @@ export function checkVariables(self) {
 
 		presetSelected: self.data.presetSelectedIdx ? (self.data.presetSelectedIdx + 1).toString() : null,
 		presetCompleted: self.data.presetCompletedIdx ? (self.data.presetCompletedIdx + 1).toString() : null,
+		presetMemory: presetMemory,
 
 		panPosition: self.data.panPosition,
 		tiltPosition: self.data.tiltPosition,
