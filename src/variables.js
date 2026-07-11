@@ -267,8 +267,8 @@ export function checkVariables(self) {
 		title: self.data.title,
 		version: self.data.version,
 
-		presetSelected: self.data.presetSelectedIdx ? (self.data.presetSelectedIdx + 1).toString() : null,
-		presetCompleted: self.data.presetCompletedIdx ? (self.data.presetCompletedIdx + 1).toString() : null,
+		presetSelected: self.data.presetSelectedIdx !== null ? (self.data.presetSelectedIdx + 1).toString() : null,
+		presetCompleted: self.data.presetCompletedIdx !== null ? (self.data.presetCompletedIdx + 1).toString() : null,
 		presetMemory: presetMemory,
 
 		panPosition: self.data.panPosition,
