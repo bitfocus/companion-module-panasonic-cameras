@@ -847,7 +847,7 @@ export function getActionDefinitions(self) {
 					label: 'Preset #',
 					id: 'val',
 					default: e.ENUM_PRESET[0].id,
-					choices: e.ENUM_PRESET,
+					choices: e.ENUM_PRESET.slice(0, SERIES.capabilities.preset),
 					isVisible: (options) => !options.useVar,
 				},
 				{

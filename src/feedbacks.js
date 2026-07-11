@@ -11,7 +11,7 @@ function optPreset(max) {
 			label: 'Preset',
 			id: 'option',
 			default: e.ENUM_PRESET[0].id,
-			choices: e.ENUM_PRESET,
+			choices: e.ENUM_PRESET.slice(0, max),
 			isVisible: (options) => !options.useVar,
 		},
 		{
