@@ -2703,6 +2703,7 @@ export function getPresetDefinitions(self) {
 								options: {
 									op: 'R',
 									val: i.toString(10).padStart(2, '0'),
+									useVar: false,
 								},
 							},
 						],
@@ -2714,6 +2715,7 @@ export function getPresetDefinitions(self) {
 									options: {
 										op: 'M',
 										val: i.toString(10).padStart(2, '0'),
+										useVar: false,
 									},
 								},
 							],
@@ -2726,6 +2728,7 @@ export function getPresetDefinitions(self) {
 									options: {
 										op: 'C',
 										val: i.toString(10).padStart(2, '0'),
+										useVar: false,
 									},
 								},
 							],
@@ -2737,6 +2740,7 @@ export function getPresetDefinitions(self) {
 						feedbackId: 'presetMemory',
 						options: {
 							option: i.toString(10).padStart(2, '0'),
+							useVar: false,
 						},
 						style: {
 							color: colorWhite,
@@ -2749,6 +2753,7 @@ export function getPresetDefinitions(self) {
 									feedbackId: 'presetThumbnail',
 									options: {
 										option: i.toString(10).padStart(2, '0'),
+										useVar: false,
 									},
 								},
 							]
@@ -2757,6 +2762,7 @@ export function getPresetDefinitions(self) {
 						feedbackId: 'presetSelected',
 						options: {
 							option: i.toString(10).padStart(2, '0'),
+							useVar: false,
 						},
 						style: {
 							color: colorWhite,
@@ -2767,6 +2773,7 @@ export function getPresetDefinitions(self) {
 						feedbackId: 'presetComplete',
 						options: {
 							option: i.toString(10).padStart(2, '0'),
+							useVar: false,
 						},
 						style: {
 							color: colorWhite,
