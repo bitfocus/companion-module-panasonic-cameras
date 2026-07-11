@@ -83,12 +83,12 @@ export function parseUpdate(self, str) {
 
 		self.data.presetEntries = self.data.presetEntries0.concat(self.data.presetEntries1.concat(self.data.presetEntries2))
 
-		if (self.data.presetSelectedIdx) {
+		if (self.data.presetSelectedIdx !== null) {
 			if (self.data.presetEntries[self.data.presetSelectedIdx] === '0') {
 				self.data.presetSelectedIdx = null
 			}
 		}
-		if (self.data.presetCompletedIdx) {
+		if (self.data.presetCompletedIdx !== null) {
 			if (self.data.presetEntries[self.data.presetCompletedIdx] === '0') {
 				self.data.presetCompletedIdx = null
 			}
