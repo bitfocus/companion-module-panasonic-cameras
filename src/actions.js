@@ -32,6 +32,7 @@ const speedOperation = {
 	type: 'dropdown',
 	label: 'Speed Change',
 	id: 'op',
+	disableAutoExpression: true,
 	default: ACTION_SET,
 	choices: [
 		{ id: ACTION_SET, label: 'Set Speed' },
@@ -47,9 +48,8 @@ const speedSetting = {
 	default: SPEED_DEFAULT,
 	min: SPEED_MIN,
 	max: SPEED_MAX,
-	required: true,
 	range: true,
-	isVisible: (options) => options.op === 's',
+	isVisibleExpression: '$(options:op) == "s"',
 }
 
 const speedControlSetting = {
@@ -59,9 +59,8 @@ const speedControlSetting = {
 	default: SPEED_MIN,
 	min: -SPEED_MAX,
 	max: SPEED_MAX,
-	required: true,
 	range: true,
-	isVisible: (options) => options.op === 's',
+	isVisibleExpression: '$(options:op) == "s"',
 }
 
 const speedStep = {
@@ -71,8 +70,7 @@ const speedStep = {
 	default: 1,
 	min: 1,
 	max: 7,
-	required: false,
-	isVisible: (options) => options.op !== 's',
+	isVisibleExpression: '$(options:op) != "s"',
 }
 
 function optMove(label_inc = '⬆', label_dec = '⬇') {
@@ -98,6 +96,7 @@ function optSetToggle(choices, label = 'Setting', def = 0) {
 			type: 'dropdown',
 			label: 'Action',
 			id: 'op',
+			disableAutoExpression: true,
 			default: ACTION_SET,
 			choices: [
 				{ id: ACTION_SET, label: 'Set' },
@@ -110,7 +109,7 @@ function optSetToggle(choices, label = 'Setting', def = 0) {
 			id: 'set',
 			default: choices[def].id,
 			choices: choices,
-			isVisible: (options) => options.op === 's',
+			isVisibleExpression: '$(options:op) == "s"',
 		},
 	]
 }
@@ -121,6 +120,7 @@ function optSetToggleNextPrev(choices, label = 'Setting', def = 0) {
 			type: 'dropdown',
 			label: 'Action',
 			id: 'op',
+			disableAutoExpression: true,
 			default: ACTION_SET,
 			choices: [
 				{ id: ACTION_SET, label: 'Set' },
@@ -135,7 +135,7 @@ function optSetToggleNextPrev(choices, label = 'Setting', def = 0) {
 			id: 'set',
 			default: choices[def].id,
 			choices: choices,
-			isVisible: (options) => options.op === 's',
+			isVisibleExpression: '$(options:op) == "s"',
 		},
 	]
 }
@@ -146,6 +146,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			type: 'dropdown',
 			label: 'Action',
 			id: 'op',
+			disableAutoExpression: true,
 			default: ACTION_SET,
 			choices: [
 				{ id: ACTION_SET, label: 'Set' },
@@ -161,9 +162,8 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			min: min,
 			max: max,
 			step: step,
-			required: true,
 			range: true,
-			isVisible: (options) => options.op === 's' && !options.useVar,
+			isVisibleExpression: '$(options:op) == "s" && !$(options:useVar)',
 		},
 		{
 			id: 'setVar',
@@ -171,10 +171,10 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			label: label + ' variable',
 			default: `${def}`,
 			regex: Regex.SOMETHING,
-			required: true,
+			minLength: 1,
 			useVariables: true,
 			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisible: (options) => options.op === 's' && options.useVar,
+			isVisibleExpression: '$(options:op) == "s" && $(options:useVar)',
 		},
 		{
 			id: 'step',
@@ -183,8 +183,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			default: step,
 			min: step,
 			max: max - min,
-			required: true,
-			isVisible: (options) => options.op !== 's' && !options.useVar,
+			isVisibleExpression: '$(options:op) != "s" && !$(options:useVar)',
 		},
 		{
 			id: 'stepVar',
@@ -192,13 +191,14 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 			label: 'Step size variable',
 			default: `${step}`,
 			regex: Regex.SOMETHING,
-			required: true,
+			minLength: 1,
 			useVariables: true,
 			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisible: (options) => options.op !== 's' && options.useVar,
+			isVisibleExpression: '$(options:op) != "s" && $(options:useVar)',
 		},
 		{
 			id: 'useVar',
+			disableAutoExpression: true,
 			type: 'checkbox',
 			label: 'Use Variable',
 			default: false,
@@ -212,6 +212,7 @@ function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 			type: 'dropdown',
 			label: 'Action',
 			id: 'op',
+			disableAutoExpression: true,
 			default: ACTION_SET,
 			choices: [
 				{ id: ACTION_SET, label: 'Set' },
@@ -227,9 +228,8 @@ function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 			min: min,
 			max: max,
 			step: step,
-			required: true,
 			range: true,
-			isVisible: (options) => options.op === 's' && !options.useVar,
+			isVisibleExpression: '$(options:op) == "s" && !$(options:useVar)',
 		},
 		{
 			id: 'setVar',
@@ -237,10 +237,10 @@ function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 			label: label + ' variable',
 			default: `${def}`,
 			regex: Regex.SOMETHING,
-			required: true,
+			minLength: 1,
 			useVariables: true,
 			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisible: (options) => options.op === 's' && options.useVar,
+			isVisibleExpression: '$(options:op) == "s" && $(options:useVar)',
 		},
 		{
 			id: 'step',
@@ -249,8 +249,7 @@ function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 			default: step,
 			min: step,
 			max: max - min,
-			required: true,
-			isVisible: (options) => options.op !== 's' && !options.useVar,
+			isVisibleExpression: '$(options:op) != "s" && !$(options:useVar)',
 		},
 		{
 			id: 'stepVar',
@@ -258,13 +257,14 @@ function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 			label: 'Step size variable',
 			default: `${step}`,
 			regex: Regex.SOMETHING,
-			required: true,
+			minLength: 1,
 			useVariables: true,
 			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisible: (options) => options.op !== 's' && options.useVar,
+			isVisibleExpression: '$(options:op) != "s" && $(options:useVar)',
 		},
 		{
 			id: 'useVar',
+			disableAutoExpression: true,
 			type: 'checkbox',
 			label: 'Use Variable',
 			default: false,
@@ -272,14 +272,14 @@ function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 	]
 }
 
-async function parseSetIncDecVariables(action, self, min, max, step) {
+function parseSetIncDecVariables(action, min, max, step) {
 	if (action.options.useVar) {
 		if (action.options.op === ACTION_SET) {
-			const setVar = constrainRange(parseInt(await self.parseVariablesInString(action.options.setVar)), min, max)
+			const setVar = constrainRange(parseInt(action.options.setVar), min, max)
 			if (isNaN(setVar)) return false
 			action.options.set = setVar
 		} else {
-			const stepVar = constrainRange(parseInt(await self.parseVariablesInString(action.options.stepVar)), step, max - min)
+			const stepVar = constrainRange(parseInt(action.options.stepVar), step, max - min)
 			if (isNaN(stepVar)) return false
 			action.options.step = stepVar
 		}
@@ -383,7 +383,7 @@ export function getActionDefinitions(self) {
 				...optSetLowerRaise('Speed', SPEED_DEFAULT, SPEED_MIN, SPEED_MAX, 1),
 			],
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, SPEED_MIN, SPEED_MAX, 1))) return
+				if (!parseSetIncDecVariables(action, SPEED_MIN, SPEED_MAX, 1)) return
 				switch (action.options.scope) {
 					case 'pt':
 						self.ptSpeed = action.options.op === ACTION_SET ? action.options.set : getNextValue(self.ptSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
@@ -489,7 +489,7 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Follow Focus',
 			options: optSetIncDecStep('Focus setting', 0x555, 0x0, 0xaaa, 10),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, 0x0, 0xaaa, 10))) return
+				if (!parseSetIncDecVariables(action, 0x0, 0xaaa, 10)) return
 				await self.getPTZ('AXF' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.focusPosition))
 			},
 		}
@@ -534,7 +534,7 @@ export function getActionDefinitions(self) {
 			name: 'Exposure - Iris',
 			options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, 0x0, 0xaaa, 0x1e))) return
+				if (!parseSetIncDecVariables(action, 0x0, 0xaaa, 0x1e)) return
 				await self.getPTZ('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
 			},
 		}
@@ -546,7 +546,7 @@ export function getActionDefinitions(self) {
 			name: 'Exposure - Iris',
 			options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, 0x0, 0x3ff, 0xa))) return
+				if (!parseSetIncDecVariables(action, 0x0, 0x3ff, 0xa)) return
 				await self.getCam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
 			},
 		}
@@ -642,7 +642,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Chroma Phase',
 			options: optSetIncDecStep('Setting', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
 				await self.getCam('OSJ:0B:' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.chromaPhaseValue))
 			},
 		}
@@ -674,7 +674,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
 				await self.getCam(caps.cmd + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.masterPedValue))
 			},
 		}
@@ -686,7 +686,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Red Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
 				await self.getCam(caps.cmd.red + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.redPedValue))
 			},
 		}
@@ -698,7 +698,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Blue Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
 				await self.getCam(caps.cmd.blue + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.bluePedValue))
 			},
 		}
@@ -710,7 +710,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Green Pedestal',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
 				await self.getCam(caps.cmd.green + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.greenPedValue))
 			},
 		}
@@ -722,7 +722,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Red Gain',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
 				await self.getCam(caps.cmd.red + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.redGainValue))
 			},
 		}
@@ -734,7 +734,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Blue Gain',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
 				await self.getCam(caps.cmd.blue + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.blueGainValue))
 			},
 		}
@@ -746,7 +746,7 @@ export function getActionDefinitions(self) {
 			name: 'Image - Green Gain',
 			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, -caps.limit, caps.limit, caps.step))) return
+				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
 				await self.getCam(caps.cmd.green + ':' + cmdValue(action, caps.offset, -caps.limit, caps.limit, action.options.step, caps.hexlen, self.data.greenGainValue))
 			},
 		}
@@ -796,7 +796,7 @@ export function getActionDefinitions(self) {
 				name: 'Image - Color Temperature',
 				options: optSetIncDecStep('Color Temperature [K]', 3200, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20),
 				callback: async (action) => {
-					if (!(await parseSetIncDecVariables(action, self, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20))) return
+					if (!parseSetIncDecVariables(action, SERIES.capabilities.colorTemperature.advanced.min, SERIES.capabilities.colorTemperature.advanced.max, 20)) return
 					switch (action.options.op) {
 						case ACTION_SET:
 							await self.getCam(SERIES.capabilities.colorTemperature.advanced.set + ':' + toHexString(action.options.set, 5) + ':0')
@@ -835,6 +835,7 @@ export function getActionDefinitions(self) {
 					type: 'dropdown',
 					label: 'Action',
 					id: 'op',
+					disableAutoExpression: true,
 					default: 'R',
 					choices: [
 						{ id: 'R', label: 'Recall / Play' },
@@ -848,7 +849,7 @@ export function getActionDefinitions(self) {
 					id: 'val',
 					default: e.ENUM_PRESET[0].id,
 					choices: e.ENUM_PRESET.slice(0, SERIES.capabilities.preset),
-					isVisible: (options) => !options.useVar,
+					isVisibleExpression: '!$(options:useVar)',
 				},
 				{
 					id: 'valVar',
@@ -856,13 +857,14 @@ export function getActionDefinitions(self) {
 					label: 'Preset # variable',
 					default: '1',
 					regex: Regex.SOMETHING,
-					required: true,
+					minLength: 1,
 					useVariables: true,
 					tooltip: `This expression should return a preset number in the range 1 to ${SERIES.capabilities.preset}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-					isVisible: (options) => options.useVar,
+					isVisibleExpression: '$(options:useVar)',
 				},
 				{
 					id: 'useVar',
+					disableAutoExpression: true,
 					type: 'checkbox',
 					label: 'Use Variable',
 					default: false,
@@ -871,7 +873,7 @@ export function getActionDefinitions(self) {
 			callback: async (action) => {
 				let val = action.options.val
 				if (action.options.useVar) {
-					const num = constrainRange(parseInt(await self.parseVariablesInString(action.options.valVar)), 1, SERIES.capabilities.preset)
+					const num = constrainRange(parseInt(action.options.valVar), 1, SERIES.capabilities.preset)
 					if (isNaN(num)) return
 					val = (num - 1).toString(10).padStart(2, '0')
 				}
@@ -886,7 +888,7 @@ export function getActionDefinitions(self) {
 				self.data.presetSelectedIdx = null
 				self.data.presetCompletedIdx = null
 				self.checkVariables()
-				self.checkFeedbacks()
+				self.checkAllFeedbacks()
 			},
 		}
 
@@ -959,7 +961,6 @@ export function getActionDefinitions(self) {
 					default: 1,
 					min: 1,
 					max: 99,
-					required: true,
 					range: true,
 				},
 			],
@@ -1019,7 +1020,7 @@ export function getActionDefinitions(self) {
 				...optSetIncDecStep('Volume Level (dB)', 0, caps.min, caps.max, caps.step),
 			],
 			callback: async (action) => {
-				if (!(await parseSetIncDecVariables(action, self, caps.min, caps.max, caps.step))) return
+				if (!parseSetIncDecVariables(action, caps.min, caps.max, caps.step)) return
 				const value = cmdValue(action, 0x80, caps.min, caps.max, action.options.step, 2, self.data.audioVolumeLevels[action.options.channel] ?? 0)
 				await self.getCam(`OSA:D5:${action.options.channel}:${value}`)
 			},
@@ -1050,14 +1051,14 @@ export function getActionDefinitions(self) {
 					type: 'textinput',
 					label: 'Username',
 					default: 'admin',
-					required: true,
+					minLength: 1,
 				},
 				{
 					id: 'password',
 					type: 'textinput',
 					label: 'Password',
 					default: '12345',
-					required: true,
+					minLength: 1,
 				},
 			],
 			callback: async (action) => {

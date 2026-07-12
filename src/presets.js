@@ -30,7 +30,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.panTilt) {
 		presets['pan-tilt-up'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'UP',
 			style: {
@@ -65,7 +65,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['pan-tilt-down'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'DOWN',
 			style: {
@@ -100,7 +100,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['pan-tilt-left'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'LEFT',
 			style: {
@@ -135,7 +135,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['pan-tilt-right'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'RIGHT',
 			style: {
@@ -170,7 +170,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['pan-tilt-up-right'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'UP RIGHT',
 			style: {
@@ -205,7 +205,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['pan-tilt-up-left'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'UP LEFT',
 			style: {
@@ -240,7 +240,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['pan-tilt-down-left'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'DOWN LEFT',
 			style: {
@@ -275,7 +275,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['pan-tilt-down-right'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'DOWN RIGHT',
 			style: {
@@ -310,7 +310,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['pan-tilt-position'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'Pan/Tilt Position',
 			style: {
@@ -334,7 +334,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['pan-tilt-speed'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Pan/Tilt',
 			name: 'Speed',
 			style: {
@@ -391,7 +391,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.zoom) {
 		presets['lens-zoom'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Zoom',
 			style: {
@@ -438,7 +438,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['lens-zoom-in'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Zoom In',
 			style: {
@@ -457,7 +457,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['lens-zoom-out'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Zoom Out',
 			style: {
@@ -476,7 +476,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['lens-zoom-speed'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Zoom Speed',
 			style: {
@@ -517,7 +517,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.focus) {
 		presets['lens-focus'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Focus',
 			style: {
@@ -563,7 +563,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['lens-focus-far'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Focus Far',
 			style: {
@@ -582,7 +582,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['lens-focus-near'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Focus Near',
 			style: {
@@ -601,7 +601,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['lens-focus-speed'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Focus Speed',
 			style: {
@@ -641,7 +641,7 @@ export function getPresetDefinitions(self) {
 
 		if (SERIES.capabilities.focusAuto) {
 			presets['lens-focus-mode'] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Lens',
 				name: 'Focus Mode',
 				style: {
@@ -675,7 +675,7 @@ export function getPresetDefinitions(self) {
 
 		if (SERIES.capabilities.focusPushAuto) {
 			presets['lens-focus-push-auto'] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Lens',
 				name: 'Push Auto Focus',
 				style: {
@@ -702,7 +702,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.ois) {
 		presets[`lens-ois-mode`] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'O.I.S. Mode',
 			style: {
@@ -765,7 +765,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.iris) {
 		presets['exposure-iris'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'Iris',
 			style: {
@@ -814,7 +814,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['exposure-iris-up'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'Iris Up',
 			style: {
@@ -842,7 +842,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['exposure-iris-down'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'Iris Down',
 			style: {
@@ -872,7 +872,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.irisAuto) {
 		presets['exposure-iris-mode'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'Iris Mode',
 			style: {
@@ -908,7 +908,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.shutter) {
 		presets[`exposure-shutter`] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'Shutter',
 			style: {
@@ -966,7 +966,7 @@ export function getPresetDefinitions(self) {
 
 		if (SERIES.capabilities.shutter.inc && SERIES.capabilities.shutter.dec) {
 			presets[`exposure-shutter-step`] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Exposure',
 				name: 'Shutter Step',
 				style: {
@@ -1001,7 +1001,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.filter) {
 		presets['exposure-filter'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'ND Filter',
 			style: {
@@ -1060,7 +1060,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.night) {
 		presets['exposure-night-mode'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'Night Mode',
 			style: {
@@ -1100,7 +1100,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.gain) {
 		presets[`image-gain`] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Gain',
 			style: {
@@ -1158,7 +1158,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.dropdown) {
 		presets['image-chroma-level'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Chroma Level',
 			style: {
@@ -1205,7 +1205,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.chromaPhase) {
 		presets['image-chroma-phase'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Chroma Phase',
 			style: {
@@ -1258,7 +1258,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
 		presets['image-dnr'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'DNR',
 			style: {
@@ -1305,7 +1305,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
 		presets['image-drs'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'DRS',
 			style: {
@@ -1352,7 +1352,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.pedestal) {
 		presets['image-pedestal'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Pedestal',
 			style: {
@@ -1405,7 +1405,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.colorGain) {
 		presets['image-red-gain'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Red Gain',
 			style: {
@@ -1456,7 +1456,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['image-blue-gain'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Blue Gain',
 			style: {
@@ -1508,7 +1508,7 @@ export function getPresetDefinitions(self) {
 
 		if (SERIES.capabilities.colorGain.cmd.green) {
 			presets['image-green-gain'] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Image',
 				name: 'Green Gain',
 				style: {
@@ -1562,7 +1562,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.colorPedestal) {
 		presets['image-red-ped'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Red Pedestal',
 			style: {
@@ -1613,7 +1613,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['image-blue-ped'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Blue Pedestal',
 			style: {
@@ -1665,7 +1665,7 @@ export function getPresetDefinitions(self) {
 
 		if (SERIES.capabilities.colorPedestal.cmd.green) {
 			presets['image-green-ped'] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Image',
 				name: 'Green Pedestal',
 				style: {
@@ -1720,7 +1720,7 @@ export function getPresetDefinitions(self) {
 	if (SERIES.capabilities.whiteBalance) {
 		if (SERIES.capabilities.whiteBalance.dropdown) {
 			presets[`image-whitebalance`] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Image',
 				name: 'White Balance',
 				style: {
@@ -1778,7 +1778,7 @@ export function getPresetDefinitions(self) {
 
 		if (SERIES.capabilities.colorTemperature) {
 			presets['image-colortemp'] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Image',
 				name: 'Color Temperature',
 				style: {
@@ -1821,7 +1821,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['image-awb'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Execute Auto White Balance',
 			style: {
@@ -1844,7 +1844,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['image-abb'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Execute Auto Black Balance',
 			style: {
@@ -1873,7 +1873,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.error || SERIES.capabilities.version) {
 		presets['system-cam-info'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Camera title, model, version and error indication',
 			style: {
@@ -1899,7 +1899,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.tally) {
 		presets['system-tally'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Red Tally',
 			style: {
@@ -1935,7 +1935,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.tally2) {
 		presets['system-tally2'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Green Tally',
 			style: {
@@ -1971,7 +1971,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.tally3) {
 		presets['system-tally3'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Yellow Tally',
 			style: {
@@ -2007,7 +2007,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.power) {
 		presets['system-power'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Power',
 			style: {
@@ -2043,7 +2043,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.restart) {
 		presets['system-restart'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Restart',
 			style: {
@@ -2072,7 +2072,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.colorbar) {
 		presets['system-colorbar'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Color Bar',
 			style: {
@@ -2110,7 +2110,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.install) {
 		presets['system-install-position'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Installation Position',
 			style: {
@@ -2138,7 +2138,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.videoFormat) {
 		presets['system-video-format'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Video Format',
 			style: {
@@ -2159,7 +2159,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.recordSD) {
 		presets['system-sd-recording'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'SD Card Recording',
 			style: {
@@ -2202,7 +2202,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.streamSRT) {
 		presets['system-srt-stream'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'SRT Caller Streaming',
 			style: {
@@ -2238,7 +2238,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.streamTS) {
 		presets['system-ts-stream'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'MPEG-TS Output Streaming',
 			style: {
@@ -2274,7 +2274,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.streamRTMP) {
 		presets['system-rtmp-stream'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'RTMP Push Streaming',
 			style: {
@@ -2314,7 +2314,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.presetSpeed && SERIES.capabilities.presetTime) {
 		presets['preset-mode'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Preset Recall Mode',
 			style: {
@@ -2340,7 +2340,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['preset-speed-table'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Preset Recall Speed Table',
 			style: {
@@ -2368,7 +2368,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.presetSpeed) {
 		presets[`preset-velocity`] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Preset Recall Velocity',
 			style: {
@@ -2413,7 +2413,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['preset-speed-high'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Set Recall Speed High',
 			style: {
@@ -2451,7 +2451,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['preset-speed-mid'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Set Recall Speed Mid',
 			style: {
@@ -2489,7 +2489,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['preset-speed-low'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Set Recall Speed Low',
 			style: {
@@ -2529,7 +2529,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.preset) {
 		presets['preset-scope-a'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Preset Recall Scope A',
 			style: {
@@ -2567,7 +2567,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['preset-scope-b'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Preset Recall Scope B',
 			style: {
@@ -2605,7 +2605,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['preset-scope-c'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Preset Recall Scope C',
 			style: {
@@ -2643,7 +2643,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['preset-clear-all'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Clear All Presets (hold 3s)',
 			style: {
@@ -2651,9 +2651,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				relativeDelay: false,
 			},
 			steps: [
 				{
@@ -2677,7 +2674,7 @@ export function getPresetDefinitions(self) {
 
 		for (let i = 0; i < 100; i++) {
 			presets[`preset-memory-${i}`] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Preset Memory',
 				name: 'Recall, Store or Clear Preset ' + (i + 1).toString(),
 				style: {
@@ -2685,9 +2682,6 @@ export function getPresetDefinitions(self) {
 					size: '14',
 					color: colorWhite,
 					bgcolor: colorBlack,
-				},
-				options: {
-					relativeDelay: false,
 				},
 				steps: [
 					{
@@ -2791,7 +2785,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.trackingAuto) {
 		presets['autotracking-mode'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Auto Tracking',
 			name: 'Auto Tracking Mode',
 			style: {
@@ -2825,7 +2819,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['autotracking-angle'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Auto Tracking',
 			name: 'Auto Tracking Angle',
 			style: {
@@ -2863,7 +2857,7 @@ export function getPresetDefinitions(self) {
 		}
 
 		presets['autotracking-status'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Auto Tracking',
 			name: 'Auto Tracking Status & Start/Stop',
 			style: {
@@ -2918,7 +2912,7 @@ export function getPresetDefinitions(self) {
 		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
 			const disp = ch + 1 // channel is 0-based internally; display/variables are 1-based
 			presets[`audio-volume-ch${disp}`] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Audio',
 				name: `Audio Volume Level Channel ${disp}`,
 				style: {
@@ -2998,5 +2992,28 @@ export function getPresetDefinitions(self) {
 		}
 	}
 
-	return presets
+	return buildPresetDefinitions(presets)
+}
+
+// API 2.0 splits presets into a `structure` of UI sections plus the flat preset definitions.
+// Categories stay declared inline on each preset above and are lifted out here, so a section
+// only ever lists the presets the connected model actually supports.
+function buildPresetDefinitions(presets) {
+	const structure = []
+	const sections = new Map()
+
+	for (const [id, preset] of Object.entries(presets)) {
+		const { category, ...definition } = preset
+		presets[id] = definition
+
+		let section = sections.get(category)
+		if (!section) {
+			section = { id: category.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: category, definitions: [] }
+			sections.set(category, section)
+			structure.push(section)
+		}
+		section.definitions.push(id)
+	}
+
+	return { structure, presets }
 }

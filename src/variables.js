@@ -7,164 +7,164 @@ import { e } from './enum.js'
 export function setVariables(self) {
 	const SERIES = getAndUpdateSeries(self)
 
-	const variables = []
+	const variables = {}
 
-	variables.push({ variableId: 'model', name: 'Model of camera' })
-	variables.push({ variableId: 'title', name: 'Title of camera' })
+	variables.model = { name: 'Model of camera' }
+	variables.title = { name: 'Title of camera' }
 	if (SERIES.capabilities.version) {
-		variables.push({ variableId: 'version', name: 'Firmware Version' })
+		variables.version = { name: 'Firmware Version' }
 	}
 	if (SERIES.capabilities.error) {
-		variables.push({ variableId: 'error', name: 'Error Code' })
+		variables.error = { name: 'Error Code' }
 	}
 	if (SERIES.capabilities.install) {
-		variables.push({ variableId: 'installMode', name: 'Install Position' })
+		variables.installMode = { name: 'Install Position' }
 	}
 	if (SERIES.capabilities.power) {
-		variables.push({ variableId: 'power', name: 'Power Status' })
+		variables.power = { name: 'Power Status' }
 	}
 	if (SERIES.capabilities.colorbar) {
-		variables.push({ variableId: 'colorbar', name: 'Color Bar Status' })
+		variables.colorbar = { name: 'Color Bar Status' }
 	}
 	if (SERIES.capabilities.tally) {
-		variables.push({ variableId: 'tally', name: 'Red Tally Status' })
+		variables.tally = { name: 'Red Tally Status' }
 		if (SERIES.capabilities.tally2) {
-			variables.push({ variableId: 'tally2', name: 'Green Tally Status' })
+			variables.tally2 = { name: 'Green Tally Status' }
 			if (SERIES.capabilities.tally3) {
-				variables.push({ variableId: 'tally3', name: 'Yellow Tally Status' })
+				variables.tally3 = { name: 'Yellow Tally Status' }
 			}
 		}
 	}
 	if (SERIES.capabilities.focusAuto) {
-		variables.push({ variableId: 'focusMode', name: 'Focus Mode' })
+		variables.focusMode = { name: 'Focus Mode' }
 	}
 	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
-		variables.push({ variableId: 'whiteBalance', name: 'White Balance Mode' })
+		variables.whiteBalance = { name: 'White Balance Mode' }
 	}
 	if (SERIES.capabilities.colorTemperature) {
-		variables.push({ variableId: 'colorTemperature', name: 'Color Temperature' })
+		variables.colorTemperature = { name: 'Color Temperature' }
 	}
 	if (SERIES.capabilities.filter) {
-		variables.push({ variableId: 'filter', name: 'ND Filter' })
+		variables.filter = { name: 'ND Filter' }
 	}
 	if (SERIES.capabilities.gain) {
-		variables.push({ variableId: 'gain', name: 'Gain' })
+		variables.gain = { name: 'Gain' }
 	}
 	if (SERIES.capabilities.shootingMode) {
-		variables.push({ variableId: 'shootingMode', name: 'Shooting Mode' })
+		variables.shootingMode = { name: 'Shooting Mode' }
 	}
 	if (SERIES.capabilities.night) {
-		variables.push({ variableId: 'nightMode', name: 'Night Mode' })
+		variables.nightMode = { name: 'Night Mode' }
 	}
 	if (SERIES.capabilities.preset) {
-		variables.push({ variableId: 'presetScope', name: 'Preset Recall Scope' })
-		variables.push({ variableId: 'presetCompleted', name: 'Preset # Completed' })
-		variables.push({ variableId: 'presetSelected', name: 'Preset # Selected' })
-		variables.push({ variableId: 'presetMemory', name: 'Used Preset Memory slots' })
+		variables.presetScope = { name: 'Preset Recall Scope' }
+		variables.presetCompleted = { name: 'Preset # Completed' }
+		variables.presetSelected = { name: 'Preset # Selected' }
+		variables.presetMemory = { name: 'Used Preset Memory slots' }
 	}
 	if (SERIES.capabilities.shutter) {
-		variables.push({ variableId: 'shutter', name: 'Shutter Mode' })
+		variables.shutter = { name: 'Shutter Mode' }
 	}
 	if (SERIES.capabilities.shutter && SERIES.capabilities.shutter.dropdown === e.ENUM_SHUTTER_ADV) {
-		variables.push({ variableId: 'shutterStep', name: 'Shutter Step' })
+		variables.shutterStep = { name: 'Shutter Step' }
 	}
 	if (SERIES.capabilities.ois) {
-		variables.push({ variableId: 'ois', name: 'O.I.S.' })
+		variables.ois = { name: 'O.I.S.' }
 	}
 	if (SERIES.capabilities.panTilt) {
-		variables.push({ variableId: 'ptSpeed', name: 'Pan/Tilt Speed' })
-		variables.push({ variableId: 'pSpeed', name: 'Pan Speed' })
-		variables.push({ variableId: 'tSpeed', name: 'Tilt Speed' })
-		variables.push({ variableId: 'panPosition', name: 'Pan Position' })
-		variables.push({ variableId: 'tiltPosition', name: 'Tilt Position' })
-		variables.push({ variableId: 'panPositionDeg', name: 'Pan Position °' })
-		variables.push({ variableId: 'tiltPositionDeg', name: 'Tilt Position °' })
+		variables.ptSpeed = { name: 'Pan/Tilt Speed' }
+		variables.pSpeed = { name: 'Pan Speed' }
+		variables.tSpeed = { name: 'Tilt Speed' }
+		variables.panPosition = { name: 'Pan Position' }
+		variables.tiltPosition = { name: 'Tilt Position' }
+		variables.panPositionDeg = { name: 'Pan Position °' }
+		variables.tiltPositionDeg = { name: 'Tilt Position °' }
 	}
 	if (SERIES.capabilities.zoom) {
-		variables.push({ variableId: 'zoomPosition', name: 'Zoom Position' })
-		variables.push({ variableId: 'zoomPositionPct', name: 'Zoom Position %' })
-		variables.push({ variableId: 'zoomPositionBar', name: 'Zoom Position' })
-		variables.push({ variableId: 'zoomSpeed', name: 'Zoom Speed Control' })
-		variables.push({ variableId: 'zSpeed', name: 'Zoom Speed' })
+		variables.zoomPosition = { name: 'Zoom Position' }
+		variables.zoomPositionPct = { name: 'Zoom Position %' }
+		variables.zoomPositionBar = { name: 'Zoom Position' }
+		variables.zoomSpeed = { name: 'Zoom Speed Control' }
+		variables.zSpeed = { name: 'Zoom Speed' }
 	}
 	if (SERIES.capabilities.focus) {
-		variables.push({ variableId: 'focusPosition', name: 'Focus Position' })
-		variables.push({ variableId: 'focusPositionPct', name: 'Focus Position %' })
-		variables.push({ variableId: 'focusPositionBar', name: 'Focus Position' })
-		variables.push({ variableId: 'focusSpeed', name: 'Focus Speed Control' })
-		variables.push({ variableId: 'fSpeed', name: 'Focus Speed' })
+		variables.focusPosition = { name: 'Focus Position' }
+		variables.focusPositionPct = { name: 'Focus Position %' }
+		variables.focusPositionBar = { name: 'Focus Position' }
+		variables.focusSpeed = { name: 'Focus Speed Control' }
+		variables.fSpeed = { name: 'Focus Speed' }
 	}
 	if (SERIES.capabilities.iris) {
-		variables.push({ variableId: 'irisPosition', name: 'Iris Position' })
-		variables.push({ variableId: 'irisPositionPct', name: 'Iris Position %' })
-		variables.push({ variableId: 'irisPositionBar', name: 'Iris Position' })
-		variables.push({ variableId: 'irisVolume', name: 'Iris Volume' })
+		variables.irisPosition = { name: 'Iris Position' }
+		variables.irisPositionPct = { name: 'Iris Position %' }
+		variables.irisPositionBar = { name: 'Iris Position' }
+		variables.irisVolume = { name: 'Iris Volume' }
 	}
 	if (SERIES.capabilities.irisAuto) {
-		variables.push({ variableId: 'irisMode', name: 'Iris Mode' })
+		variables.irisMode = { name: 'Iris Mode' }
 	}
 	if (SERIES.capabilities.irisF) {
-		variables.push({ variableId: 'irisF', name: 'Iris F No.' })
+		variables.irisF = { name: 'Iris F No.' }
 	}
 	if (SERIES.capabilities.pedestal) {
-		variables.push({ variableId: 'masterPed', name: 'Master Pedestal' })
+		variables.masterPed = { name: 'Master Pedestal' }
 	}
 	if (SERIES.capabilities.chromaLevel) {
-		variables.push({ variableId: 'chromaLevel', name: 'Chroma Level' })
+		variables.chromaLevel = { name: 'Chroma Level' }
 	}
 	if (SERIES.capabilities.chromaPhase) {
-		variables.push({ variableId: 'chromaPhase', name: 'Chroma Phase' })
+		variables.chromaPhase = { name: 'Chroma Phase' }
 	}
 	if (SERIES.capabilities.dnr) {
-		variables.push({ variableId: 'dnr', name: 'Digital Noise Reduction' })
+		variables.dnr = { name: 'Digital Noise Reduction' }
 	}
 	if (SERIES.capabilities.drs) {
-		variables.push({ variableId: 'drs', name: 'Dynamic Range Stretch' })
+		variables.drs = { name: 'Dynamic Range Stretch' }
 	}
 	if (SERIES.capabilities.colorGain) {
-		variables.push({ variableId: 'redGain', name: 'Red Gain' })
-		variables.push({ variableId: 'blueGain', name: 'Blue Gain' })
+		variables.redGain = { name: 'Red Gain' }
+		variables.blueGain = { name: 'Blue Gain' }
 		if (SERIES.capabilities.colorGain.cmd.green) {
-			variables.push({ variableId: 'greenGain', name: 'Green Gain' })
+			variables.greenGain = { name: 'Green Gain' }
 		}
 	}
 	if (SERIES.capabilities.colorPedestal) {
-		variables.push({ variableId: 'redPed', name: 'Red Pedestal' })
-		variables.push({ variableId: 'bluePed', name: 'Blue Pedestal' })
+		variables.redPed = { name: 'Red Pedestal' }
+		variables.bluePed = { name: 'Blue Pedestal' }
 		if (SERIES.capabilities.colorPedestal.cmd.green) {
-			variables.push({ variableId: 'greenPed', name: 'Green Pedestal' })
+			variables.greenPed = { name: 'Green Pedestal' }
 		}
 	}
 	if (SERIES.capabilities.presetSpeed) {
-		variables.push({ variableId: 'presetSpeed', name: 'Preset Recall Speed/Time' })
-		variables.push({ variableId: 'presetSpeedTable', name: 'Preset Recall Speed Table' })
+		variables.presetSpeed = { name: 'Preset Recall Speed/Time' }
+		variables.presetSpeedTable = { name: 'Preset Recall Speed Table' }
 	}
 	if (SERIES.capabilities.presetTime) {
-		variables.push({ variableId: 'presetSpeedUnit', name: 'Preset Recall Speed Unit' })
+		variables.presetSpeedUnit = { name: 'Preset Recall Speed Unit' }
 	}
 	if (SERIES.capabilities.recordSD) {
-		variables.push({ variableId: 'recording', name: 'SD Card Recording Status' })
+		variables.recording = { name: 'SD Card Recording Status' }
 	}
 	if (SERIES.capabilities.streamRTMP) {
-		variables.push({ variableId: 'streamingRTMP', name: 'RTMP Push Status' })
+		variables.streamingRTMP = { name: 'RTMP Push Status' }
 	}
 	if (SERIES.capabilities.streamSRT) {
-		variables.push({ variableId: 'streamingSRT', name: 'SRT Caller Status' })
+		variables.streamingSRT = { name: 'SRT Caller Status' }
 	}
 	if (SERIES.capabilities.streamTS) {
-		variables.push({ variableId: 'streamingTS', name: 'MPEG-TS Output Status' })
+		variables.streamingTS = { name: 'MPEG-TS Output Status' }
 	}
 	if (SERIES.capabilities.videoFormat) {
-		variables.push({ variableId: 'videoFormat', name: 'Video Format' })
+		variables.videoFormat = { name: 'Video Format' }
 	}
 	if (SERIES.capabilities.trackingAuto) {
-		variables.push({ variableId: 'autotrackingMode', name: 'Autotracking Mode' })
-		variables.push({ variableId: 'autotrackingAngle', name: 'Autotracking Angle' })
-		variables.push({ variableId: 'autotrackingStatus', name: 'Autotracking Status' })
+		variables.autotrackingMode = { name: 'Autotracking Mode' }
+		variables.autotrackingAngle = { name: 'Autotracking Angle' }
+		variables.autotrackingStatus = { name: 'Autotracking Status' }
 	}
 	if (SERIES.capabilities.audioVolumeLevel) {
 		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
-			variables.push({ variableId: `audioVolumeLevel${ch + 1}`, name: `Audio Volume Level Channel ${ch + 1} (dB)` })
+			variables[`audioVolumeLevel${ch + 1}`] = { name: `Audio Volume Level Channel ${ch + 1} (dB)` }
 		}
 	}
 

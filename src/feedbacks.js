@@ -12,7 +12,7 @@ function optPreset(max) {
 			id: 'option',
 			default: e.ENUM_PRESET[0].id,
 			choices: e.ENUM_PRESET.slice(0, max),
-			isVisible: (options) => !options.useVar,
+			isVisibleExpression: '!$(options:useVar)',
 		},
 		{
 			id: 'optionVar',
@@ -20,13 +20,14 @@ function optPreset(max) {
 			label: 'Preset # variable',
 			default: '1',
 			regex: Regex.SOMETHING,
-			required: true,
+			minLength: 1,
 			useVariables: true,
 			tooltip: `This expression should return a preset number in the range 1 to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values disable the feedback.`,
-			isVisible: (options) => options.useVar,
+			isVisibleExpression: '$(options:useVar)',
 		},
 		{
 			id: 'useVar',
+			disableAutoExpression: true,
 			type: 'checkbox',
 			label: 'Use Variable',
 			default: false,
@@ -35,9 +36,9 @@ function optPreset(max) {
 }
 
 // Resolve the selected preset to its 0-based index, or null when a variable expression is unreadable
-async function parsePresetIdx(feedback, context, max) {
+function parsePresetIdx(feedback, max) {
 	if (feedback.options.useVar) {
-		const num = constrainRange(parseInt(await context.parseVariablesInString(feedback.options.optionVar)), 1, max)
+		const num = constrainRange(parseInt(feedback.options.optionVar), 1, max)
 		if (isNaN(num)) return null
 		return num - 1
 	}
@@ -367,8 +368,8 @@ export function getFeedbackDefinitions(self) {
 				bgcolor: colorOrange,
 			},
 			options: optPreset(SERIES.capabilities.preset),
-			callback: async (feedback, context) => {
-				const idx = await parsePresetIdx(feedback, context, SERIES.capabilities.preset)
+			callback: async (feedback) => {
+				const idx = parsePresetIdx(feedback, SERIES.capabilities.preset)
 				if (idx === null) return false
 				return self.data.presetEntries[idx] === '1' && self.data.presetSelectedIdx === idx
 			},
@@ -383,8 +384,8 @@ export function getFeedbackDefinitions(self) {
 				bgcolor: colorBlue,
 			},
 			options: optPreset(SERIES.capabilities.preset),
-			callback: async (feedback, context) => {
-				const idx = await parsePresetIdx(feedback, context, SERIES.capabilities.preset)
+			callback: async (feedback) => {
+				const idx = parsePresetIdx(feedback, SERIES.capabilities.preset)
 				if (idx === null) return false
 				return self.data.presetEntries[idx] === '1' && self.data.presetCompletedIdx === idx
 			},
@@ -399,8 +400,8 @@ export function getFeedbackDefinitions(self) {
 				bgcolor: colorGrey,
 			},
 			options: optPreset(SERIES.capabilities.preset),
-			callback: async (feedback, context) => {
-				const idx = await parsePresetIdx(feedback, context, SERIES.capabilities.preset)
+			callback: async (feedback) => {
+				const idx = parsePresetIdx(feedback, SERIES.capabilities.preset)
 				if (idx === null) return false
 				return self.data.presetEntries[idx] === '1'
 			},
@@ -412,8 +413,8 @@ export function getFeedbackDefinitions(self) {
 				name: 'Preset - Thumbnail',
 				description: 'Provides the thumbnail of the selected preset as the button background image',
 				options: optPreset(SERIES.capabilities.preset),
-				callback: async (feedback, context) => {
-					const idx = await parsePresetIdx(feedback, context, SERIES.capabilities.preset)
+				callback: async (feedback) => {
+					const idx = parsePresetIdx(feedback, SERIES.capabilities.preset)
 					if (idx === null) return {}
 					return { png64: self.data.presetThumbnails[idx] }
 				},

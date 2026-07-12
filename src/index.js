@@ -1,4 +1,4 @@
-import { runEntrypoint, InstanceBase, InstanceStatus } from '@companion-module/base'
+import { InstanceBase, InstanceStatus } from '@companion-module/base'
 import { upgradeScripts } from './upgrades.js'
 import { getActionDefinitions } from './actions.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
@@ -19,7 +19,9 @@ const Jimp = JimpRaw.default || JimpRaw
 // ########################
 // #### Instance setup ####
 // ########################
-class PanasonicCameraInstance extends InstanceBase {
+export const UpgradeScripts = upgradeScripts
+
+export default class PanasonicCameraInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
 	}
@@ -125,7 +127,7 @@ class PanasonicCameraInstance extends InstanceBase {
 
 					// Update Variables and Feedbacks
 					this.checkVariables()
-					this.checkFeedbacks()
+					this.checkAllFeedbacks()
 				})
 			})
 
@@ -194,7 +196,7 @@ class PanasonicCameraInstance extends InstanceBase {
 					}
 
 					this.checkVariables()
-					this.checkFeedbacks()
+					this.checkAllFeedbacks()
 
 					this.updateStatus(InstanceStatus.Ok)
 				}
@@ -222,7 +224,7 @@ class PanasonicCameraInstance extends InstanceBase {
 				parseUpdate(this, str.split(':'))
 
 				this.checkVariables()
-				this.checkFeedbacks()
+				this.checkAllFeedbacks()
 
 				this.updateStatus(InstanceStatus.Ok)
 			}
@@ -250,7 +252,7 @@ class PanasonicCameraInstance extends InstanceBase {
 				parseUpdate(this, str.split(':'))
 
 				this.checkVariables()
-				this.checkFeedbacks()
+				this.checkAllFeedbacks()
 
 				this.updateStatus(InstanceStatus.Ok)
 			}
@@ -290,7 +292,7 @@ class PanasonicCameraInstance extends InstanceBase {
 			}
 
 			this.checkVariables()
-			this.checkFeedbacks()
+			this.checkAllFeedbacks()
 
 			this.updateStatus(InstanceStatus.Ok)
 		} catch (err) {
@@ -315,7 +317,7 @@ class PanasonicCameraInstance extends InstanceBase {
 
 				this.data.presetThumbnails[id] = png64
 
-				this.checkFeedbacks()
+				this.checkAllFeedbacks()
 
 				this.updateStatus(InstanceStatus.Ok)
 			} catch (err) {
@@ -524,7 +526,8 @@ class PanasonicCameraInstance extends InstanceBase {
 	// #### Instance Presets ####
 	// ##########################
 	init_presets() {
-		this.setPresetDefinitions(getPresetDefinitions(this))
+		const { structure, presets } = getPresetDefinitions(this)
+		this.setPresetDefinitions(structure, presets)
 	}
 
 	// ############################
@@ -550,5 +553,3 @@ class PanasonicCameraInstance extends InstanceBase {
 		this.setActionDefinitions(getActionDefinitions(this))
 	}
 }
-
-runEntrypoint(PanasonicCameraInstance, upgradeScripts)

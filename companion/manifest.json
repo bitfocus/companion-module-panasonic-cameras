@@ -1,9 +1,11 @@
 {
+	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+	"type": "connection",
 	"id": "panasonic-cameras",
 	"name": "panasonic-cameras",
 	"shortname": "Camera",
 	"description": "Companion module for Panasonic's IP remote controllable cameras. It supports all AW series PTZ cameras as well as camera models AG-CX350, AG-CX200, AJ-CX4000, AJ-UPX360, AJ-UPX900 and AK-UB300, which use the same remote control protocol.",
-	"version": "1.3.0",
+	"version": "2.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-panasonic-cameras.git",
 	"bugs": "https://github.com/bitfocus/companion-module-panasonic-cameras/issues",
