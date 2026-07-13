@@ -761,7 +761,10 @@ export function getPresetDefinitions(self) {
 			category: 'Exposure',
 			name: 'Iris',
 			style: {
-				text: 'IRIS\\n$(generic-module:' + (SERIES.capabilities.irisF ? 'irisF' : 'irisPosition') + ')\\n$(generic-module:irisPositionBar)',
+				text:
+					'IRIS\\n$(generic-module:' +
+					(SERIES.capabilities.irisF ? 'irisF' : 'irisPosition') +
+					')\\n$(generic-module:irisPositionBar)',
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
@@ -2957,7 +2960,9 @@ function buildPresetDefinitions(presets) {
 	}
 
 	for (const { id, name, plain, templates } of sections.values()) {
-		const definitions = templates.length ? [...(plain.length ? [{ id: `${id}-general`, type: 'simple', name, presets: plain }] : []), ...templates] : plain
+		const definitions = templates.length
+			? [...(plain.length ? [{ id: `${id}-general`, type: 'simple', name, presets: plain }] : []), ...templates]
+			: plain
 		structure.push({ id, name, definitions })
 	}
 

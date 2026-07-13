@@ -5,7 +5,9 @@ export async function pollCameraStatus(self) {
 	while (self.poll) {
 		// When subscription is disabled, also poll the data it would otherwise push (pull).
 		// The additional data (poll) is always queried, regardless of subscription.
-		const groups = self.config.subscriptionEnable ? [self.SERIES.capabilities.poll] : [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]
+		const groups = self.config.subscriptionEnable
+			? [self.SERIES.capabilities.poll]
+			: [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]
 
 		for (const caps of groups) {
 			if (!caps) continue

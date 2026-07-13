@@ -4,7 +4,10 @@ import { constrainRange, getNext, getNextValue, getLabel, toHexString } from '..
 
 // parseUpdate mutates self.data in place from the camera's notification strings.
 function parse(...args) {
-	const self = { data: { presetThumbnails: [], presetEntries: [], presetEntries0: [], presetEntries1: [], presetEntries2: [] }, getThumbnail: () => {} }
+	const self = {
+		data: { presetThumbnails: [], presetEntries: [], presetEntries0: [], presetEntries1: [], presetEntries2: [] },
+		getThumbnail: () => {},
+	}
 	parseUpdate(self, args)
 	return self.data
 }

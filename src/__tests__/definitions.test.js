@@ -6,7 +6,18 @@ import { getFeedbackDefinitions } from '../feedbacks.js'
 import { setVariables } from '../variables.js'
 
 // The option field types module-base 2.x accepts.
-const FIELD_TYPES = ['static-text', 'textinput', 'dropdown', 'multidropdown', 'colorpicker', 'number', 'checkbox', 'custom-variable', 'bonjour-device', 'secret-text']
+const FIELD_TYPES = [
+	'static-text',
+	'textinput',
+	'dropdown',
+	'multidropdown',
+	'colorpicker',
+	'number',
+	'checkbox',
+	'custom-variable',
+	'bonjour-device',
+	'secret-text',
+]
 
 // Properties that existed in module-base 1.x and were removed in 2.0. Each of these shipped in
 // this module at some point, so they are worth pinning rather than trusting a one-off grep.
@@ -34,7 +45,9 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 	const feedbacks = getFeedbackDefinitions(self)
 	const variables = setVariables(self)
 
-	const allFields = [...Object.entries(actions), ...Object.entries(feedbacks)].flatMap(([defId, def]) => (def.options ?? []).map((field) => [defId, field]))
+	const allFields = [...Object.entries(actions), ...Object.entries(feedbacks)].flatMap(([defId, def]) =>
+		(def.options ?? []).map((field) => [defId, field]),
+	)
 
 	describe('presets', () => {
 		it('only emits `simple` presets, with no leftover 1.x properties', () => {

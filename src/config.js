@@ -6,7 +6,8 @@ export const ConfigFields = [
 		id: 'info',
 		width: 12,
 		label: 'Information',
-		value: "This module controls Panasonic cameras, you can find supported models in the dropdown below.<br/>If your camera isn't in the list below yet, feel free to try it anyway by option 'Other Cameras'. This should still support some basic operation.",
+		value:
+			"This module controls Panasonic cameras, you can find supported models in the dropdown below.<br/>If your camera isn't in the list below yet, feel free to try it anyway by option 'Other Cameras'. This should still support some basic operation.",
 	},
 	{
 		type: 'textinput',
@@ -59,7 +60,8 @@ export const ConfigFields = [
 		id: 'Info',
 		width: 12,
 		label: 'Other Settings',
-		value: 'These setting can be left on the default values and should give you a consistent setup, but they are there for you to use if need be.',
+		value:
+			'These setting can be left on the default values and should give you a consistent setup, but they are there for you to use if need be.',
 	},
 	{
 		type: 'number',
@@ -75,7 +77,8 @@ export const ConfigFields = [
 		id: 'timeoutInfo',
 		width: 9,
 		label: '',
-		value: 'Sets the maximum amount of time to wait for a response from the camera after a request command. Otherwise the connection is considered lost and repeated attempts are made to reinitialize the connection.',
+		value:
+			'Sets the maximum amount of time to wait for a response from the camera after a request command. Otherwise the connection is considered lost and repeated attempts are made to reinitialize the connection.',
 	},
 	{
 		type: 'checkbox',
@@ -128,7 +131,8 @@ export const ConfigFields = [
 		id: 'manualTCPInfo',
 		width: 9,
 		label: 'Local TCP port assignment',
-		value: 'Manually bind local TCP Port for incoming update subscription connection. May be helpfull only for some special network configurations. Each instance / camera needs its own port.',
+		value:
+			'Manually bind local TCP Port for incoming update subscription connection. May be helpfull only for some special network configurations. Each instance / camera needs its own port.',
 	},
 	{
 		type: 'number',

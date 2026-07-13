@@ -27,15 +27,7 @@
 		"prettier": "^3.8.1",
 		"vitest": "^4.1.10"
 	},
-	"prettier": {
-		"printWidth": 360,
-		"arrowParens": "always",
-		"bracketSpacing": true,
-		"semi": false,
-		"singleQuote": true,
-		"useTabs": true,
-		"endOfLine": "lf"
-	},
+	"prettier": "@companion-module/tools/.prettierrc.json",
 	"packageManager": "yarn@4.13.0",
 	"engines": {
 		"node": "^22.20"
