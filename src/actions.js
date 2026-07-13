@@ -1,6 +1,5 @@
 import { e } from './enum.js'
 import { getAndUpdateSeries, getNext, getNextValue, constrainRange, toHexString } from './common.js'
-import { Regex } from '@companion-module/base'
 
 const SPEED_OFFSET = 50
 const SPEED_MIN = 0
@@ -163,7 +162,6 @@ function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
 			type: 'textinput',
 			label: label + ' variable',
 			default: `${def}`,
-			regex: Regex.SOMETHING,
 			useVariables: true,
 			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
 			isVisibleExpression: '$(options:op) == "s" && $(options:useVar)',
@@ -182,7 +180,6 @@ function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
 			type: 'textinput',
 			label: 'Step size variable',
 			default: `${step}`,
-			regex: Regex.SOMETHING,
 			useVariables: true,
 			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
 			isVisibleExpression: '$(options:op) != "s" && $(options:useVar)',
@@ -729,7 +726,6 @@ export function getActionDefinitions(self) {
 					type: 'textinput',
 					label: 'Preset # variable',
 					default: '1',
-					regex: Regex.SOMETHING,
 					useVariables: true,
 					tooltip: `This expression should return a preset number in the range 1 to ${caps.preset}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
 					isVisibleExpression: '$(options:useVar)',

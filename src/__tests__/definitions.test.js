@@ -118,13 +118,24 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 			}
 		})
 
-		it('never enforces minLength on a field the user may not even see', () => {
-			// 1.x `required` was a hint; 2.0 `minLength` is enforced hard enough that an entity with an
-			// empty value fails to parse. A field hidden behind isVisibleExpression is legitimately
-			// empty when its condition is off, so requiring a length there breaks existing buttons.
+		it('lets every conditionally-visible field hold an empty value', () => {
+			// Companion validates a stored option whether or not the field is currently shown. A field
+			// behind an isVisibleExpression is legitimately empty while its condition is off — the user
+			// never filled it in — so any rule that rejects "" makes the whole entity fail to parse and
+			// the button stops working.
+			//
+			// In 1.x both `required` and `regex` were advisory. In 2.0 `minLength` and `regex` are
+			// enforced, so mechanically carrying them over broke every saved button that drove its
+			// option from the dropdown rather than a variable.
 			for (const [defId, field] of allFields) {
-				if (field.isVisibleExpression) {
-					expect(field.minLength, `${defId}.${field.id} is conditionally visible`).toBeUndefined()
+				if (!field.isVisibleExpression) continue
+				const where = `${defId}.${field.id} is only shown when ${field.isVisibleExpression}`
+
+				expect(field.minLength ?? 0, where).toBe(0)
+				if (field.regex) {
+					const body = field.regex.slice(1, field.regex.lastIndexOf('/'))
+					const flags = field.regex.slice(field.regex.lastIndexOf('/') + 1)
+					expect(new RegExp(body, flags).test(''), `${where}, but its regex rejects an empty value`).toBe(true)
 				}
 			}
 		})

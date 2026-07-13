@@ -1,4 +1,4 @@
-import { combineRgb, Regex } from '@companion-module/base'
+import { combineRgb } from '@companion-module/base'
 import { getAndUpdateSeries, constrainRange } from './common.js'
 import { e } from './enum.js'
 import ICONS from './icons.js'
@@ -69,7 +69,6 @@ function optPreset(max) {
 			type: 'textinput',
 			label: 'Preset # variable',
 			default: '1',
-			regex: Regex.SOMETHING,
 			useVariables: true,
 			tooltip: `This expression should return a preset number in the range 1 to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values disable the feedback.`,
 			isVisibleExpression: '$(options:useVar)',
