@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import { e } from './enum.js'
 import { getAndUpdateSeries, getNext, getNextValue, constrainRange, toHexString } from './common.js'
 import { Regex } from '@companion-module/base'
@@ -11,11 +10,8 @@ const SPEED_DEFAULT = 25
 const ACTION_SET = 's'
 const ACTION_TOGGLE = 't'
 const ACTION_STOP = 0
-const ACTION_HOLD = 0
 const ACTION_RAISE = 1
 const ACTION_LOWER = -1
-const ACTION_UP = 1
-const ACTION_DOWN = -1
 const ACTION_INC = 1
 const ACTION_DEC = -1
 const ACTION_NEXT = 1
@@ -73,6 +69,10 @@ const speedStep = {
 	isVisibleExpression: '$(options:op) != "s"',
 }
 
+// #########################
+// #### Option builders ####
+// #########################
+
 function optMove(label_inc = '⬆', label_dec = '⬇') {
 	return [
 		{
@@ -90,7 +90,10 @@ function optMove(label_inc = '⬆', label_dec = '⬇') {
 	]
 }
 
-function optSetToggle(choices, label = 'Setting', def = 0) {
+// A 'Set' plus some way of moving relative to the current value. The relative choices carry the
+// same ids (+1 / -1) whatever they are called, so the wording is all that varies between the
+// wrappers below.
+function optSetChoice(relativeChoices, choices, label, def) {
 	return [
 		{
 			type: 'dropdown',
@@ -98,10 +101,7 @@ function optSetToggle(choices, label = 'Setting', def = 0) {
 			id: 'op',
 			disableAutoExpression: true,
 			default: ACTION_SET,
-			choices: [
-				{ id: ACTION_SET, label: 'Set' },
-				{ id: ACTION_TOGGLE, label: 'Toggle' },
-			],
+			choices: [{ id: ACTION_SET, label: 'Set' }, ...relativeChoices],
 		},
 		{
 			type: 'dropdown',
@@ -114,7 +114,26 @@ function optSetToggle(choices, label = 'Setting', def = 0) {
 	]
 }
 
+function optSetToggle(choices, label = 'Setting', def = 0) {
+	return optSetChoice([{ id: ACTION_TOGGLE, label: 'Toggle' }], choices, label, def)
+}
+
 function optSetToggleNextPrev(choices, label = 'Setting', def = 0) {
+	return optSetChoice(
+		[
+			{ id: ACTION_TOGGLE, label: 'Toggle' },
+			{ id: ACTION_NEXT, label: 'Next' },
+			{ id: ACTION_PREV, label: 'Previous' },
+		],
+		choices,
+		label,
+		def,
+	)
+}
+
+// A numeric value that can be set outright or stepped, with either input optionally driven by a
+// variable. The two wrappers below differ only in what the relative choices are called.
+function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
 	return [
 		{
 			type: 'dropdown',
@@ -124,154 +143,77 @@ function optSetToggleNextPrev(choices, label = 'Setting', def = 0) {
 			default: ACTION_SET,
 			choices: [
 				{ id: ACTION_SET, label: 'Set' },
-				{ id: ACTION_TOGGLE, label: 'Toggle' },
-				{ id: ACTION_NEXT, label: 'Next' },
-				{ id: ACTION_PREV, label: 'Previous' },
+				{ id: ACTION_INC, label: incLabel },
+				{ id: ACTION_DEC, label: decLabel },
 			],
 		},
 		{
-			type: 'dropdown',
-			label: label,
 			id: 'set',
-			default: choices[def].id,
-			choices: choices,
-			isVisibleExpression: '$(options:op) == "s"',
+			type: 'number',
+			label: label,
+			default: def,
+			min: min,
+			max: max,
+			step: step,
+			range: true,
+			isVisibleExpression: '$(options:op) == "s" && !$(options:useVar)',
+		},
+		{
+			id: 'setVar',
+			type: 'textinput',
+			label: label + ' variable',
+			default: `${def}`,
+			regex: Regex.SOMETHING,
+			minLength: 1,
+			useVariables: true,
+			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+			isVisibleExpression: '$(options:op) == "s" && $(options:useVar)',
+		},
+		{
+			id: 'step',
+			type: 'number',
+			label: 'Step size',
+			default: step,
+			min: step,
+			max: max - min,
+			isVisibleExpression: '$(options:op) != "s" && !$(options:useVar)',
+		},
+		{
+			id: 'stepVar',
+			type: 'textinput',
+			label: 'Step size variable',
+			default: `${step}`,
+			regex: Regex.SOMETHING,
+			minLength: 1,
+			useVariables: true,
+			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+			isVisibleExpression: '$(options:op) != "s" && $(options:useVar)',
+		},
+		{
+			id: 'useVar',
+			disableAutoExpression: true,
+			type: 'checkbox',
+			label: 'Use Variable',
+			default: false,
 		},
 	]
 }
 
 function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
-	return [
-		{
-			type: 'dropdown',
-			label: 'Action',
-			id: 'op',
-			disableAutoExpression: true,
-			default: ACTION_SET,
-			choices: [
-				{ id: ACTION_SET, label: 'Set' },
-				{ id: ACTION_INC, label: 'Increase' },
-				{ id: ACTION_DEC, label: 'Decrease' },
-			],
-		},
-		{
-			id: 'set',
-			type: 'number',
-			label: label,
-			default: def,
-			min: min,
-			max: max,
-			step: step,
-			range: true,
-			isVisibleExpression: '$(options:op) == "s" && !$(options:useVar)',
-		},
-		{
-			id: 'setVar',
-			type: 'textinput',
-			label: label + ' variable',
-			default: `${def}`,
-			regex: Regex.SOMETHING,
-			minLength: 1,
-			useVariables: true,
-			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisibleExpression: '$(options:op) == "s" && $(options:useVar)',
-		},
-		{
-			id: 'step',
-			type: 'number',
-			label: 'Step size',
-			default: step,
-			min: step,
-			max: max - min,
-			isVisibleExpression: '$(options:op) != "s" && !$(options:useVar)',
-		},
-		{
-			id: 'stepVar',
-			type: 'textinput',
-			label: 'Step size variable',
-			default: `${step}`,
-			regex: Regex.SOMETHING,
-			minLength: 1,
-			useVariables: true,
-			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisibleExpression: '$(options:op) != "s" && $(options:useVar)',
-		},
-		{
-			id: 'useVar',
-			disableAutoExpression: true,
-			type: 'checkbox',
-			label: 'Use Variable',
-			default: false,
-		},
-	]
+	return optSetStepped('Increase', 'Decrease', label, def, min, max, step)
 }
 
 function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
-	return [
-		{
-			type: 'dropdown',
-			label: 'Action',
-			id: 'op',
-			disableAutoExpression: true,
-			default: ACTION_SET,
-			choices: [
-				{ id: ACTION_SET, label: 'Set' },
-				{ id: ACTION_RAISE, label: 'Raise' },
-				{ id: ACTION_LOWER, label: 'Lower' },
-			],
-		},
-		{
-			id: 'set',
-			type: 'number',
-			label: label,
-			default: def,
-			min: min,
-			max: max,
-			step: step,
-			range: true,
-			isVisibleExpression: '$(options:op) == "s" && !$(options:useVar)',
-		},
-		{
-			id: 'setVar',
-			type: 'textinput',
-			label: label + ' variable',
-			default: `${def}`,
-			regex: Regex.SOMETHING,
-			minLength: 1,
-			useVariables: true,
-			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisibleExpression: '$(options:op) == "s" && $(options:useVar)',
-		},
-		{
-			id: 'step',
-			type: 'number',
-			label: 'Step size',
-			default: step,
-			min: step,
-			max: max - min,
-			isVisibleExpression: '$(options:op) != "s" && !$(options:useVar)',
-		},
-		{
-			id: 'stepVar',
-			type: 'textinput',
-			label: 'Step size variable',
-			default: `${step}`,
-			regex: Regex.SOMETHING,
-			minLength: 1,
-			useVariables: true,
-			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisibleExpression: '$(options:op) != "s" && $(options:useVar)',
-		},
-		{
-			id: 'useVar',
-			disableAutoExpression: true,
-			type: 'checkbox',
-			label: 'Use Variable',
-			default: false,
-		},
-	]
+	return optSetStepped('Raise', 'Lower', label, def, min, max, step)
 }
 
+// ############################
+// #### Command formatting ####
+// ############################
+
+// Resolves the variable-driven inputs onto the plain ones, so the command builders below only ever
+// see numbers. Returns false when a variable does not currently read as a number, which aborts the
+// action rather than sending a garbage value to the camera.
 function parseSetIncDecVariables(action, min, max, step) {
 	if (action.options.useVar) {
 		if (action.options.op === ACTION_SET) {
@@ -309,12 +251,108 @@ export function getActionDefinitions(self) {
 	const actions = {}
 
 	const SERIES = getAndUpdateSeries(self)
+	const caps = SERIES.capabilities
+
+	const cam = (cmd) => self.getCam(cmd)
+	const ptz = (cmd) => self.getPTZ(cmd)
+	const web = (cmd) => self.getWeb(cmd)
+
+	// ----- Action factories -----
+	// `read` is a getter rather than a value: toggling and stepping are relative to whatever the
+	// camera reports right now, which is not known when the definition is built.
+
+	// A setting the camera exposes as a fixed list of values.
+	const enumAction = (name, send, command, choices, read, { nextPrev = false, label } = {}) => ({
+		name,
+		options: nextPrev ? optSetToggleNextPrev(choices, label) : optSetToggle(choices, label),
+		callback: async (action) => {
+			await send(command + cmdEnum(action, choices, read()))
+		},
+	})
+
+	// A bipolar level (pedestal, colour gain, chroma phase) centred on zero.
+	const levelAction = (name, label, level, command, read) => ({
+		name,
+		options: optSetIncDecStep(label, 0, -level.limit, +level.limit, level.step),
+		callback: async (action) => {
+			if (!parseSetIncDecVariables(action, -level.limit, level.limit, level.step)) return
+			const value = cmdValue(action, level.offset, -level.limit, level.limit, action.options.step, level.hexlen, read())
+			await cam(`${command}:${value}`)
+		},
+	})
+
+	// A one-shot command with nothing to configure.
+	const simpleAction = (name, send, command) => ({
+		name,
+		options: [],
+		callback: async () => {
+			await send(command)
+		},
+	})
+
+	// Recording and streaming are driven over HTTP with a word rather than a value.
+	const webToggleAction = (name, url, read, { on = 'start', off = 'stop' } = {}) => ({
+		name,
+		options: optSetToggle(e.ENUM_OFF_ON),
+		callback: async (action) => {
+			const state = cmdEnum(action, e.ENUM_OFF_ON, read())
+			await web(url + (state === '1' ? on : off))
+		},
+	})
+
+	// Zoom and focus are the same three controls on different axes: a momentary move at the stored
+	// speed, a direct speed command, and the stored speed itself.
+	const lensAxis = (axis, command, speedProp, speedDataKey, incLabel, decLabel) => {
+		const move = (dir) => ptz(command + cmdSpeed(dir * self[speedProp] + SPEED_OFFSET))
+		return {
+			move: {
+				name: `Lens - ${axis}`,
+				options: optMove(incLabel, decLabel),
+				callback: async (action) => {
+					await move(action.options.dir)
+
+					if (self.speedChangeEmitter.listenerCount(speedProp)) {
+						self.speedChangeEmitter.removeAllListeners(speedProp)
+					}
+
+					if (action.options.liveSpeed) {
+						self.speedChangeEmitter.on(speedProp, async () => {
+							await move(action.options.dir)
+						})
+					}
+				},
+			},
+			control: {
+				name: `Lens - ${axis} Speed Control`,
+				options: [speedOperation, speedControlSetting, speedStep],
+				callback: async (action) => {
+					self.data[speedDataKey] =
+						action.options.op !== ACTION_SET
+							? getNextValue(self.data[speedDataKey], -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step)
+							: action.options.set
+					await ptz(command + cmdSpeed(self.data[speedDataKey] + SPEED_OFFSET))
+				},
+			},
+			speed: {
+				name: `Lens - ${axis} Speed`,
+				options: [speedOperation, speedSetting, speedStep],
+				callback: async (action) => {
+					self[speedProp] =
+						action.options.op !== ACTION_SET
+							? getNextValue(self[speedProp], SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
+							: action.options.set
+					self.setVariableValues({ [speedProp]: self[speedProp] })
+					self.speedChangeEmitter.emit(speedProp)
+				},
+			},
+		}
+	}
 
 	// ##########################
 	// #### Pan/Tilt Actions ####
 	// ##########################
 
-	if (SERIES.capabilities.panTilt) {
+	if (caps.panTilt) {
 		actions.ptMove = {
 			name: 'Pan/Tilt - Move',
 			options: [
@@ -362,13 +400,7 @@ export function getActionDefinitions(self) {
 			},
 		}
 
-		actions.home = {
-			name: 'Pan/Tilt - Home Position',
-			options: [],
-			callback: async (action) => {
-				await self.getPTZ('APC80008000')
-			},
-		}
+		actions.home = simpleAction('Pan/Tilt - Home Position', ptz, 'APC80008000')
 
 		actions.ptSpeed = {
 			name: 'Pan/Tilt - Speed',
@@ -425,563 +457,252 @@ export function getActionDefinitions(self) {
 	// #### Lens Actions ####
 	// ######################
 
-	if (SERIES.capabilities.zoom) {
-		actions.zoom = {
-			name: 'Lens - Zoom',
-			options: optMove('⬆ In', '⬇ Out'),
-			callback: async (action) => {
-				await self.getPTZ('Z' + cmdSpeed(action.options.dir * self.zSpeed + SPEED_OFFSET))
-
-				if (self.speedChangeEmitter.listenerCount('zSpeed')) self.speedChangeEmitter.removeAllListeners('zSpeed')
-
-				if (action.options.liveSpeed) {
-					self.speedChangeEmitter.on('zSpeed', async () => {
-						await self.getPTZ('Z' + cmdSpeed(action.options.dir * self.zSpeed + SPEED_OFFSET))
-					})
-				}
-			},
-		}
-
-		actions.zoomControl = {
-			name: 'Lens - Zoom Speed Control',
-			options: [speedOperation, speedControlSetting, speedStep],
-			callback: async (action) => {
-				self.data.zoomSpeedValue =
-					action.options.op !== ACTION_SET
-						? getNextValue(self.data.zoomSpeedValue, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step)
-						: action.options.set
-				await self.getPTZ('Z' + cmdSpeed(self.data.zoomSpeedValue + SPEED_OFFSET))
-			},
-		}
-
-		actions.zoomSpeed = {
-			name: 'Lens - Zoom Speed',
-			options: [speedOperation, speedSetting, speedStep],
-			callback: async (action) => {
-				self.zSpeed =
-					action.options.op !== ACTION_SET
-						? getNextValue(self.zSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
-						: action.options.set
-				self.setVariableValues({ zSpeed: self.zSpeed })
-				self.speedChangeEmitter.emit('zSpeed')
-			},
-		}
+	if (caps.zoom) {
+		const zoom = lensAxis('Zoom', 'Z', 'zSpeed', 'zoomSpeedValue', '⬆ In', '⬇ Out')
+		actions.zoom = zoom.move
+		actions.zoomControl = zoom.control
+		actions.zoomSpeed = zoom.speed
 	}
 
-	if (SERIES.capabilities.focus) {
-		actions.focus = {
-			name: 'Lens - Focus',
-			options: optMove('⬆ Far', '⬇ Near'),
-			callback: async (action) => {
-				await self.getPTZ('F' + cmdSpeed(action.options.dir * self.fSpeed + SPEED_OFFSET))
-
-				if (self.speedChangeEmitter.listenerCount('fSpeed')) self.speedChangeEmitter.removeAllListeners('fSpeed')
-
-				if (action.options.liveSpeed) {
-					self.speedChangeEmitter.on('fSpeed', async () => {
-						await self.getPTZ('F' + cmdSpeed(action.options.dir * self.fSpeed + SPEED_OFFSET))
-					})
-				}
-			},
-		}
-
-		actions.focusControl = {
-			name: 'Lens - Focus Speed Control',
-			options: [speedOperation, speedControlSetting, speedStep],
-			callback: async (action) => {
-				self.data.focusSpeedValue =
-					action.options.op !== ACTION_SET
-						? getNextValue(self.data.focusSpeedValue, -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step)
-						: action.options.set
-				await self.getPTZ('F' + cmdSpeed(self.data.focusSpeedValue + SPEED_OFFSET))
-			},
-		}
-
-		actions.focusSpeed = {
-			name: 'Lens - Focus Speed',
-			options: [speedOperation, speedSetting, speedStep],
-			callback: async (action) => {
-				self.fSpeed =
-					action.options.op !== ACTION_SET
-						? getNextValue(self.fSpeed, SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
-						: action.options.set
-				self.setVariableValues({ fSpeed: self.fSpeed })
-				self.speedChangeEmitter.emit('fSpeed')
-			},
-		}
+	if (caps.focus) {
+		const focus = lensAxis('Focus', 'F', 'fSpeed', 'focusSpeedValue', '⬆ Far', '⬇ Near')
+		actions.focus = focus.move
+		actions.focusControl = focus.control
+		actions.focusSpeed = focus.speed
 
 		actions.focusFollow = {
 			name: 'Lens - Follow Focus',
 			options: optSetIncDecStep('Focus setting', 0x555, 0x0, 0xaaa, 10),
 			callback: async (action) => {
 				if (!parseSetIncDecVariables(action, 0x0, 0xaaa, 10)) return
-				await self.getPTZ('AXF' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.focusPosition))
+				await ptz('AXF' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.focusPosition))
 			},
 		}
 	}
 
-	if (SERIES.capabilities.focusAuto) {
-		actions.focusMode = {
-			name: 'Lens - Focus Mode',
-			options: optSetToggle(e.ENUM_MAN_AUTO),
-			callback: async (action) => {
-				await self.getCam('OAF:' + cmdEnum(action, e.ENUM_MAN_AUTO, self.data.focusMode))
-			},
-		}
+	if (caps.focusAuto) {
+		actions.focusMode = enumAction('Lens - Focus Mode', cam, 'OAF:', e.ENUM_MAN_AUTO, () => self.data.focusMode)
 	}
 
-	if (SERIES.capabilities.focusPushAuto) {
-		actions.focusPushAuto = {
-			name: 'Lens - Focus Push Auto',
-			options: [],
-			callback: async (action) => {
-				await self.getCam('OSE:69:1')
-			},
-		}
+	if (caps.focusPushAuto) {
+		actions.focusPushAuto = simpleAction('Lens - Focus Push Auto', cam, 'OSE:69:1')
 	}
 
-	if (SERIES.capabilities.ois) {
-		actions.ois = {
-			name: 'Lens - Image Stabilization Mode',
-			options: optSetToggleNextPrev(SERIES.capabilities.ois.dropdown),
-			callback: async (action) => {
-				await self.getCam('OIS:' + cmdEnum(action, SERIES.capabilities.ois.dropdown, self.data.ois))
-			},
-		}
+	if (caps.ois) {
+		actions.ois = enumAction('Lens - Image Stabilization Mode', cam, 'OIS:', caps.ois.dropdown, () => self.data.ois, {
+			nextPrev: true,
+		})
 	}
 
 	// ##########################
 	// #### Exposure Actions ####
 	// ##########################
 
-	if (SERIES.capabilities.iris) {
+	if (caps.iris) {
 		actions.iris = {
 			name: 'Exposure - Iris',
 			options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
 			callback: async (action) => {
 				if (!parseSetIncDecVariables(action, 0x0, 0xaaa, 0x1e)) return
-				await self.getPTZ('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
+				await ptz('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
 			},
 		}
 	}
 
 	// special case for UB300
-	if (SERIES.capabilities.iris && SERIES.id === 'UB300') {
+	if (caps.iris && SERIES.id === 'UB300') {
 		actions.iris = {
 			name: 'Exposure - Iris',
 			options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
 			callback: async (action) => {
 				if (!parseSetIncDecVariables(action, 0x0, 0x3ff, 0xa)) return
-				await self.getCam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
+				await cam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
 			},
 		}
 	}
 
-	if (SERIES.capabilities.irisAuto) {
-		actions.irisMode = {
-			name: 'Exposure - Iris Mode',
-			options: optSetToggle(e.ENUM_MAN_AUTO),
-			callback: async (action) => {
-				await self.getCam('ORS:' + cmdEnum(action, e.ENUM_MAN_AUTO, self.data.irisMode))
-			},
+	if (caps.irisAuto) {
+		actions.irisMode = enumAction('Exposure - Iris Mode', cam, 'ORS:', e.ENUM_MAN_AUTO, () => self.data.irisMode)
+	}
+
+	if (caps.filter) {
+		actions.filter = enumAction('Exposure - ND Filter', cam, 'OFT:', caps.filter.dropdown, () => self.data.filter, {
+			nextPrev: true,
+		})
+	}
+
+	if (caps.shutter) {
+		actions.shutter = enumAction(
+			'Exposure - Shutter',
+			cam,
+			caps.shutter.cmd + ':',
+			caps.shutter.dropdown,
+			() => self.data.shutter,
+			{ nextPrev: true },
+		)
+
+		if (caps.shutter.inc && caps.shutter.dec) {
+			actions.shutterStepUp = simpleAction('Exposure - Shutter Step Up', cam, caps.shutter.inc + ':01')
+			actions.shutterStepDown = simpleAction('Exposure - Shutter Step Down', cam, caps.shutter.dec + ':01')
 		}
 	}
 
-	if (SERIES.capabilities.filter) {
-		actions.filter = {
-			name: 'Exposure - ND Filter',
-			options: optSetToggleNextPrev(SERIES.capabilities.filter.dropdown),
-			callback: async (action) => {
-				await self.getCam('OFT:' + cmdEnum(action, SERIES.capabilities.filter.dropdown, self.data.filter))
-			},
-		}
+	if (caps.night) {
+		actions.nightMode = enumAction('Exposure - Night Mode', ptz, 'D6', e.ENUM_OFF_ON, () => self.data.nightMode)
 	}
 
-	if (SERIES.capabilities.shutter) {
-		if (SERIES.capabilities.shutter) {
-			actions.shutter = {
-				name: 'Exposure - Shutter',
-				options: optSetToggleNextPrev(SERIES.capabilities.shutter.dropdown),
-				callback: async (action) => {
-					await self.getCam(
-						SERIES.capabilities.shutter.cmd +
-							':' +
-							cmdEnum(action, SERIES.capabilities.shutter.dropdown, self.data.shutter),
-					)
-				},
-			}
-		}
-
-		if (SERIES.capabilities.shutter.inc && SERIES.capabilities.shutter.dec) {
-			actions.shutterStepUp = {
-				name: 'Exposure - Shutter Step Up',
-				options: [],
-				callback: async (action) => {
-					await self.getCam(SERIES.capabilities.shutter.inc + ':01')
-				},
-			}
-
-			actions.shutterStepDown = {
-				name: 'Exposure - Shutter Step Down',
-				options: [],
-				callback: async (action) => {
-					await self.getCam(SERIES.capabilities.shutter.dec + ':01')
-				},
-			}
-		}
-	}
-
-	if (SERIES.capabilities.night) {
-		actions.nightMode = {
-			name: 'Exposure - Night Mode',
-			options: optSetToggle(e.ENUM_OFF_ON),
-			callback: async (action) => {
-				await self.getPTZ('D6' + cmdEnum(action, e.ENUM_OFF_ON, self.data.nightMode))
-			},
-		}
-	}
-
-	// #########################
+	// #######################
 	// #### Image Actions ####
-	// #########################
+	// #######################
 
-	if (SERIES.capabilities.gain.cmd) {
-		actions.gain = {
-			name: 'Image - Gain',
-			options: optSetToggleNextPrev(SERIES.capabilities.gain.dropdown),
-			callback: async (action) => {
-				await self.getCam(
-					SERIES.capabilities.gain.cmd + ':' + cmdEnum(action, SERIES.capabilities.gain.dropdown, self.data.gain),
-				)
-			},
+	if (caps.gain.cmd) {
+		actions.gain = enumAction('Image - Gain', cam, caps.gain.cmd + ':', caps.gain.dropdown, () => self.data.gain, {
+			nextPrev: true,
+		})
+	}
+
+	if (caps.chromaLevel && caps.chromaLevel.cmd) {
+		actions.chromaLevel = enumAction(
+			'Image - Chroma Level',
+			cam,
+			caps.chromaLevel.cmd + ':',
+			caps.chromaLevel.dropdown,
+			() => self.data.chromaLevel,
+			{ nextPrev: true },
+		)
+	}
+
+	if (caps.chromaPhase) {
+		actions.chromaPhase = levelAction(
+			'Image - Chroma Phase',
+			'Setting',
+			caps.chromaPhase,
+			'OSJ:0B',
+			() => self.data.chromaPhaseValue,
+		)
+	}
+
+	if (caps.dnr && caps.dnr.dropdown) {
+		actions.dnr = enumAction(
+			'Image - Digital Noise Reduction',
+			cam,
+			'OSD:3A:',
+			caps.dnr.dropdown,
+			() => self.data.dnr,
+			{ nextPrev: true },
+		)
+	}
+
+	if (caps.drs && caps.drs.dropdown) {
+		actions.drs = enumAction('Image - Dynamic Range Stretch', cam, 'OSE:33:', caps.drs.dropdown, () => self.data.drs, {
+			nextPrev: true,
+		})
+	}
+
+	if (caps.pedestal.cmd) {
+		actions.ped = levelAction(
+			'Image - Pedestal',
+			'Level',
+			caps.pedestal,
+			caps.pedestal.cmd,
+			() => self.data.masterPedValue,
+		)
+	}
+
+	// Red, blue and green pedestal and gain are the same control on six different channels.
+	const COLOR_CHANNELS = [
+		{ suffix: 'Red', channel: 'red' },
+		{ suffix: 'Blue', channel: 'blue' },
+		{ suffix: 'Green', channel: 'green' },
+	]
+
+	for (const { suffix, channel } of COLOR_CHANNELS) {
+		if (caps.colorPedestal && caps.colorPedestal.cmd[channel]) {
+			actions[`ped${suffix}`] = levelAction(
+				`Image - ${suffix} Pedestal`,
+				'Level',
+				caps.colorPedestal,
+				caps.colorPedestal.cmd[channel],
+				() => self.data[`${channel}PedValue`],
+			)
+		}
+
+		if (caps.colorGain && caps.colorGain.cmd[channel]) {
+			actions[`gain${suffix}`] = levelAction(
+				`Image - ${suffix} Gain`,
+				'Level',
+				caps.colorGain,
+				caps.colorGain.cmd[channel],
+				() => self.data[`${channel}GainValue`],
+			)
 		}
 	}
 
-	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.cmd) {
-		actions.chromaLevel = {
-			name: 'Image - Chroma Level',
-			options: optSetToggleNextPrev(SERIES.capabilities.chromaLevel.dropdown),
-			callback: async (action) => {
-				await self.getCam(
-					SERIES.capabilities.chromaLevel.cmd +
-						':' +
-						cmdEnum(action, SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel),
-				)
-			},
+	if (caps.whiteBalance) {
+		if (caps.whiteBalance.dropdown) {
+			actions.whiteBalanceMode = enumAction(
+				'Image - White Balance Mode',
+				cam,
+				'OAW:',
+				caps.whiteBalance.dropdown,
+				() => self.data.whiteBalance,
+				{ nextPrev: true },
+			)
 		}
+
+		actions.whiteBalanceExecAWB = simpleAction('Image - Execute AWC/AWB', cam, 'OWS')
+		actions.whiteBalanceExecABB = simpleAction('Image - Execute ABC/ABB', cam, 'OAS')
 	}
 
-	if (SERIES.capabilities.chromaPhase) {
-		const caps = SERIES.capabilities.chromaPhase
-		actions.chromaPhase = {
-			name: 'Image - Chroma Phase',
-			options: optSetIncDecStep('Setting', 0, -caps.limit, +caps.limit, caps.step),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
-				await self.getCam(
-					'OSJ:0B:' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.chromaPhaseValue,
-						),
-				)
-			},
-		}
+	if (caps.colorTemperature && caps.colorTemperature.index) {
+		actions.colorTemperature = enumAction(
+			'Image - Color Temperature',
+			cam,
+			caps.colorTemperature.index.cmd + ':',
+			caps.colorTemperature.index.dropdown,
+			() => self.data.colorTemperature,
+			{ nextPrev: true },
+		)
 	}
 
-	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
-		actions.dnr = {
-			name: 'Image - Digital Noise Reduction',
-			options: optSetToggleNextPrev(SERIES.capabilities.dnr.dropdown),
-			callback: async (action) => {
-				await self.getCam('OSD:3A:' + cmdEnum(action, SERIES.capabilities.dnr.dropdown, self.data.dnr))
-			},
-		}
-	}
-
-	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
-		actions.drs = {
-			name: 'Image - Dynamic Range Stretch',
-			options: optSetToggleNextPrev(SERIES.capabilities.drs.dropdown),
-			callback: async (action) => {
-				await self.getCam('OSE:33:' + cmdEnum(action, SERIES.capabilities.drs.dropdown, self.data.drs))
-			},
-		}
-	}
-
-	if (SERIES.capabilities.pedestal.cmd) {
-		const caps = SERIES.capabilities.pedestal
-		actions.ped = {
-			name: 'Image - Pedestal',
-			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
-				await self.getCam(
-					caps.cmd +
-						':' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.masterPedValue,
-						),
-				)
-			},
-		}
-	}
-
-	if (SERIES.capabilities.colorPedestal && SERIES.capabilities.colorPedestal.cmd.red) {
-		const caps = SERIES.capabilities.colorPedestal
-		actions.pedRed = {
-			name: 'Image - Red Pedestal',
-			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
-				await self.getCam(
-					caps.cmd.red +
-						':' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.redPedValue,
-						),
-				)
-			},
-		}
-	}
-
-	if (SERIES.capabilities.colorPedestal && SERIES.capabilities.colorPedestal.cmd.blue) {
-		const caps = SERIES.capabilities.colorPedestal
-		actions.pedBlue = {
-			name: 'Image - Blue Pedestal',
-			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
-				await self.getCam(
-					caps.cmd.blue +
-						':' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.bluePedValue,
-						),
-				)
-			},
-		}
-	}
-
-	if (SERIES.capabilities.colorPedestal && SERIES.capabilities.colorPedestal.cmd.green) {
-		const caps = SERIES.capabilities.colorPedestal
-		actions.pedGreen = {
-			name: 'Image - Green Pedestal',
-			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
-				await self.getCam(
-					caps.cmd.green +
-						':' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.greenPedValue,
-						),
-				)
-			},
-		}
-	}
-
-	if (SERIES.capabilities.colorGain && SERIES.capabilities.colorGain.cmd.red) {
-		const caps = SERIES.capabilities.colorGain
-		actions.gainRed = {
-			name: 'Image - Red Gain',
-			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
-				await self.getCam(
-					caps.cmd.red +
-						':' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.redGainValue,
-						),
-				)
-			},
-		}
-	}
-
-	if (SERIES.capabilities.colorGain && SERIES.capabilities.colorGain.cmd.blue) {
-		const caps = SERIES.capabilities.colorGain
-		actions.gainBlue = {
-			name: 'Image - Blue Gain',
-			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
-				await self.getCam(
-					caps.cmd.blue +
-						':' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.blueGainValue,
-						),
-				)
-			},
-		}
-	}
-
-	if (SERIES.capabilities.colorGain && SERIES.capabilities.colorGain.cmd.green) {
-		const caps = SERIES.capabilities.colorGain
-		actions.gainGreen = {
-			name: 'Image - Green Gain',
-			options: optSetIncDecStep('Level', 0, -caps.limit, +caps.limit, caps.step),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, -caps.limit, caps.limit, caps.step)) return
-				await self.getCam(
-					caps.cmd.green +
-						':' +
-						cmdValue(
-							action,
-							caps.offset,
-							-caps.limit,
-							caps.limit,
-							action.options.step,
-							caps.hexlen,
-							self.data.greenGainValue,
-						),
-				)
-			},
-		}
-	}
-
-	if (SERIES.capabilities.whiteBalance) {
-		if (SERIES.capabilities.whiteBalance.dropdown) {
-			actions.whiteBalanceMode = {
-				name: 'Image - White Balance Mode',
-				options: optSetToggleNextPrev(SERIES.capabilities.whiteBalance.dropdown),
-				callback: async (action) => {
-					await self.getCam('OAW:' + cmdEnum(action, SERIES.capabilities.whiteBalance.dropdown, self.data.whiteBalance))
-				},
-			}
-		}
-
-		actions.whiteBalanceExecAWB = {
-			name: 'Image - Execute AWC/AWB',
-			options: [],
-			callback: async (action) => {
-				await self.getCam('OWS')
-			},
-		}
-
-		actions.whiteBalanceExecABB = {
-			name: 'Image - Execute ABC/ABB',
-			options: [],
-			callback: async (action) => {
-				await self.getCam('OAS')
-			},
-		}
-	}
-
-	if (SERIES.capabilities.colorTemperature && SERIES.capabilities.colorTemperature.index) {
+	if (caps.colorTemperature && caps.colorTemperature.advanced && caps.colorTemperature.advanced.set) {
+		const advanced = caps.colorTemperature.advanced
 		actions.colorTemperature = {
 			name: 'Image - Color Temperature',
-			options: optSetToggleNextPrev(SERIES.capabilities.colorTemperature.index.dropdown),
+			options: optSetIncDecStep('Color Temperature [K]', 3200, advanced.min, advanced.max, 20),
 			callback: async (action) => {
-				await self.getCam(
-					SERIES.capabilities.colorTemperature.index.cmd +
-						':' +
-						cmdEnum(action, SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature),
-				)
+				if (!parseSetIncDecVariables(action, advanced.min, advanced.max, 20)) return
+				switch (action.options.op) {
+					case ACTION_SET:
+						await cam(advanced.set + ':' + toHexString(action.options.set, 5) + ':0')
+						break
+					case ACTION_INC:
+						await cam(advanced.inc + ':1')
+						break
+					case ACTION_DEC:
+						await cam(advanced.dec + ':1')
+						break
+				}
 			},
 		}
 	}
 
-	if (SERIES.capabilities.colorTemperature && SERIES.capabilities.colorTemperature.advanced) {
-		if (SERIES.capabilities.colorTemperature.advanced.set) {
-			actions.colorTemperature = {
-				name: 'Image - Color Temperature',
-				options: optSetIncDecStep(
-					'Color Temperature [K]',
-					3200,
-					SERIES.capabilities.colorTemperature.advanced.min,
-					SERIES.capabilities.colorTemperature.advanced.max,
-					20,
-				),
-				callback: async (action) => {
-					if (
-						!parseSetIncDecVariables(
-							action,
-							SERIES.capabilities.colorTemperature.advanced.min,
-							SERIES.capabilities.colorTemperature.advanced.max,
-							20,
-						)
-					)
-						return
-					switch (action.options.op) {
-						case ACTION_SET:
-							await self.getCam(
-								SERIES.capabilities.colorTemperature.advanced.set + ':' + toHexString(action.options.set, 5) + ':0',
-							)
-							break
-						case ACTION_INC:
-							await self.getCam(SERIES.capabilities.colorTemperature.advanced.inc + ':1')
-							break
-						case ACTION_DEC:
-							await self.getCam(SERIES.capabilities.colorTemperature.advanced.dec + ':1')
-							break
-					}
-				},
-			}
-		}
-	}
-
-	if (SERIES.capabilities.shootingMode) {
-		actions.shootingMode = {
-			name: 'Image - Shooting Mode',
-			options: optSetToggleNextPrev(SERIES.capabilities.shootingMode.dropdown),
-			callback: async (action) => {
-				await self.getCam(
-					SERIES.capabilities.shootingMode.cmd +
-						':' +
-						cmdEnum(action, SERIES.capabilities.shootingMode.dropdown, self.data.shootingMode),
-				)
-			},
-		}
+	if (caps.shootingMode) {
+		actions.shootingMode = enumAction(
+			'Image - Shooting Mode',
+			cam,
+			caps.shootingMode.cmd + ':',
+			caps.shootingMode.dropdown,
+			() => self.data.shootingMode,
+			{ nextPrev: true },
+		)
 	}
 
 	// ########################
 	// #### Preset Actions ####
 	// ########################
 
-	if (SERIES.capabilities.preset) {
+	if (caps.preset) {
 		actions.presetMem = {
 			name: 'Preset - Memory Operation',
 			options: [
@@ -1002,7 +723,7 @@ export function getActionDefinitions(self) {
 					label: 'Preset #',
 					id: 'val',
 					default: e.ENUM_PRESET[0].id,
-					choices: e.ENUM_PRESET.slice(0, SERIES.capabilities.preset),
+					choices: e.ENUM_PRESET.slice(0, caps.preset),
 					isVisibleExpression: '!$(options:useVar)',
 				},
 				{
@@ -1013,7 +734,7 @@ export function getActionDefinitions(self) {
 					regex: Regex.SOMETHING,
 					minLength: 1,
 					useVariables: true,
-					tooltip: `This expression should return a preset number in the range 1 to ${SERIES.capabilities.preset}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
+					tooltip: `This expression should return a preset number in the range 1 to ${caps.preset}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
 					isVisibleExpression: '$(options:useVar)',
 				},
 				{
@@ -1027,11 +748,11 @@ export function getActionDefinitions(self) {
 			callback: async (action) => {
 				let val = action.options.val
 				if (action.options.useVar) {
-					const num = constrainRange(parseInt(action.options.valVar), 1, SERIES.capabilities.preset)
+					const num = constrainRange(parseInt(action.options.valVar), 1, caps.preset)
 					if (isNaN(num)) return
 					val = (num - 1).toString(10).padStart(2, '0')
 				}
-				await self.getPTZ(action.options.op + val)
+				await ptz(action.options.op + val)
 			},
 		}
 
@@ -1046,17 +767,18 @@ export function getActionDefinitions(self) {
 			},
 		}
 
-		actions.presetRecallScope = {
-			name: 'Preset - Recall Scope',
-			options: optSetToggleNextPrev(e.ENUM_PRESET_SCOPE, 'Preset Recall Scope'),
-			callback: async (action) => {
-				await self.getCam('OSE:71:' + cmdEnum(action, e.ENUM_PRESET_SCOPE, self.data.presetScope))
-			},
-		}
+		actions.presetRecallScope = enumAction(
+			'Preset - Recall Scope',
+			cam,
+			'OSE:71:',
+			e.ENUM_PRESET_SCOPE,
+			() => self.data.presetScope,
+			{ nextPrev: true, label: 'Preset Recall Scope' },
+		)
 
 		actions.presetClearAll = {
 			name: 'Preset - Clear All',
-			description: `Wipes all ${SERIES.capabilities.preset} stored preset memories on the camera. This cannot be undone. Requires the confirmation option to be checked to take effect.`,
+			description: `Wipes all ${caps.preset} stored preset memories on the camera. This cannot be undone. Requires the confirmation option to be checked to take effect.`,
 			options: [
 				{
 					id: 'confirm',
@@ -1067,50 +789,46 @@ export function getActionDefinitions(self) {
 			],
 			callback: async (action) => {
 				if (!action.options.confirm) return
-				for (let i = 0; i < SERIES.capabilities.preset; i++) {
-					await self.getPTZ('C' + i.toString(10).padStart(2, '0'))
+				for (let i = 0; i < caps.preset; i++) {
+					await ptz('C' + i.toString(10).padStart(2, '0'))
 				}
 			},
 		}
 	}
 
-	if (SERIES.capabilities.presetSpeed) {
+	if (caps.presetSpeed) {
+		const velocity = caps.presetTime ? e.ENUM_PRESET_SPEED_TIME : e.ENUM_PRESET_SPEED
 		actions.presetSpeedTime = {
 			name: 'Preset - Recall Velocity',
-			options: optSetToggleNextPrev(
-				SERIES.capabilities.presetTime ? e.ENUM_PRESET_SPEED_TIME : e.ENUM_PRESET_SPEED,
-				'Speed / Time',
-			),
+			options: optSetToggleNextPrev(velocity, 'Speed / Time'),
 			callback: async (action) => {
-				const v = cmdEnum(
-					action,
-					SERIES.capabilities.presetTime ? e.ENUM_PRESET_SPEED_TIME : e.ENUM_PRESET_SPEED,
-					self.data.presetSpeed,
-				)
+				const v = cmdEnum(action, velocity, self.data.presetSpeed)
 				const r = parseInt(v, 16)
 				const s = r < 0x001 || r > 0x063
-				if (SERIES.capabilities.presetTime) await self.getCam('OSJ:29:' + (s ? '0' : '1'))
-				await self.getPTZ('UPVS' + v)
+				if (caps.presetTime) await cam('OSJ:29:' + (s ? '0' : '1'))
+				await ptz('UPVS' + v)
 			},
 		}
 
-		actions.presetSpeedTable = {
-			name: 'Preset - Recall Speed Table',
-			options: optSetToggleNextPrev(SERIES.capabilities.presetSpeed.dropdown),
-			callback: async (action) => {
-				await self.getPTZ('PST' + cmdEnum(action, SERIES.capabilities.presetSpeed.dropdown, self.data.presetSpeedTable))
-			},
-		}
+		actions.presetSpeedTable = enumAction(
+			'Preset - Recall Speed Table',
+			ptz,
+			'PST',
+			caps.presetSpeed.dropdown,
+			() => self.data.presetSpeedTable,
+			{ nextPrev: true },
+		)
 	}
 
-	if (SERIES.capabilities.presetTime) {
-		actions.presetSpeedTimeUnit = {
-			name: 'Preset - Recall Velocity Unit',
-			options: optSetToggleNextPrev(e.ENUM_PRESET_SPEED_UNIT),
-			callback: async (action) => {
-				await self.getCam('OSJ:29:' + cmdEnum(action, e.ENUM_PRESET_SPEED_UNIT, self.data.presetSpeedUnit))
-			},
-		}
+	if (caps.presetTime) {
+		actions.presetSpeedTimeUnit = enumAction(
+			'Preset - Recall Velocity Unit',
+			cam,
+			'OSJ:29:',
+			e.ENUM_PRESET_SPEED_UNIT,
+			() => self.data.presetSpeedUnit,
+			{ nextPrev: true },
+		)
 
 		actions.presetTime = {
 			name: 'Preset - Recall Time',
@@ -1126,8 +844,8 @@ export function getActionDefinitions(self) {
 				},
 			],
 			callback: async (action) => {
-				await self.getCam('OSJ:29:1')
-				await self.getPTZ('UPVS' + toHexString(action.options.val, 3))
+				await cam('OSJ:29:1')
+				await ptz('UPVS' + toHexString(action.options.val, 3))
 			},
 		}
 	}
@@ -1136,38 +854,38 @@ export function getActionDefinitions(self) {
 	// #### Autotracking Actions ####
 	// ##############################
 
-	if (SERIES.capabilities.trackingAuto) {
-		actions.autotrackingMode = {
-			name: 'Auto Tracking - Mode',
-			options: optSetToggle(e.ENUM_OFF_ON),
-			callback: async (action) => {
-				await self.getCam('OSL:B6:' + cmdEnum(action, e.ENUM_OFF_ON, self.data.autotrackingMode))
-			},
-		}
+	if (caps.trackingAuto) {
+		actions.autotrackingMode = enumAction(
+			'Auto Tracking - Mode',
+			cam,
+			'OSL:B6:',
+			e.ENUM_OFF_ON,
+			() => self.data.autotrackingMode,
+		)
 
-		actions.autotrackingAngle = {
-			name: 'Auto Tracking - Angle',
-			options: optSetToggle(e.ENUM_AUTOTRACKING_ANGLE),
-			callback: async (action) => {
-				await self.getCam('OSL:B7:' + cmdEnum(action, e.ENUM_AUTOTRACKING_ANGLE, self.data.autotrackingAngle))
-			},
-		}
+		actions.autotrackingAngle = enumAction(
+			'Auto Tracking - Angle',
+			cam,
+			'OSL:B7:',
+			e.ENUM_AUTOTRACKING_ANGLE,
+			() => self.data.autotrackingAngle,
+		)
 
-		actions.autotrackingStartStop = {
-			name: 'Auto Tracking - Start/Stop Tracking',
-			options: optSetToggle(e.ENUM_STOP_START),
-			callback: async (action) => {
-				await self.getCam('OSL:BC:' + cmdEnum(action, e.ENUM_STOP_START, self.data.autotrackingEnabled))
-			},
-		}
+		actions.autotrackingStartStop = enumAction(
+			'Auto Tracking - Start/Stop Tracking',
+			cam,
+			'OSL:BC:',
+			e.ENUM_STOP_START,
+			() => self.data.autotrackingEnabled,
+		)
 	}
 
-	// ########################
+	// #######################
 	// #### Audio Actions ####
-	// ########################
+	// #######################
 
-	if (SERIES.capabilities.audioVolumeLevel) {
-		const caps = SERIES.capabilities.audioVolumeLevel
+	if (caps.audioVolumeLevel) {
+		const audio = caps.audioVolumeLevel
 		actions.audioVolumeLevel = {
 			name: 'Audio - Volume Level',
 			options: [
@@ -1176,22 +894,22 @@ export function getActionDefinitions(self) {
 					label: 'Audio Channel',
 					id: 'channel',
 					default: 0,
-					choices: Array.from({ length: caps.maxch }, (_, i) => ({ id: i, label: `Ch ${i + 1}` })),
+					choices: Array.from({ length: audio.maxch }, (_, i) => ({ id: i, label: `Ch ${i + 1}` })),
 				},
-				...optSetIncDecStep('Volume Level (dB)', 0, caps.min, caps.max, caps.step),
+				...optSetIncDecStep('Volume Level (dB)', 0, audio.min, audio.max, audio.step),
 			],
 			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, caps.min, caps.max, caps.step)) return
+				if (!parseSetIncDecVariables(action, audio.min, audio.max, audio.step)) return
 				const value = cmdValue(
 					action,
 					0x80,
-					caps.min,
-					caps.max,
+					audio.min,
+					audio.max,
 					action.options.step,
 					2,
 					self.data.audioVolumeLevels[action.options.channel] ?? 0,
 				)
-				await self.getCam(`OSA:D5:${action.options.channel}:${value}`)
+				await cam(`OSA:D5:${action.options.channel}:${value}`)
 			},
 		}
 	}
@@ -1200,17 +918,11 @@ export function getActionDefinitions(self) {
 	// #### System Actions ####
 	// ########################
 
-	if (SERIES.capabilities.power) {
-		actions.power = {
-			name: 'System - Power',
-			options: optSetToggle(e.ENUM_OFF_ON),
-			callback: async (action) => {
-				await self.getPTZ('O' + cmdEnum(action, e.ENUM_OFF_ON, self.data.power))
-			},
-		}
+	if (caps.power) {
+		actions.power = enumAction('System - Power', ptz, 'O', e.ENUM_OFF_ON, () => self.data.power)
 	}
 
-	if (SERIES.capabilities.restart) {
+	if (caps.restart) {
 		actions.restart = {
 			name: 'System - Restart',
 			description:
@@ -1237,109 +949,53 @@ export function getActionDefinitions(self) {
 		}
 	}
 
-	if (SERIES.capabilities.tally) {
-		if (SERIES.capabilities.tally2) {
-			actions.tally = {
-				name: 'System - Red Tally',
-				options: optSetToggle(e.ENUM_OFF_ON),
-				callback: async (action) => {
-					await self.getCam('TLR:' + cmdEnum(action, e.ENUM_OFF_ON, self.data.tally))
-				},
-			}
-			actions.tally2 = {
-				name: 'System - Green Tally',
-				options: optSetToggle(e.ENUM_OFF_ON),
-				callback: async (action) => {
-					await self.getCam('TLG:' + cmdEnum(action, e.ENUM_OFF_ON, self.data.tally2))
-				},
-			}
-			if (SERIES.capabilities.tally3) {
-				actions.tally3 = {
-					name: 'System - Yellow Tally',
-					options: optSetToggle(e.ENUM_OFF_ON),
-					callback: async (action) => {
-						await self.getCam('TLY:' + cmdEnum(action, e.ENUM_OFF_ON, self.data.tally3))
-					},
-				}
+	if (caps.tally) {
+		if (caps.tally2) {
+			actions.tally = enumAction('System - Red Tally', cam, 'TLR:', e.ENUM_OFF_ON, () => self.data.tally)
+			actions.tally2 = enumAction('System - Green Tally', cam, 'TLG:', e.ENUM_OFF_ON, () => self.data.tally2)
+
+			if (caps.tally3) {
+				actions.tally3 = enumAction('System - Yellow Tally', cam, 'TLY:', e.ENUM_OFF_ON, () => self.data.tally3)
 			}
 		} else {
 			// Use legacy PTZ Tally
-			actions.tally = {
-				name: 'System - Tally',
-				options: optSetToggle(e.ENUM_OFF_ON),
-				callback: async (action) => {
-					await self.getPTZ('DA' + cmdEnum(action, e.ENUM_OFF_ON, self.data.tally))
-				},
-			}
+			actions.tally = enumAction('System - Tally', ptz, 'DA', e.ENUM_OFF_ON, () => self.data.tally)
 		}
 	}
 
-	if (SERIES.capabilities.colorbar) {
-		actions.colorbar = {
-			name: 'System - Color Bar',
-			options: optSetToggle(e.ENUM_OFF_ON),
-			callback: async (action) => {
-				await self.getCam('DCB:' + cmdEnum(action, e.ENUM_OFF_ON, self.data.colorbar))
-			},
-		}
+	if (caps.colorbar) {
+		actions.colorbar = enumAction('System - Color Bar', cam, 'DCB:', e.ENUM_OFF_ON, () => self.data.colorbar)
 	}
 
-	if (SERIES.capabilities.install) {
-		actions.installPosition = {
-			name: 'System - Installation Position',
-			options: optSetToggle(e.ENUM_INSTALL_POSITION),
-			callback: async (action) => {
-				await self.getPTZ('INS' + cmdEnum(action, e.ENUM_INSTALL_POSITION, self.data.installMode))
-			},
-		}
+	if (caps.install) {
+		actions.installPosition = enumAction(
+			'System - Installation Position',
+			ptz,
+			'INS',
+			e.ENUM_INSTALL_POSITION,
+			() => self.data.installMode,
+		)
 	}
 
-	if (SERIES.capabilities.recordSD) {
-		actions.sdCardRec = {
-			name: 'System - SD Card Recording Control',
-			options: optSetToggle(e.ENUM_OFF_ON),
-			callback: async (action) => {
-				var cmd = cmdEnum(action, e.ENUM_OFF_ON, self.data.recording)
-				cmd = cmd === '1' ? 'start' : 'end'
-				await self.getWeb('sdctrl?save=' + cmd)
-			},
-		}
+	if (caps.recordSD) {
+		actions.sdCardRec = webToggleAction(
+			'System - SD Card Recording Control',
+			'sdctrl?save=',
+			() => self.data.recording,
+			{ off: 'end' },
+		)
 	}
 
-	if (SERIES.capabilities.streamSRT) {
-		actions.srtStreamCtrl = {
-			name: 'Streaming - SRT Caller Control',
-			options: optSetToggle(e.ENUM_OFF_ON),
-			callback: async (action) => {
-				var cmd = cmdEnum(action, e.ENUM_OFF_ON, self.data.srt)
-				cmd = cmd === '1' ? 'start' : 'stop'
-				await self.getWeb('srt_ctrl?cmd=' + cmd)
-			},
-		}
+	if (caps.streamSRT) {
+		actions.srtStreamCtrl = webToggleAction('Streaming - SRT Caller Control', 'srt_ctrl?cmd=', () => self.data.srt)
 	}
 
-	if (SERIES.capabilities.streamTS) {
-		actions.tsStreamCtrl = {
-			name: 'Streaming - MPEG-TS Output Control',
-			options: optSetToggle(e.ENUM_OFF_ON),
-			callback: async (action) => {
-				var cmd = cmdEnum(action, e.ENUM_OFF_ON, self.data.ts)
-				cmd = cmd === '1' ? 'start' : 'stop'
-				await self.getWeb('ts_ctrl?cmd=' + cmd)
-			},
-		}
+	if (caps.streamTS) {
+		actions.tsStreamCtrl = webToggleAction('Streaming - MPEG-TS Output Control', 'ts_ctrl?cmd=', () => self.data.ts)
 	}
 
-	if (SERIES.capabilities.streamRTMP) {
-		actions.rtmpStreamCtrl = {
-			name: 'Streaming - RTMP Push Control',
-			options: optSetToggle(e.ENUM_OFF_ON),
-			callback: async (action) => {
-				var cmd = cmdEnum(action, e.ENUM_OFF_ON, self.data.rtmp)
-				cmd = cmd === '1' ? 'start' : 'stop'
-				await self.getWeb('rtmp_ctrl?cmd=' + cmd)
-			},
-		}
+	if (caps.streamRTMP) {
+		actions.rtmpStreamCtrl = webToggleAction('Streaming - RTMP Push Control', 'rtmp_ctrl?cmd=', () => self.data.rtmp)
 	}
 
 	actions.customCommand = {
@@ -1368,13 +1024,13 @@ export function getActionDefinitions(self) {
 		callback: async (action) => {
 			switch (action.options.dest) {
 				case 0:
-					await self.getCam(action.options.cmd)
+					await cam(action.options.cmd)
 					break
 				case 1:
-					await self.getPTZ(action.options.cmd)
+					await ptz(action.options.cmd)
 					break
 				case 2:
-					await self.getWeb(action.options.cmd)
+					await web(action.options.cmd)
 					break
 			}
 		},

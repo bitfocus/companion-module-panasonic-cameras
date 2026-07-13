@@ -177,51 +177,51 @@ export function setVariables(self) {
 export function checkVariables(self) {
 	const SERIES = getAndUpdateSeries(self)
 
-	const autotrackingAngle = SERIES.capabilities.trackingAuto
-		? getLabel(e.ENUM_AUTOTRACKING_ANGLE, self.data.autotrackingAngle)
-		: null
+	// Each of these is the same rule: if the camera has the feature, turn its raw value into the
+	// human-readable label from the matching dropdown. The dropdown is either a fixed enum or one
+	// that the capability itself carries.
+	// [variable, capability, choices (or how to get them from the capability), data key if it differs]
+	const LABELLED = [
+		['autotrackingAngle', 'trackingAuto', e.ENUM_AUTOTRACKING_ANGLE],
+		['autotrackingMode', 'trackingAuto', e.ENUM_OFF_ON],
+		['autotrackingStatus', 'trackingAuto', e.ENUM_AUTOTRACKING_STATUS],
+		['chromaLevel', 'chromaLevel', (cap) => cap.dropdown],
+		['colorbar', 'colorbar', e.ENUM_OFF_ON],
+		['colorTemperature', 'colorTemperature', (cap) => cap.index?.dropdown],
+		['dnr', 'dnr', (cap) => cap.dropdown],
+		['drs', 'drs', (cap) => cap.dropdown],
+		['error', 'error', e.ENUM_ERROR],
+		['filter', 'filter', (cap) => cap.dropdown],
+		['focusMode', 'focusAuto', e.ENUM_MAN_AUTO],
+		['gain', 'gain', (cap) => cap.dropdown],
+		['installMode', 'install', e.ENUM_INSTALL_POSITION],
+		['irisMode', 'irisAuto', e.ENUM_MAN_AUTO],
+		['nightMode', 'night', e.ENUM_OFF_ON],
+		['ois', 'ois', (cap) => cap.dropdown],
+		['power', 'power', e.ENUM_OFF_ON],
+		['presetScope', 'preset', e.ENUM_PRESET_SCOPE],
+		['presetSpeed', 'presetSpeed', e.ENUM_PRESET_SPEED_TIME],
+		['presetSpeedTable', 'presetSpeed', (cap) => cap.dropdown],
+		['presetSpeedUnit', 'presetTime', e.ENUM_PRESET_SPEED_UNIT],
+		['recording', 'recordSD', e.ENUM_OFF_ON],
+		['shootingMode', 'shootingMode', (cap) => cap.dropdown],
+		['shutter', 'shutter', (cap) => cap.dropdown],
+		['streamingRTMP', 'streamRTMP', e.ENUM_OFF_ON, 'rtmp'],
+		['streamingSRT', 'streamSRT', e.ENUM_OFF_ON, 'srt'],
+		['streamingTS', 'streamTS', e.ENUM_OFF_ON, 'ts'],
+		['tally', 'tally', e.ENUM_OFF_ON],
+		['tally2', 'tally2', e.ENUM_OFF_ON],
+		['tally3', 'tally3', e.ENUM_OFF_ON],
+		['videoFormat', 'videoFormat', e.ENUM_VIDEO_FORMAT],
+		['whiteBalance', 'whiteBalance', (cap) => cap.dropdown],
+	]
 
-	const autotrackingMode = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_OFF_ON, self.data.autotrackingMode) : null
-
-	const autotrackingStatus = SERIES.capabilities.trackingAuto
-		? getLabel(e.ENUM_AUTOTRACKING_STATUS, self.data.autotrackingStatus)
-		: null
-
-	const chromaLevel = SERIES.capabilities.chromaLevel
-		? getLabel(SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel)
-		: null
-
-	const colorbar = SERIES.capabilities.colorbar ? getLabel(e.ENUM_OFF_ON, self.data.colorbar) : null
-
-	const dnr = SERIES.capabilities.dnr ? getLabel(SERIES.capabilities.dnr.dropdown, self.data.dnr) : null
-
-	const drs = SERIES.capabilities.drs ? getLabel(SERIES.capabilities.drs.dropdown, self.data.drs) : null
-
-	const videoFormat = SERIES.capabilities.videoFormat ? getLabel(e.ENUM_VIDEO_FORMAT, self.data.videoFormat) : null
-
-	const colorTemperature = SERIES.capabilities.colorTemperature.index
-		? getLabel(SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature)
-		: null
-
-	const error = SERIES.capabilities.error ? getLabel(e.ENUM_ERROR, self.data.error) : null
-
-	const filter = SERIES.capabilities.filter ? getLabel(SERIES.capabilities.filter.dropdown, self.data.filter) : null
-
-	const focusMode = SERIES.capabilities.focusAuto ? getLabel(e.ENUM_MAN_AUTO, self.data.focusMode) : null
-
-	const gain = SERIES.capabilities.gain ? getLabel(SERIES.capabilities.gain.dropdown, self.data.gain) : null
-
-	const installMode = SERIES.capabilities.install ? getLabel(e.ENUM_INSTALL_POSITION, self.data.installMode) : null
-
-	const irisMode = SERIES.capabilities.irisAuto ? getLabel(e.ENUM_MAN_AUTO, self.data.irisMode) : null
-
-	const nightMode = SERIES.capabilities.night ? getLabel(e.ENUM_OFF_ON, self.data.nightMode) : null
-
-	const ois = SERIES.capabilities.ois ? getLabel(SERIES.capabilities.ois.dropdown, self.data.ois) : null
-
-	const power = SERIES.capabilities.power ? getLabel(e.ENUM_OFF_ON, self.data.power) : null
-
-	const presetScope = SERIES.capabilities.preset ? getLabel(e.ENUM_PRESET_SCOPE, self.data.presetScope) : null
+	const labelled = {}
+	for (const [variable, capability, choices, dataKey = variable] of LABELLED) {
+		const cap = SERIES.capabilities[capability]
+		const dropdown = typeof choices === 'function' ? (cap ? choices(cap) : undefined) : choices
+		labelled[variable] = cap && dropdown ? getLabel(dropdown, self.data[dataKey]) : null
+	}
 
 	const presetMemory = SERIES.capabilities.preset
 		? self.data.presetEntries
@@ -229,41 +229,6 @@ export function checkVariables(self) {
 				.filter((n) => n !== null)
 				.join(',')
 		: null
-
-	const presetSpeed = SERIES.capabilities.presetSpeed ? getLabel(e.ENUM_PRESET_SPEED_TIME, self.data.presetSpeed) : null
-
-	const presetSpeedTable = SERIES.capabilities.presetSpeed
-		? getLabel(SERIES.capabilities.presetSpeed.dropdown, self.data.presetSpeedTable)
-		: null
-
-	const presetSpeedUnit = SERIES.capabilities.presetTime
-		? getLabel(e.ENUM_PRESET_SPEED_UNIT, self.data.presetSpeedUnit)
-		: null
-
-	const recording = SERIES.capabilities.recordSD ? getLabel(e.ENUM_OFF_ON, self.data.recording) : null
-
-	const rtmp = SERIES.capabilities.streamRTMP ? getLabel(e.ENUM_OFF_ON, self.data.rtmp) : null
-
-	const shootingMode = SERIES.capabilities.shootingMode
-		? getLabel(SERIES.capabilities.shootingMode.dropdown, self.data.shootingMode)
-		: null
-
-	const shutter = SERIES.capabilities.shutter ? getLabel(SERIES.capabilities.shutter.dropdown, self.data.shutter) : null
-
-	const srt = SERIES.capabilities.streamSRT ? getLabel(e.ENUM_OFF_ON, self.data.srt) : null
-
-	const tally = SERIES.capabilities.tally ? getLabel(e.ENUM_OFF_ON, self.data.tally) : null
-
-	const tally2 = SERIES.capabilities.tally2 ? getLabel(e.ENUM_OFF_ON, self.data.tally2) : null
-
-	const tally3 = SERIES.capabilities.tally3 ? getLabel(e.ENUM_OFF_ON, self.data.tally3) : null
-
-	const ts = SERIES.capabilities.streamTS ? getLabel(e.ENUM_OFF_ON, self.data.ts) : null
-
-	const whiteBalance =
-		SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown
-			? getLabel(SERIES.capabilities.whiteBalance.dropdown, self.data.whiteBalance)
-			: null
 
 	const progressBar = (pct, width = 20, start = '', end = '') => {
 		if (pct && pct >= 0 && pct <= 100) {
@@ -318,39 +283,10 @@ export function checkVariables(self) {
 		irisF: self.data.irisLabel,
 		shutterStep: self.data.shutterStepLabel,
 
-		colorTemperature: self.data.colorTempLabel ? self.data.colorTempLabel : colorTemperature,
+		...labelled,
 
-		autotrackingAngle: autotrackingAngle,
-		autotrackingMode: autotrackingMode,
-		autotrackingStatus: autotrackingStatus,
-		chromaLevel: chromaLevel,
-		colorbar: colorbar,
-		dnr: dnr,
-		drs: drs,
-		error: error,
-		filter: filter,
-		focusMode: focusMode,
-		gain: gain,
-		installMode: installMode,
-		irisMode: irisMode,
-		nightMode: nightMode,
-		ois: ois,
-		power: power,
-		presetScope: presetScope,
-		presetSpeed: presetSpeed,
-		presetSpeedTable: presetSpeedTable,
-		presetSpeedUnit: presetSpeedUnit,
-		shootingMode: shootingMode,
-		shutter: shutter,
-		streamingSRT: srt,
-		streamingTS: ts,
-		streamingRTMP: rtmp,
-		tally: tally,
-		tally2: tally2,
-		tally3: tally3,
-		recording: recording,
-		videoFormat: videoFormat,
-		whiteBalance: whiteBalance,
+		// Cameras that report a temperature directly take precedence over the indexed dropdown.
+		colorTemperature: self.data.colorTempLabel ? self.data.colorTempLabel : labelled.colorTemperature,
 
 		ptSpeed: self.ptSpeed,
 		pSpeed: self.pSpeed,

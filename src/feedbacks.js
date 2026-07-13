@@ -3,6 +3,56 @@ import { getAndUpdateSeries, constrainRange } from './common.js'
 import { e } from './enum.js'
 import ICONS from './icons.js'
 
+const colorWhite = combineRgb(255, 255, 255)
+const colorRed = combineRgb(255, 0, 0)
+const colorGreen = combineRgb(0, 255, 0)
+const colorOrange = combineRgb(255, 102, 0)
+const colorBlue = combineRgb(0, 51, 204)
+const colorGrey = combineRgb(51, 51, 51)
+
+const STYLE_RED = { color: colorWhite, bgcolor: colorRed }
+const STYLE_GREEN = { color: colorWhite, bgcolor: colorGreen }
+const STYLE_ORANGE = { color: colorWhite, bgcolor: colorOrange }
+const STYLE_BLUE = { color: colorWhite, bgcolor: colorBlue }
+const STYLE_GREY = { color: colorWhite, bgcolor: colorGrey }
+
+// A feedback that reports a camera state which is simply on or off.
+// `isActive` is called on every evaluation, so it must read self.data rather than close over a value.
+const stateFeedback = (name, description, isActive, style = STYLE_RED) => ({
+	type: 'boolean',
+	name,
+	description,
+	defaultStyle: { ...style },
+	options: [],
+	callback: () => isActive(),
+})
+
+// A feedback that lights up while the camera's current setting equals the one picked in the dropdown.
+// `current` is likewise re-read on every evaluation.
+const selectionFeedback = (
+	name,
+	description,
+	label,
+	choices,
+	current,
+	{ defaultIndex = 0, style = STYLE_RED } = {},
+) => ({
+	type: 'boolean',
+	name,
+	description,
+	defaultStyle: { ...style },
+	options: [
+		{
+			type: 'dropdown',
+			label,
+			id: 'option',
+			default: choices[defaultIndex].id,
+			choices,
+		},
+	],
+	callback: (feedback) => current() === feedback.options.option,
+})
+
 // Preset number option set with optional variable support (dropdown / variable toggled by checkbox)
 function optPreset(max) {
 	return [
@@ -52,324 +102,162 @@ export function getFeedbackDefinitions(self) {
 	const feedbacks = {}
 
 	const SERIES = getAndUpdateSeries(self)
+	const caps = SERIES.capabilities
 
-	const colorWhite = combineRgb(255, 255, 255)
-	const colorRed = combineRgb(255, 0, 0)
-	const colorGreen = combineRgb(0, 255, 0)
-	const colorOrange = combineRgb(255, 102, 0)
-	const colorBlue = combineRgb(0, 51, 204)
-	const colorGrey = combineRgb(51, 51, 51)
+	// ---- System ----
 
-	if (SERIES.capabilities.error) {
-		feedbacks.error = {
-			type: 'boolean',
-			name: 'System - Error Condition',
-			description: 'Indicates if an error condition currently exists',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.error !== '00'
-			},
-		}
+	if (caps.error) {
+		feedbacks.error = stateFeedback(
+			'System - Error Condition',
+			'Indicates if an error condition currently exists',
+			() => self.data.error !== '00',
+		)
 	}
 
-	if (SERIES.capabilities.power) {
-		feedbacks.powerState = {
-			type: 'boolean',
-			name: 'System - Power State',
-			description: 'Indicates if the camera is currently fully powered',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.power === '1'
-			},
-		}
+	if (caps.power) {
+		feedbacks.powerState = stateFeedback(
+			'System - Power State',
+			'Indicates if the camera is currently fully powered',
+			() => self.data.power === '1',
+		)
 	}
 
-	if (SERIES.capabilities.colorbar) {
-		feedbacks.colorbarState = {
-			type: 'boolean',
-			name: 'System - Color Bar State',
-			description: 'Indicates if the color bar is currently enabled',
-			defaultStyle: {
-				png64: ICONS.COLORBAR,
-				pngalignment: 'center:center',
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.colorbar === '1'
-			},
-		}
+	if (caps.colorbar) {
+		feedbacks.colorbarState = stateFeedback(
+			'System - Color Bar State',
+			'Indicates if the color bar is currently enabled',
+			() => self.data.colorbar === '1',
+			{ ...STYLE_RED, png64: ICONS.COLORBAR, pngalignment: 'center:center' },
+		)
 	}
 
-	if (SERIES.capabilities.tally) {
-		feedbacks.tallyState = {
-			type: 'boolean',
-			name: 'System - Red Tally State',
-			description: 'Indicates if the red Tally is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.tally === '1'
-			},
-		}
+	if (caps.tally) {
+		feedbacks.tallyState = stateFeedback(
+			'System - Red Tally State',
+			'Indicates if the red Tally is currently active',
+			() => self.data.tally === '1',
+		)
 	}
 
-	if (SERIES.capabilities.tally2) {
-		feedbacks.tally2State = {
-			type: 'boolean',
-			name: 'System - Green Tally State',
-			description: 'Indicates if the green Tally is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorGreen,
-			},
-			options: [],
-			callback: function () {
-				return self.data.tally2 === '1'
-			},
-		}
+	if (caps.tally2) {
+		feedbacks.tally2State = stateFeedback(
+			'System - Green Tally State',
+			'Indicates if the green Tally is currently active',
+			() => self.data.tally2 === '1',
+			STYLE_GREEN,
+		)
 	}
 
-	if (SERIES.capabilities.tally3) {
-		feedbacks.tally3State = {
-			type: 'boolean',
-			name: 'System - Yellow Tally State',
-			description: 'Indicates if the yellow Tally is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorOrange,
-			},
-			options: [],
-			callback: function () {
-				return self.data.tally3 === '1'
-			},
-		}
+	if (caps.tally3) {
+		feedbacks.tally3State = stateFeedback(
+			'System - Yellow Tally State',
+			'Indicates if the yellow Tally is currently active',
+			() => self.data.tally3 === '1',
+			STYLE_ORANGE,
+		)
 	}
 
-	if (SERIES.capabilities.install) {
-		feedbacks.installState = {
-			type: 'boolean',
-			name: 'System - Install Position',
-			description: 'Indicates if the selected mounting position is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Position',
-					id: 'option',
-					default: e.ENUM_INSTALL_POSITION[0].id,
-					choices: e.ENUM_INSTALL_POSITION,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.installMode === feedback.options.option
-			},
-		}
+	if (caps.install) {
+		feedbacks.installState = selectionFeedback(
+			'System - Install Position',
+			'Indicates if the selected mounting position is currently active',
+			'Position',
+			e.ENUM_INSTALL_POSITION,
+			() => self.data.installMode,
+		)
 	}
 
-	if (SERIES.capabilities.focusAuto) {
-		feedbacks.focusMode = {
-			type: 'boolean',
-			name: 'Lens - Focus Mode Auto',
-			description: 'Indicates if Auto Focus is currently enabled',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.focusMode === '1'
-			},
-		}
+	// ---- Lens ----
+
+	if (caps.focusAuto) {
+		feedbacks.focusMode = stateFeedback(
+			'Lens - Focus Mode Auto',
+			'Indicates if Auto Focus is currently enabled',
+			() => self.data.focusMode === '1',
+		)
 	}
 
-	if (SERIES.capabilities.irisAuto) {
-		feedbacks.irisMode = {
-			type: 'boolean',
-			name: 'Lens - Iris Mode Auto',
-			description: 'Indicates if Auto Iris is currently enabled',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.irisMode === '1'
-			},
-		}
+	if (caps.irisAuto) {
+		feedbacks.irisMode = stateFeedback(
+			'Lens - Iris Mode Auto',
+			'Indicates if Auto Iris is currently enabled',
+			() => self.data.irisMode === '1',
+		)
 	}
 
-	if (SERIES.capabilities.ois) {
-		feedbacks.oisMode = {
-			type: 'boolean',
-			name: 'Lens - Image Stabilization',
-			description: 'Indicates if the selected image stabilization mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Mode',
-					id: 'option',
-					default: SERIES.capabilities.ois.dropdown[0].id,
-					choices: SERIES.capabilities.ois.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.ois === feedback.options.option
-			},
-		}
+	if (caps.ois) {
+		feedbacks.oisMode = selectionFeedback(
+			'Lens - Image Stabilization',
+			'Indicates if the selected image stabilization mode is currently active',
+			'Mode',
+			caps.ois.dropdown,
+			() => self.data.ois,
+		)
 	}
 
-	if (SERIES.capabilities.zoom) {
-		feedbacks.zoomControl = {
-			type: 'boolean',
-			name: 'Lens - Zoom Control',
-			description: 'Indicates if Zoom is currently in operation',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.zoomSpeedValue != 0
-			},
-		}
+	if (caps.zoom) {
+		feedbacks.zoomControl = stateFeedback(
+			'Lens - Zoom Control',
+			'Indicates if Zoom is currently in operation',
+			() => self.data.zoomSpeedValue != 0,
+		)
 	}
 
-	if (SERIES.capabilities.trackingAuto) {
-		feedbacks.autotrackingMode = {
-			type: 'boolean',
-			name: 'Auto Tracking - On/Off',
-			description: 'Indicates if Auto Tracking is enabled',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.autotrackingMode === '1'
-			},
-		}
+	// ---- Auto Tracking ----
 
-		feedbacks.autotrackingAngle = {
-			type: 'boolean',
-			name: 'Auto Tracking - Angle',
-			description: 'Indicates if the selected angle is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'State',
-					id: 'option',
-					default: e.ENUM_AUTOTRACKING_ANGLE[2].id,
-					choices: e.ENUM_AUTOTRACKING_ANGLE,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.autotrackingAngle === feedback.options.option
-			},
-		}
+	if (caps.trackingAuto) {
+		feedbacks.autotrackingMode = stateFeedback(
+			'Auto Tracking - On/Off',
+			'Indicates if Auto Tracking is enabled',
+			() => self.data.autotrackingMode === '1',
+		)
 
-		feedbacks.autotrackingStatus = {
-			type: 'boolean',
-			name: 'Auto Tracking - Status',
-			description: 'Indicates if the selected status is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Status',
-					id: 'option',
-					default: e.ENUM_AUTOTRACKING_STATUS[1].id,
-					choices: e.ENUM_AUTOTRACKING_STATUS,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.autotrackingStatus === feedback.options.option
-			},
-		}
+		feedbacks.autotrackingAngle = selectionFeedback(
+			'Auto Tracking - Angle',
+			'Indicates if the selected angle is currently active',
+			'State',
+			e.ENUM_AUTOTRACKING_ANGLE,
+			() => self.data.autotrackingAngle,
+			{ defaultIndex: 2 },
+		)
+
+		feedbacks.autotrackingStatus = selectionFeedback(
+			'Auto Tracking - Status',
+			'Indicates if the selected status is currently active',
+			'Status',
+			e.ENUM_AUTOTRACKING_STATUS,
+			() => self.data.autotrackingStatus,
+			{ defaultIndex: 1 },
+		)
 	}
 
-	if (SERIES.capabilities.preset) {
-		feedbacks.presetSpeedTime = {
-			type: 'boolean',
-			name: 'Preset - Recall Speed/Time',
-			description: 'Indicates if the selected preset recall velocity is currently set',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Speed / Time',
-					id: 'option',
-					default: SERIES.capabilities.presetTime ? e.ENUM_PRESET_SPEED_TIME[0].id : e.ENUM_PRESET_SPEED[0].id,
-					choices: SERIES.capabilities.presetTime ? e.ENUM_PRESET_SPEED_TIME : e.ENUM_PRESET_SPEED,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.presetSpeed === feedback.options.option
-			},
-		}
+	// ---- Preset memory ----
 
-		feedbacks.presetRecallScope = {
-			type: 'boolean',
-			name: 'Preset - Recall Scope',
-			description: 'Indicates if the selected preset recall scope is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Scope',
-					id: 'option',
-					default: e.ENUM_PRESET_SCOPE[0].id,
-					choices: e.ENUM_PRESET_SCOPE,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.presetScope === feedback.options.option
-			},
-		}
+	if (caps.preset) {
+		feedbacks.presetSpeedTime = selectionFeedback(
+			'Preset - Recall Speed/Time',
+			'Indicates if the selected preset recall velocity is currently set',
+			'Speed / Time',
+			caps.presetTime ? e.ENUM_PRESET_SPEED_TIME : e.ENUM_PRESET_SPEED,
+			() => self.data.presetSpeed,
+		)
+
+		feedbacks.presetRecallScope = selectionFeedback(
+			'Preset - Recall Scope',
+			'Indicates if the selected preset recall scope is currently active',
+			'Scope',
+			e.ENUM_PRESET_SCOPE,
+			() => self.data.presetScope,
+		)
 
 		feedbacks.presetSelected = {
 			type: 'boolean',
 			name: 'Preset - Selected / Active',
 			description: 'Indicates if the selected preset is currently active (last selected)',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorOrange,
-			},
-			options: optPreset(SERIES.capabilities.preset),
-			callback: async (feedback) => {
-				const idx = parsePresetIdx(feedback, SERIES.capabilities.preset)
+			defaultStyle: { ...STYLE_ORANGE },
+			options: optPreset(caps.preset),
+			callback: (feedback) => {
+				const idx = parsePresetIdx(feedback, caps.preset)
 				if (idx === null) return false
 				return self.data.presetEntries[idx] === '1' && self.data.presetSelectedIdx === idx
 			},
@@ -379,13 +267,10 @@ export function getFeedbackDefinitions(self) {
 			type: 'boolean',
 			name: 'Preset - Recall Completion Notification',
 			description: 'Indicates if the last recall to the selected preset is completed',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorBlue,
-			},
-			options: optPreset(SERIES.capabilities.preset),
-			callback: async (feedback) => {
-				const idx = parsePresetIdx(feedback, SERIES.capabilities.preset)
+			defaultStyle: { ...STYLE_BLUE },
+			options: optPreset(caps.preset),
+			callback: (feedback) => {
+				const idx = parsePresetIdx(feedback, caps.preset)
 				if (idx === null) return false
 				return self.data.presetEntries[idx] === '1' && self.data.presetCompletedIdx === idx
 			},
@@ -395,26 +280,23 @@ export function getFeedbackDefinitions(self) {
 			type: 'boolean',
 			name: 'Preset - Memory State',
 			description: 'Indicates if the selected preset memory is in use',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorGrey,
-			},
-			options: optPreset(SERIES.capabilities.preset),
-			callback: async (feedback) => {
-				const idx = parsePresetIdx(feedback, SERIES.capabilities.preset)
+			defaultStyle: { ...STYLE_GREY },
+			options: optPreset(caps.preset),
+			callback: (feedback) => {
+				const idx = parsePresetIdx(feedback, caps.preset)
 				if (idx === null) return false
 				return self.data.presetEntries[idx] === '1'
 			},
 		}
 
-		if (SERIES.capabilities.presetThumbnails) {
+		if (caps.presetThumbnails) {
 			feedbacks.presetThumbnail = {
 				type: 'advanced',
 				name: 'Preset - Thumbnail',
 				description: 'Provides the thumbnail of the selected preset as the button background image',
-				options: optPreset(SERIES.capabilities.preset),
-				callback: async (feedback) => {
-					const idx = parsePresetIdx(feedback, SERIES.capabilities.preset)
+				options: optPreset(caps.preset),
+				callback: (feedback) => {
+					const idx = parsePresetIdx(feedback, caps.preset)
 					if (idx === null) return {}
 					return { png64: self.data.presetThumbnails[idx] }
 				},
@@ -422,330 +304,174 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
-	if (SERIES.capabilities.filter) {
-		feedbacks.filter = {
-			type: 'boolean',
-			name: 'Exposure - ND Filter',
-			description: 'Indicates if the selected ND filter is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Filter',
-					id: 'option',
-					default: SERIES.capabilities.filter.dropdown[0].id,
-					choices: SERIES.capabilities.filter.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.filter === feedback.options.option
-			},
-		}
+	// ---- Exposure ----
+
+	if (caps.filter) {
+		feedbacks.filter = selectionFeedback(
+			'Exposure - ND Filter',
+			'Indicates if the selected ND filter is currently active',
+			'Filter',
+			caps.filter.dropdown,
+			() => self.data.filter,
+		)
 	}
 
-	if (SERIES.capabilities.shutter) {
-		feedbacks.shutter = {
-			type: 'boolean',
-			name: 'Exposure - Shutter',
-			description: 'Indicates if the selected shutter mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Mode',
-					id: 'option',
-					default: SERIES.capabilities.shutter.dropdown[0].id,
-					choices: SERIES.capabilities.shutter.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.shutter === feedback.options.option
-			},
-		}
+	if (caps.shutter) {
+		feedbacks.shutter = selectionFeedback(
+			'Exposure - Shutter',
+			'Indicates if the selected shutter mode is currently active',
+			'Mode',
+			caps.shutter.dropdown,
+			() => self.data.shutter,
+		)
 	}
 
-	if (SERIES.capabilities.night) {
-		feedbacks.nightMode = {
-			type: 'boolean',
-			name: 'Exposure - Night Mode',
-			description: 'Indicates if Night Mode is currently enabled',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.nightMode === '1'
-			},
-		}
+	if (caps.night) {
+		feedbacks.nightMode = stateFeedback(
+			'Exposure - Night Mode',
+			'Indicates if Night Mode is currently enabled',
+			() => self.data.nightMode === '1',
+		)
 	}
 
-	if (SERIES.capabilities.gain) {
-		feedbacks.gain = {
-			type: 'boolean',
-			name: 'Image - Gain',
-			description: 'Indicates if the selected gain mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Mode',
-					id: 'option',
-					default: SERIES.capabilities.gain.dropdown[0].id,
-					choices: SERIES.capabilities.gain.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.gain === feedback.options.option
-			},
-		}
+	// ---- Image ----
+
+	if (caps.gain) {
+		feedbacks.gain = selectionFeedback(
+			'Image - Gain',
+			'Indicates if the selected gain mode is currently active',
+			'Mode',
+			caps.gain.dropdown,
+			() => self.data.gain,
+		)
 	}
 
-	if (SERIES.capabilities.shootingMode) {
-		feedbacks.shootingMode = {
-			type: 'boolean',
-			name: 'Image - Shooting Mode',
-			description: 'Indicates if the selected shooting mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Shooting Mode',
-					id: 'option',
-					default: SERIES.capabilities.shootingMode.dropdown[0].id,
-					choices: SERIES.capabilities.shootingMode.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.shootingMode === feedback.options.option
-			},
-		}
+	if (caps.shootingMode) {
+		feedbacks.shootingMode = selectionFeedback(
+			'Image - Shooting Mode',
+			'Indicates if the selected shooting mode is currently active',
+			'Shooting Mode',
+			caps.shootingMode.dropdown,
+			() => self.data.shootingMode,
+		)
 	}
 
-	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.dropdown) {
-		feedbacks.chromaLevel = {
-			type: 'boolean',
-			name: 'Image - Chroma Level',
-			description: 'Indicates if the selected chroma level is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Level',
-					id: 'option',
-					default: SERIES.capabilities.chromaLevel.dropdown[0].id,
-					choices: SERIES.capabilities.chromaLevel.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.chromaLevel === feedback.options.option
-			},
-		}
+	if (caps.chromaLevel && caps.chromaLevel.dropdown) {
+		feedbacks.chromaLevel = selectionFeedback(
+			'Image - Chroma Level',
+			'Indicates if the selected chroma level is currently active',
+			'Level',
+			caps.chromaLevel.dropdown,
+			() => self.data.chromaLevel,
+		)
 	}
 
-	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
-		feedbacks.dnr = {
-			type: 'boolean',
-			name: 'Image - Digital Noise Reduction',
-			description: 'Indicates if the selected digital noise reduction mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Mode',
-					id: 'option',
-					default: SERIES.capabilities.dnr.dropdown[0].id,
-					choices: SERIES.capabilities.dnr.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.dnr === feedback.options.option
-			},
-		}
+	if (caps.dnr && caps.dnr.dropdown) {
+		feedbacks.dnr = selectionFeedback(
+			'Image - Digital Noise Reduction',
+			'Indicates if the selected digital noise reduction mode is currently active',
+			'Mode',
+			caps.dnr.dropdown,
+			() => self.data.dnr,
+		)
 	}
 
-	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
-		feedbacks.drs = {
-			type: 'boolean',
-			name: 'Image - Dynamic Range Stretch',
-			description: 'Indicates if the selected dynamic range stretch mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Mode',
-					id: 'option',
-					default: SERIES.capabilities.drs.dropdown[0].id,
-					choices: SERIES.capabilities.drs.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.drs === feedback.options.option
-			},
-		}
+	if (caps.drs && caps.drs.dropdown) {
+		feedbacks.drs = selectionFeedback(
+			'Image - Dynamic Range Stretch',
+			'Indicates if the selected dynamic range stretch mode is currently active',
+			'Mode',
+			caps.drs.dropdown,
+			() => self.data.drs,
+		)
 	}
 
-	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
-		feedbacks.whiteBalance = {
-			type: 'boolean',
-			name: 'Image - White Balance',
-			description: 'Indicates if the selected white balance mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Mode',
-					id: 'option',
-					default: SERIES.capabilities.whiteBalance.dropdown[0].id,
-					choices: SERIES.capabilities.whiteBalance.dropdown,
-				},
-			],
-			callback: function (feedback) {
-				return self.data.whiteBalance === feedback.options.option
-			},
-		}
+	if (caps.whiteBalance && caps.whiteBalance.dropdown) {
+		feedbacks.whiteBalance = selectionFeedback(
+			'Image - White Balance',
+			'Indicates if the selected white balance mode is currently active',
+			'Mode',
+			caps.whiteBalance.dropdown,
+			() => self.data.whiteBalance,
+		)
 	}
 
-	if (SERIES.capabilities.recordSD) {
-		feedbacks.sdRecState = {
-			type: 'boolean',
-			name: 'Recording - State',
-			description: 'Indicates if recording is currently in progress',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.recording === '1'
-			},
-		}
+	// ---- Recording and streaming ----
+
+	if (caps.recordSD) {
+		feedbacks.sdRecState = stateFeedback(
+			'Recording - State',
+			'Indicates if recording is currently in progress',
+			() => self.data.recording === '1',
+		)
+
+		feedbacks.sdSlotState = stateFeedback(
+			'Recording - SD card inserted',
+			'Indicates if at least one SD card is inserted into a slot on the camera',
+			() => self.data.sdInserted === '1' || self.data.sd2Inserted === '1',
+			STYLE_GREEN,
+		)
 	}
 
-	if (SERIES.capabilities.recordSD) {
-		feedbacks.sdSlotState = {
-			type: 'boolean',
-			name: 'Recording - SD card inserted',
-			description: 'Indicates if at least one SD card is inserted into a slot on the camera',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorGreen,
-			},
-			options: [],
-			callback: function () {
-				return self.data.sdInserted === '1' || self.data.sd2Inserted === '1'
-			},
-		}
+	if (caps.streamRTMP) {
+		feedbacks.streamStateRTMP = stateFeedback(
+			'Streaming - RTMP Push State',
+			'Indicates if streaming in RTMP Push mode is currently active',
+			() => self.data.rtmp === '1',
+		)
 	}
 
-	if (SERIES.capabilities.streamRTMP) {
-		feedbacks.streamStateRTMP = {
-			type: 'boolean',
-			name: 'Streaming - RTMP Push State',
-			description: 'Indicates if streaming in RTMP Push mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.rtmp === '1'
-			},
-		}
+	if (caps.streamSRT) {
+		feedbacks.streamStateSRT = stateFeedback(
+			'Streaming - SRT Caller State',
+			'Indicates if streaming in SRT caller mode is currently active',
+			() => self.data.srt === '1',
+		)
 	}
 
-	if (SERIES.capabilities.streamSRT) {
-		feedbacks.streamStateSRT = {
-			type: 'boolean',
-			name: 'Streaming - SRT Caller State',
-			description: 'Indicates if streaming in SRT caller mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.srt === '1'
-			},
-		}
+	if (caps.streamTS) {
+		feedbacks.streamStateTS = stateFeedback(
+			'Streaming - MPEG-TS Output State',
+			'Indicates if streaming in MPEG-TS output mode is currently active',
+			() => self.data.ts === '1',
+		)
 	}
 
-	if (SERIES.capabilities.streamTS) {
-		feedbacks.streamStateTS = {
-			type: 'boolean',
-			name: 'Streaming - MPEG-TS Output State',
-			description: 'Indicates if streaming in MPEG-TS output mode is currently active',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: [],
-			callback: function () {
-				return self.data.ts === '1'
-			},
-		}
-	}
+	// ---- Audio ----
 
-	if (SERIES.capabilities.audioVolumeLevel) {
-		const caps = SERIES.capabilities.audioVolumeLevel
+	if (caps.audioVolumeLevel) {
+		const audio = caps.audioVolumeLevel
 		feedbacks.audioVolumeLevel = {
 			type: 'boolean',
 			name: 'Audio - Volume Level Range',
 			description: 'Indicates if the audio volume level of the selected channel is within the specified range',
-			defaultStyle: {
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
+			defaultStyle: { ...STYLE_RED },
 			options: [
 				{
 					type: 'dropdown',
 					label: 'Audio Channel',
 					id: 'channel',
 					default: 0,
-					choices: Array.from({ length: caps.maxch }, (_, i) => ({ id: i, label: `Channel ${i + 1}` })),
+					choices: Array.from({ length: audio.maxch }, (_, i) => ({ id: i, label: `Channel ${i + 1}` })),
 				},
 				{
 					type: 'number',
 					label: 'Minimum Level (dB)',
 					id: 'minLevel',
-					default: caps.min,
-					min: caps.min,
-					max: caps.max,
+					default: audio.min,
+					min: audio.min,
+					max: audio.max,
 				},
 				{
 					type: 'number',
 					label: 'Maximum Level (dB)',
 					id: 'maxLevel',
-					default: caps.max,
-					min: caps.min,
-					max: caps.max,
+					default: audio.max,
+					min: audio.min,
+					max: audio.max,
 				},
 			],
-			callback: function (feedback) {
+			callback: (feedback) => {
 				const currentLevel = self.data.audioVolumeLevels && self.data.audioVolumeLevels[feedback.options.channel]
 				if (currentLevel === undefined) return false
 				return currentLevel >= feedback.options.minLevel && currentLevel <= feedback.options.maxLevel
