@@ -34,6 +34,10 @@ export async function getCameraStatusOnce(self) {
 	}
 }
 
+// Exhaustive, hand-written query of every command this protocol knows, kept deliberately even
+// though nothing calls it: it is the reference used when bringing up a new camera model, to see
+// what the device answers before the capability tables in models.js are filled in.
+// Do not delete as "dead code" — getCameraStatusOnce above is the runtime path.
 export async function getAllCameraStatus(self) {
 	const cmds = {
 		ptz: [
