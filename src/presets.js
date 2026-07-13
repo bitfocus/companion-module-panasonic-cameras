@@ -70,7 +70,41 @@ const knobPreset = (category, name, text, actionId, set, { bgcolor = colorBlack,
 	feedbacks: [],
 })
 
-// A button that toggles a setting and lights up while it is active.
+// A knob over a speed: press returns it to the middle of the range, turning nudges it.
+const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	steps: [
+		{
+			down: [{ actionId, options: { ...extra, op: 's', set: 25 } }],
+			up: [],
+			rotate_left: [{ actionId, options: { ...extra, op: -1, step: 1 } }],
+			rotate_right: [{ actionId, options: { ...extra, op: 1, step: 1 } }],
+		},
+	],
+	feedbacks: [],
+})
+
+// A knob over a list of modes: press toggles, turning steps through the list.
+const enumKnobPreset = (category, name, text, actionId) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	steps: [
+		{
+			down: [{ actionId, options: { op: 't' } }],
+			up: [],
+			rotate_left: [{ actionId, options: { op: -1 } }],
+			rotate_right: [{ actionId, options: { op: 1 } }],
+		},
+	],
+	feedbacks: [],
+})
+
+// A button that toggles a setting, and lights up while it is active if a feedback is given.
 const togglePreset = (
 	category,
 	name,
@@ -85,14 +119,49 @@ const togglePreset = (
 	name,
 	style: { text, size, color, bgcolor },
 	steps: [{ down: [{ actionId, options: { op: 't' } }], up: [] }],
-	feedbacks: [
+	feedbacks: feedbackId
+		? [
+				{
+					feedbackId,
+					...(feedbackOptions ? { options: feedbackOptions } : {}),
+					...(isInverted ? { isInverted } : {}),
+					style,
+				},
+			]
+		: [],
+})
+
+// A button that fires one action on press and does nothing on release.
+const momentaryPreset = (
+	category,
+	name,
+	text,
+	actionId,
+	options,
+	{ color = colorWhite, bgcolor = colorBlack } = {},
+) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color, bgcolor },
+	steps: [{ down: [{ actionId, ...(options ? { options } : {}) }], up: [] }],
+	feedbacks: [],
+})
+
+// Like jogPreset, but labelled with text rather than an icon: drive in a direction while held,
+// stop on release.
+const textJogPreset = (category, name, text, actionId, dir) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	steps: [
 		{
-			feedbackId,
-			...(feedbackOptions ? { options: feedbackOptions } : {}),
-			...(isInverted ? { isInverted } : {}),
-			style,
+			down: [{ actionId, options: { dir } }],
+			up: [{ actionId, options: { dir: 0 } }],
 		},
 	],
+	feedbacks: [],
 })
 
 // A button that applies one fixed value and lights up while the camera is on that value.
@@ -132,77 +201,21 @@ export function getPresetDefinitions(self) {
 			presets[id] = jogPreset('Pan/Tilt', name, icon, 'ptMove', { dir }, { dir: '11' })
 		}
 
-		presets['pan-tilt-position'] = {
-			type: 'simple',
-			category: 'Pan/Tilt',
-			name: 'Pan/Tilt Position',
-			style: {
-				text: 'P/T Pos.\\n$(generic-module:panPositionDeg)°\\n$(generic-module:tiltPositionDeg)°',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'home',
-							options: {},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['pan-tilt-position'] = momentaryPreset(
+			'Pan/Tilt',
+			'Pan/Tilt Position',
+			'P/T Pos.\\n$(generic-module:panPositionDeg)°\\n$(generic-module:tiltPositionDeg)°',
+			'home',
+			{},
+		)
 
-		presets['pan-tilt-speed'] = {
-			type: 'simple',
-			category: 'Pan/Tilt',
-			name: 'Speed',
-			style: {
-				text: 'P/T Speed\\n$(generic-module:ptSpeed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptSpeed',
-							options: {
-								scope: 'pt',
-								op: 's',
-								set: 25,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'ptSpeed',
-							options: {
-								scope: 'pt',
-								op: -1,
-								step: 1,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'ptSpeed',
-							options: {
-								scope: 'pt',
-								op: 1,
-								step: 1,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['pan-tilt-speed'] = speedKnobPreset(
+			'Pan/Tilt',
+			'Speed',
+			'P/T Speed\\n$(generic-module:ptSpeed)',
+			'ptSpeed',
+			{ scope: 'pt' },
+		)
 	}
 
 	// ######################
@@ -254,79 +267,16 @@ export function getPresetDefinitions(self) {
 			],
 		}
 
-		presets['lens-zoom-in'] = {
-			type: 'simple',
-			category: 'Lens',
-			name: 'Zoom In',
-			style: {
-				text: 'ZOOM\\nIN',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [{ actionId: 'zoom', options: { dir: 1 } }],
-					up: [{ actionId: 'zoom', options: { dir: 0 } }],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-zoom-in'] = textJogPreset('Lens', 'Zoom In', 'ZOOM\\nIN', 'zoom', 1)
 
-		presets['lens-zoom-out'] = {
-			type: 'simple',
-			category: 'Lens',
-			name: 'Zoom Out',
-			style: {
-				text: 'ZOOM\\nOUT',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [{ actionId: 'zoom', options: { dir: -1 } }],
-					up: [{ actionId: 'zoom', options: { dir: 0 } }],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-zoom-out'] = textJogPreset('Lens', 'Zoom Out', 'ZOOM\\nOUT', 'zoom', -1)
 
-		presets['lens-zoom-speed'] = {
-			type: 'simple',
-			category: 'Lens',
-			name: 'Zoom Speed',
-			style: {
-				text: 'Zoom\\nSpeed\\n$(generic-module:zSpeed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'zoomSpeed',
-							options: { op: 's', set: 25 },
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'zoomSpeed',
-							options: { op: -1, step: 1 },
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'zoomSpeed',
-							options: { op: 1, step: 1 },
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-zoom-speed'] = speedKnobPreset(
+			'Lens',
+			'Zoom Speed',
+			'Zoom\\nSpeed\\n$(generic-module:zSpeed)',
+			'zoomSpeed',
+		)
 	}
 
 	if (SERIES.capabilities.focus) {
@@ -373,138 +323,36 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		presets['lens-focus-far'] = {
-			type: 'simple',
-			category: 'Lens',
-			name: 'Focus Far',
-			style: {
-				text: 'FOCUS\\nFAR',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [{ actionId: 'focus', options: { dir: 1 } }],
-					up: [{ actionId: 'focus', options: { dir: 0 } }],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-focus-far'] = textJogPreset('Lens', 'Focus Far', 'FOCUS\\nFAR', 'focus', 1)
 
-		presets['lens-focus-near'] = {
-			type: 'simple',
-			category: 'Lens',
-			name: 'Focus Near',
-			style: {
-				text: 'FOCUS\\nNEAR',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [{ actionId: 'focus', options: { dir: -1 } }],
-					up: [{ actionId: 'focus', options: { dir: 0 } }],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-focus-near'] = textJogPreset('Lens', 'Focus Near', 'FOCUS\\nNEAR', 'focus', -1)
 
-		presets['lens-focus-speed'] = {
-			type: 'simple',
-			category: 'Lens',
-			name: 'Focus Speed',
-			style: {
-				text: 'Focus\\nSpeed\\n$(generic-module:fSpeed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'focusSpeed',
-							options: { op: 's', set: 25 },
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'focusSpeed',
-							options: { op: -1, step: 1 },
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'focusSpeed',
-							options: { op: 1, step: 1 },
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-focus-speed'] = speedKnobPreset(
+			'Lens',
+			'Focus Speed',
+			'Focus\\nSpeed\\n$(generic-module:fSpeed)',
+			'focusSpeed',
+		)
 
 		if (SERIES.capabilities.focusAuto) {
-			presets['lens-focus-mode'] = {
-				type: 'simple',
-				category: 'Lens',
-				name: 'Focus Mode',
-				style: {
-					text: 'FOCUS MODE\\n$(generic-module:focusMode)',
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'focusMode',
-								options: { op: 't' },
-							},
-						],
-						up: [],
-					},
-				],
-				feedbacks: [
-					{
-						feedbackId: 'focusMode',
-						style: {
-							color: colorWhite,
-							bgcolor: colorRed,
-						},
-					},
-				],
-			}
+			presets['lens-focus-mode'] = togglePreset(
+				'Lens',
+				'Focus Mode',
+				'FOCUS MODE\\n$(generic-module:focusMode)',
+				'focusMode',
+				'focusMode',
+				{ color: colorWhite, bgcolor: colorRed },
+			)
 		}
 
 		if (SERIES.capabilities.focusPushAuto) {
-			presets['lens-focus-push-auto'] = {
-				type: 'simple',
-				category: 'Lens',
-				name: 'Push Auto Focus',
-				style: {
-					text: 'PUSH\\nAUTO\\nFOCUS',
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'focusPushAuto',
-								options: {},
-							},
-						],
-						up: [],
-					},
-				],
-				feedbacks: [],
-			}
+			presets['lens-focus-push-auto'] = momentaryPreset(
+				'Lens',
+				'Push Auto Focus',
+				'PUSH\\nAUTO\\nFOCUS',
+				'focusPushAuto',
+				{},
+			)
 		}
 	}
 
@@ -618,97 +466,28 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		presets['exposure-iris-up'] = {
-			type: 'simple',
-			category: 'Exposure',
-			name: 'Iris Up',
-			style: {
-				text: 'IRIS\\nUP',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'iris',
-							options: {
-								op: 1,
-								step: 0x1e,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['exposure-iris-up'] = momentaryPreset('Exposure', 'Iris Up', 'IRIS\\nUP', 'iris', {
+			op: 1,
+			step: 0x1e,
+			useVar: false,
+		})
 
-		presets['exposure-iris-down'] = {
-			type: 'simple',
-			category: 'Exposure',
-			name: 'Iris Down',
-			style: {
-				text: 'IRIS\\nDOWN',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'iris',
-							options: {
-								op: -1,
-								step: 0x1e,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['exposure-iris-down'] = momentaryPreset('Exposure', 'Iris Down', 'IRIS\\nDOWN', 'iris', {
+			op: -1,
+			step: 0x1e,
+			useVar: false,
+		})
 	}
 
 	if (SERIES.capabilities.irisAuto) {
-		presets['exposure-iris-mode'] = {
-			type: 'simple',
-			category: 'Exposure',
-			name: 'Iris Mode',
-			style: {
-				text: 'IRIS MODE\\n$(generic-module:irisMode)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'irisMode',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'irisMode',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['exposure-iris-mode'] = togglePreset(
+			'Exposure',
+			'Iris Mode',
+			'IRIS MODE\\n$(generic-module:irisMode)',
+			'irisMode',
+			'irisMode',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	if (SERIES.capabilities.shutter) {
@@ -855,39 +634,14 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.night) {
-		presets['exposure-night-mode'] = {
-			type: 'simple',
-			category: 'Exposure',
-			name: 'Night Mode',
-			style: {
-				text: 'Night Mode\\n$(generic-module:nightMode)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'nightMode',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'nightMode',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['exposure-night-mode'] = togglePreset(
+			'Exposure',
+			'Night Mode',
+			'Night Mode\\n$(generic-module:nightMode)',
+			'nightMode',
+			'nightMode',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	// #########################
@@ -950,235 +704,36 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.dropdown) {
-		presets['image-chroma-level'] = {
-			type: 'simple',
-			category: 'Image',
-			name: 'Chroma Level',
-			style: {
-				text: 'Chroma\\n$(generic-module:chromaLevel)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'chromaLevel',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'chromaLevel',
-							options: {
-								op: -1,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'chromaLevel',
-							options: {
-								op: 1,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-chroma-level'] = enumKnobPreset(
+			'Image',
+			'Chroma Level',
+			'Chroma\\n$(generic-module:chromaLevel)',
+			'chromaLevel',
+		)
 	}
 
 	if (SERIES.capabilities.chromaPhase) {
-		presets['image-chroma-phase'] = {
-			type: 'simple',
-			category: 'Image',
-			name: 'Chroma Phase',
-			style: {
-				text: 'Phase\\n$(generic-module:chromaPhase)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'chromaPhase',
-							options: {
-								op: 's',
-								set: 0,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'chromaPhase',
-							options: {
-								op: -1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'chromaPhase',
-							options: {
-								op: 1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-chroma-phase'] = knobPreset(
+			'Image',
+			'Chroma Phase',
+			'Phase\\n$(generic-module:chromaPhase)',
+			'chromaPhase',
+			0,
+		)
 	}
 
 	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
-		presets['image-dnr'] = {
-			type: 'simple',
-			category: 'Image',
-			name: 'DNR',
-			style: {
-				text: 'DNR\\n$(generic-module:dnr)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'dnr',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'dnr',
-							options: {
-								op: -1,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'dnr',
-							options: {
-								op: 1,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-dnr'] = enumKnobPreset('Image', 'DNR', 'DNR\\n$(generic-module:dnr)', 'dnr')
 	}
 
 	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
-		presets['image-drs'] = {
-			type: 'simple',
-			category: 'Image',
-			name: 'DRS',
-			style: {
-				text: 'DRS\\n$(generic-module:drs)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'drs',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'drs',
-							options: {
-								op: -1,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'drs',
-							options: {
-								op: 1,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-drs'] = enumKnobPreset('Image', 'DRS', 'DRS\\n$(generic-module:drs)', 'drs')
 	}
 
 	if (SERIES.capabilities.pedestal) {
-		presets['image-pedestal'] = {
-			type: 'simple',
-			category: 'Image',
-			name: 'Pedestal',
-			style: {
-				text: 'Total Ped.\\n$(generic-module:masterPed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorGrey,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ped',
-							options: {
-								op: 's',
-								set: 0,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'ped',
-							options: {
-								op: -1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'ped',
-							options: {
-								op: 1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-pedestal'] = knobPreset('Image', 'Pedestal', 'Total Ped.\\n$(generic-module:masterPed)', 'ped', 0, {
+			bgcolor: colorGrey,
+		})
 	}
 
 	// Red/blue/green gain and pedestal are the same knob on six channels. Green is gated
@@ -1320,51 +875,22 @@ export function getPresetDefinitions(self) {
 			}
 		}
 
-		presets['image-awb'] = {
-			type: 'simple',
-			category: 'Image',
-			name: 'Execute Auto White Balance',
-			style: {
-				text: 'Execute\\nAWB',
-				size: '14',
-				color: colorBlack,
-				bgcolor: colorWhite,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'whiteBalanceExecAWB',
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-awb'] = momentaryPreset(
+			'Image',
+			'Execute Auto White Balance',
+			'Execute\\nAWB',
+			'whiteBalanceExecAWB',
+			undefined,
+			{ color: colorBlack, bgcolor: colorWhite },
+		)
 
-		presets['image-abb'] = {
-			type: 'simple',
-			category: 'Image',
-			name: 'Execute Auto Black Balance',
-			style: {
-				text: 'Execute\\nABB',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'whiteBalanceExecABB',
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-abb'] = momentaryPreset(
+			'Image',
+			'Execute Auto Black Balance',
+			'Execute\\nABB',
+			'whiteBalanceExecABB',
+			undefined,
+		)
 	}
 
 	// ########################
@@ -1434,134 +960,45 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.power) {
-		presets['system-power'] = {
-			type: 'simple',
-			category: 'System',
-			name: 'Power',
-			style: {
-				text: '⏻ Power\\n$(generic-module:power)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorOrange,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'power',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'powerState',
-					style: {
-						color: colorWhite,
-						bgcolor: colorDarkGreen,
-					},
-				},
-			],
-		}
+		presets['system-power'] = togglePreset(
+			'System',
+			'Power',
+			'⏻ Power\\n$(generic-module:power)',
+			'power',
+			'powerState',
+			{ color: colorWhite, bgcolor: colorDarkGreen },
+			{ bgcolor: colorOrange },
+		)
 	}
 
 	if (SERIES.capabilities.restart) {
-		presets['system-restart'] = {
-			type: 'simple',
-			category: 'System',
-			name: 'Restart',
-			style: {
-				text: 'Restart\\n🗘',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'restart',
-							options: {
-								username: 'admin',
-								password: '12345',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['system-restart'] = momentaryPreset('System', 'Restart', 'Restart\\n🗘', 'restart', {
+			username: 'admin',
+			password: '12345',
+		})
 	}
 
 	if (SERIES.capabilities.colorbar) {
-		presets['system-colorbar'] = {
-			type: 'simple',
-			category: 'System',
-			name: 'Color Bar',
-			style: {
-				text: 'Color Bar\\n$(generic-module:colorbar)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'colorbar',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'colorbarState',
-					style: {
-						png64: ICONS.COLORBAR,
-						pngalignment: 'center:center',
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		// The only toggle whose lit state also swaps in an image.
+		presets['system-colorbar'] = togglePreset(
+			'System',
+			'Color Bar',
+			'Color Bar\\n$(generic-module:colorbar)',
+			'colorbar',
+			'colorbarState',
+			{ color: colorWhite, bgcolor: colorRed, png64: ICONS.COLORBAR, pngalignment: 'center:center' },
+		)
 	}
 
 	if (SERIES.capabilities.install) {
-		presets['system-install-position'] = {
-			type: 'simple',
-			category: 'System',
-			name: 'Installation Position',
-			style: {
-				text: 'INSTALL. POS.\\n$(generic-module:installMode)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'installPosition',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['system-install-position'] = togglePreset(
+			'System',
+			'Installation Position',
+			'INSTALL. POS.\\n$(generic-module:installMode)',
+			'installPosition',
+			null,
+			null,
+		)
 	}
 
 	if (SERIES.capabilities.videoFormat) {
@@ -1629,111 +1066,36 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.streamSRT) {
-		presets['system-srt-stream'] = {
-			type: 'simple',
-			category: 'System',
-			name: 'SRT Caller Streaming',
-			style: {
-				text: 'SRT Caller\\n$(generic-module:streamingSRT)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'srtStreamCtrl',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'streamStateSRT',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['system-srt-stream'] = togglePreset(
+			'System',
+			'SRT Caller Streaming',
+			'SRT Caller\\n$(generic-module:streamingSRT)',
+			'srtStreamCtrl',
+			'streamStateSRT',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	if (SERIES.capabilities.streamTS) {
-		presets['system-ts-stream'] = {
-			type: 'simple',
-			category: 'System',
-			name: 'MPEG-TS Output Streaming',
-			style: {
-				text: 'MPEG-TS Output\\n$(generic-module:streamingTS)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'tsStreamCtrl',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'streamStateTS',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['system-ts-stream'] = togglePreset(
+			'System',
+			'MPEG-TS Output Streaming',
+			'MPEG-TS Output\\n$(generic-module:streamingTS)',
+			'tsStreamCtrl',
+			'streamStateTS',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	if (SERIES.capabilities.streamRTMP) {
-		presets['system-rtmp-stream'] = {
-			type: 'simple',
-			category: 'System',
-			name: 'RTMP Push Streaming',
-			style: {
-				text: 'RTMP Push\\n$(generic-module:streamingRTMP)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'rtmpStreamCtrl',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'streamStateRTMP',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['system-rtmp-stream'] = togglePreset(
+			'System',
+			'RTMP Push Streaming',
+			'RTMP Push\\n$(generic-module:streamingRTMP)',
+			'rtmpStreamCtrl',
+			'streamStateRTMP',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	// #################
@@ -1741,57 +1103,23 @@ export function getPresetDefinitions(self) {
 	// #################
 
 	if (SERIES.capabilities.presetSpeed && SERIES.capabilities.presetTime) {
-		presets['preset-mode'] = {
-			type: 'simple',
-			category: 'Preset Memory',
-			name: 'Preset Recall Mode',
-			style: {
-				text: 'RECALL MODE\\n$(generic-module:presetSpeedUnit)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetSpeedTimeUnit',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['preset-mode'] = togglePreset(
+			'Preset Memory',
+			'Preset Recall Mode',
+			'RECALL MODE\\n$(generic-module:presetSpeedUnit)',
+			'presetSpeedTimeUnit',
+			null,
+			null,
+		)
 
-		presets['preset-speed-table'] = {
-			type: 'simple',
-			category: 'Preset Memory',
-			name: 'Preset Recall Speed Table',
-			style: {
-				text: 'SPEED TABLE\\n$(generic-module:presetSpeedTable)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetSpeedTable',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['preset-speed-table'] = togglePreset(
+			'Preset Memory',
+			'Preset Recall Speed Table',
+			'SPEED TABLE\\n$(generic-module:presetSpeedTable)',
+			'presetSpeedTable',
+			null,
+			null,
+		)
 	}
 
 	if (SERIES.capabilities.presetSpeed) {
@@ -2028,77 +1356,24 @@ export function getPresetDefinitions(self) {
 	// #######################
 
 	if (SERIES.capabilities.trackingAuto) {
-		presets['autotracking-mode'] = {
-			type: 'simple',
-			category: 'Auto Tracking',
-			name: 'Auto Tracking Mode',
-			style: {
-				text: 'Auto Tracking\\n$(generic-module:autotrackingMode)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'autotrackingMode',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'autotrackingMode',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['autotracking-mode'] = togglePreset(
+			'Auto Tracking',
+			'Auto Tracking Mode',
+			'Auto Tracking\\n$(generic-module:autotrackingMode)',
+			'autotrackingMode',
+			'autotrackingMode',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 
-		presets['autotracking-angle'] = {
-			type: 'simple',
-			category: 'Auto Tracking',
-			name: 'Auto Tracking Angle',
-			style: {
-				text: 'ANGLE\\n$(generic-module:autotrackingAngle)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'autotrackingAngle',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'autotrackingAngle',
-					options: {
-						option: e.ENUM_AUTOTRACKING_ANGLE[0].id,
-					},
-					isInverted: true,
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['autotracking-angle'] = togglePreset(
+			'Auto Tracking',
+			'Auto Tracking Angle',
+			'ANGLE\\n$(generic-module:autotrackingAngle)',
+			'autotrackingAngle',
+			'autotrackingAngle',
+			{ color: colorWhite, bgcolor: colorRed },
+			{ feedbackOptions: { option: e.ENUM_AUTOTRACKING_ANGLE[0].id }, isInverted: true },
+		)
 
 		presets['autotracking-status'] = {
 			type: 'simple',

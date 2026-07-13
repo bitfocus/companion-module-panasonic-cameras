@@ -6,165 +6,121 @@ import { e } from './enum.js'
 // ##########################
 export function setVariables(self) {
 	const SERIES = getAndUpdateSeries(self)
+	const caps = SERIES.capabilities
+
+	// Which variables a camera exposes follows directly from what it can do. Each row is
+	// [what the camera must support, the variables that unlocks]. The guard is a capability key,
+	// or a predicate where the condition is more than "the camera has this at all".
+	const VARIABLES = [
+		[null, { model: 'Model of camera', title: 'Title of camera' }],
+		['version', { version: 'Firmware Version' }],
+		['error', { error: 'Error Code' }],
+		['install', { installMode: 'Install Position' }],
+		['power', { power: 'Power Status' }],
+		['colorbar', { colorbar: 'Color Bar Status' }],
+		['tally', { tally: 'Red Tally Status' }],
+		[(c) => c.tally && c.tally2, { tally2: 'Green Tally Status' }],
+		[(c) => c.tally && c.tally2 && c.tally3, { tally3: 'Yellow Tally Status' }],
+		['focusAuto', { focusMode: 'Focus Mode' }],
+		[(c) => c.whiteBalance && c.whiteBalance.dropdown, { whiteBalance: 'White Balance Mode' }],
+		['colorTemperature', { colorTemperature: 'Color Temperature' }],
+		['filter', { filter: 'ND Filter' }],
+		['gain', { gain: 'Gain' }],
+		['shootingMode', { shootingMode: 'Shooting Mode' }],
+		['night', { nightMode: 'Night Mode' }],
+		[
+			'preset',
+			{
+				presetScope: 'Preset Recall Scope',
+				presetCompleted: 'Preset # Completed',
+				presetSelected: 'Preset # Selected',
+				presetMemory: 'Used Preset Memory slots',
+			},
+		],
+		['shutter', { shutter: 'Shutter Mode' }],
+		[(c) => c.shutter && c.shutter.dropdown === e.ENUM_SHUTTER_ADV, { shutterStep: 'Shutter Step' }],
+		['ois', { ois: 'O.I.S.' }],
+		[
+			'panTilt',
+			{
+				ptSpeed: 'Pan/Tilt Speed',
+				pSpeed: 'Pan Speed',
+				tSpeed: 'Tilt Speed',
+				panPosition: 'Pan Position',
+				tiltPosition: 'Tilt Position',
+				panPositionDeg: 'Pan Position °',
+				tiltPositionDeg: 'Tilt Position °',
+			},
+		],
+		[
+			'zoom',
+			{
+				zoomPosition: 'Zoom Position',
+				zoomPositionPct: 'Zoom Position %',
+				zoomPositionBar: 'Zoom Position',
+				zoomSpeed: 'Zoom Speed Control',
+				zSpeed: 'Zoom Speed',
+			},
+		],
+		[
+			'focus',
+			{
+				focusPosition: 'Focus Position',
+				focusPositionPct: 'Focus Position %',
+				focusPositionBar: 'Focus Position',
+				focusSpeed: 'Focus Speed Control',
+				fSpeed: 'Focus Speed',
+			},
+		],
+		[
+			'iris',
+			{
+				irisPosition: 'Iris Position',
+				irisPositionPct: 'Iris Position %',
+				irisPositionBar: 'Iris Position',
+				irisVolume: 'Iris Volume',
+			},
+		],
+		['irisAuto', { irisMode: 'Iris Mode' }],
+		['irisF', { irisF: 'Iris F No.' }],
+		['pedestal', { masterPed: 'Master Pedestal' }],
+		['chromaLevel', { chromaLevel: 'Chroma Level' }],
+		['chromaPhase', { chromaPhase: 'Chroma Phase' }],
+		['dnr', { dnr: 'Digital Noise Reduction' }],
+		['drs', { drs: 'Dynamic Range Stretch' }],
+		['colorGain', { redGain: 'Red Gain', blueGain: 'Blue Gain' }],
+		[(c) => c.colorGain && c.colorGain.cmd.green, { greenGain: 'Green Gain' }],
+		['colorPedestal', { redPed: 'Red Pedestal', bluePed: 'Blue Pedestal' }],
+		[(c) => c.colorPedestal && c.colorPedestal.cmd.green, { greenPed: 'Green Pedestal' }],
+		['presetSpeed', { presetSpeed: 'Preset Recall Speed/Time', presetSpeedTable: 'Preset Recall Speed Table' }],
+		['presetTime', { presetSpeedUnit: 'Preset Recall Speed Unit' }],
+		['recordSD', { recording: 'SD Card Recording Status' }],
+		['streamRTMP', { streamingRTMP: 'RTMP Push Status' }],
+		['streamSRT', { streamingSRT: 'SRT Caller Status' }],
+		['streamTS', { streamingTS: 'MPEG-TS Output Status' }],
+		['videoFormat', { videoFormat: 'Video Format' }],
+		[
+			'trackingAuto',
+			{
+				autotrackingMode: 'Autotracking Mode',
+				autotrackingAngle: 'Autotracking Angle',
+				autotrackingStatus: 'Autotracking Status',
+			},
+		],
+	]
 
 	const variables = {}
 
-	variables.model = { name: 'Model of camera' }
-	variables.title = { name: 'Title of camera' }
-	if (SERIES.capabilities.version) {
-		variables.version = { name: 'Firmware Version' }
+	for (const [guard, names] of VARIABLES) {
+		const supported = guard === null || (typeof guard === 'function' ? guard(caps) : caps[guard])
+		if (!supported) continue
+		for (const [id, name] of Object.entries(names)) variables[id] = { name }
 	}
-	if (SERIES.capabilities.error) {
-		variables.error = { name: 'Error Code' }
-	}
-	if (SERIES.capabilities.install) {
-		variables.installMode = { name: 'Install Position' }
-	}
-	if (SERIES.capabilities.power) {
-		variables.power = { name: 'Power Status' }
-	}
-	if (SERIES.capabilities.colorbar) {
-		variables.colorbar = { name: 'Color Bar Status' }
-	}
-	if (SERIES.capabilities.tally) {
-		variables.tally = { name: 'Red Tally Status' }
-		if (SERIES.capabilities.tally2) {
-			variables.tally2 = { name: 'Green Tally Status' }
-			if (SERIES.capabilities.tally3) {
-				variables.tally3 = { name: 'Yellow Tally Status' }
-			}
-		}
-	}
-	if (SERIES.capabilities.focusAuto) {
-		variables.focusMode = { name: 'Focus Mode' }
-	}
-	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
-		variables.whiteBalance = { name: 'White Balance Mode' }
-	}
-	if (SERIES.capabilities.colorTemperature) {
-		variables.colorTemperature = { name: 'Color Temperature' }
-	}
-	if (SERIES.capabilities.filter) {
-		variables.filter = { name: 'ND Filter' }
-	}
-	if (SERIES.capabilities.gain) {
-		variables.gain = { name: 'Gain' }
-	}
-	if (SERIES.capabilities.shootingMode) {
-		variables.shootingMode = { name: 'Shooting Mode' }
-	}
-	if (SERIES.capabilities.night) {
-		variables.nightMode = { name: 'Night Mode' }
-	}
-	if (SERIES.capabilities.preset) {
-		variables.presetScope = { name: 'Preset Recall Scope' }
-		variables.presetCompleted = { name: 'Preset # Completed' }
-		variables.presetSelected = { name: 'Preset # Selected' }
-		variables.presetMemory = { name: 'Used Preset Memory slots' }
-	}
-	if (SERIES.capabilities.shutter) {
-		variables.shutter = { name: 'Shutter Mode' }
-	}
-	if (SERIES.capabilities.shutter && SERIES.capabilities.shutter.dropdown === e.ENUM_SHUTTER_ADV) {
-		variables.shutterStep = { name: 'Shutter Step' }
-	}
-	if (SERIES.capabilities.ois) {
-		variables.ois = { name: 'O.I.S.' }
-	}
-	if (SERIES.capabilities.panTilt) {
-		variables.ptSpeed = { name: 'Pan/Tilt Speed' }
-		variables.pSpeed = { name: 'Pan Speed' }
-		variables.tSpeed = { name: 'Tilt Speed' }
-		variables.panPosition = { name: 'Pan Position' }
-		variables.tiltPosition = { name: 'Tilt Position' }
-		variables.panPositionDeg = { name: 'Pan Position °' }
-		variables.tiltPositionDeg = { name: 'Tilt Position °' }
-	}
-	if (SERIES.capabilities.zoom) {
-		variables.zoomPosition = { name: 'Zoom Position' }
-		variables.zoomPositionPct = { name: 'Zoom Position %' }
-		variables.zoomPositionBar = { name: 'Zoom Position' }
-		variables.zoomSpeed = { name: 'Zoom Speed Control' }
-		variables.zSpeed = { name: 'Zoom Speed' }
-	}
-	if (SERIES.capabilities.focus) {
-		variables.focusPosition = { name: 'Focus Position' }
-		variables.focusPositionPct = { name: 'Focus Position %' }
-		variables.focusPositionBar = { name: 'Focus Position' }
-		variables.focusSpeed = { name: 'Focus Speed Control' }
-		variables.fSpeed = { name: 'Focus Speed' }
-	}
-	if (SERIES.capabilities.iris) {
-		variables.irisPosition = { name: 'Iris Position' }
-		variables.irisPositionPct = { name: 'Iris Position %' }
-		variables.irisPositionBar = { name: 'Iris Position' }
-		variables.irisVolume = { name: 'Iris Volume' }
-	}
-	if (SERIES.capabilities.irisAuto) {
-		variables.irisMode = { name: 'Iris Mode' }
-	}
-	if (SERIES.capabilities.irisF) {
-		variables.irisF = { name: 'Iris F No.' }
-	}
-	if (SERIES.capabilities.pedestal) {
-		variables.masterPed = { name: 'Master Pedestal' }
-	}
-	if (SERIES.capabilities.chromaLevel) {
-		variables.chromaLevel = { name: 'Chroma Level' }
-	}
-	if (SERIES.capabilities.chromaPhase) {
-		variables.chromaPhase = { name: 'Chroma Phase' }
-	}
-	if (SERIES.capabilities.dnr) {
-		variables.dnr = { name: 'Digital Noise Reduction' }
-	}
-	if (SERIES.capabilities.drs) {
-		variables.drs = { name: 'Dynamic Range Stretch' }
-	}
-	if (SERIES.capabilities.colorGain) {
-		variables.redGain = { name: 'Red Gain' }
-		variables.blueGain = { name: 'Blue Gain' }
-		if (SERIES.capabilities.colorGain.cmd.green) {
-			variables.greenGain = { name: 'Green Gain' }
-		}
-	}
-	if (SERIES.capabilities.colorPedestal) {
-		variables.redPed = { name: 'Red Pedestal' }
-		variables.bluePed = { name: 'Blue Pedestal' }
-		if (SERIES.capabilities.colorPedestal.cmd.green) {
-			variables.greenPed = { name: 'Green Pedestal' }
-		}
-	}
-	if (SERIES.capabilities.presetSpeed) {
-		variables.presetSpeed = { name: 'Preset Recall Speed/Time' }
-		variables.presetSpeedTable = { name: 'Preset Recall Speed Table' }
-	}
-	if (SERIES.capabilities.presetTime) {
-		variables.presetSpeedUnit = { name: 'Preset Recall Speed Unit' }
-	}
-	if (SERIES.capabilities.recordSD) {
-		variables.recording = { name: 'SD Card Recording Status' }
-	}
-	if (SERIES.capabilities.streamRTMP) {
-		variables.streamingRTMP = { name: 'RTMP Push Status' }
-	}
-	if (SERIES.capabilities.streamSRT) {
-		variables.streamingSRT = { name: 'SRT Caller Status' }
-	}
-	if (SERIES.capabilities.streamTS) {
-		variables.streamingTS = { name: 'MPEG-TS Output Status' }
-	}
-	if (SERIES.capabilities.videoFormat) {
-		variables.videoFormat = { name: 'Video Format' }
-	}
-	if (SERIES.capabilities.trackingAuto) {
-		variables.autotrackingMode = { name: 'Autotracking Mode' }
-		variables.autotrackingAngle = { name: 'Autotracking Angle' }
-		variables.autotrackingStatus = { name: 'Autotracking Status' }
-	}
-	if (SERIES.capabilities.audioVolumeLevel) {
-		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
-			variables[`audioVolumeLevel${ch + 1}`] = { name: `Audio Volume Level Channel ${ch + 1} (dB)` }
+
+	// One per audio channel the camera actually has.
+	if (caps.audioVolumeLevel) {
+		for (let ch = 1; ch <= caps.audioVolumeLevel.maxch; ch++) {
+			variables[`audioVolumeLevel${ch}`] = { name: `Audio Volume Level Channel ${ch} (dB)` }
 		}
 	}
 
