@@ -70,7 +70,7 @@ describe('generated enums', () => {
 		expect(e.ENUM_COLOR_TEMPERATURE_HE130).toHaveLength(121)
 		expect(e.ENUM_COLOR_TEMPERATURE_HE130.at(0)).toEqual({ id: '000', label: '2000K' })
 		expect(e.ENUM_COLOR_TEMPERATURE_HE130.at(-1)).toEqual({ id: '078', label: '15000K' })
-		expect(e.ENUM_COLOR_TEMPERATURE_HE40.at(0)).toEqual({ id: '000', label: '2400K' })
+		expect(e.ENUM_COLOR_TEMPERATURE.at(0)).toEqual({ id: '000', label: '2400K' })
 	})
 
 	it('gives every entry of every enum a unique id', () => {

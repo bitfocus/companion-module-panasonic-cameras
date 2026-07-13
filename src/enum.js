@@ -251,7 +251,7 @@ export const e = {
 	// ####################################
 	// #### Color Temperature Look Ups ####
 	// ####################################
-	ENUM_COLOR_TEMPERATURE_HE40: range(0, 75).map((i) => ({ id: hex(i, 3), label: `${2400 + i * 100}K` })),
+	ENUM_COLOR_TEMPERATURE: range(0, 75).map((i) => ({ id: hex(i, 3), label: `${2400 + i * 100}K` })),
 	ENUM_COLOR_TEMPERATURE_HE130: COLOR_TEMPERATURE_HE130_KELVIN.map((k, i) => ({ id: hex(i, 3), label: `${k}K` })),
 
 	// ###############################
