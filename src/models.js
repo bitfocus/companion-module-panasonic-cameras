@@ -11,7 +11,7 @@ export const MODELS = [
 	{ id: 'AW-HE48', series: 'HE40', label: 'AW-HE48' },
 	{ id: 'AW-HE50', series: 'HE50', label: 'AW-HE50' },
 	{ id: 'AW-HE58', series: 'HE40', label: 'AW-HE58' },
-	{ id: 'AW-HE60', series: 'HE60', label: 'AW-HE60' },
+	{ id: 'AW-HE60', series: 'HE50', label: 'AW-HE60' },
 	{ id: 'AW-HE65', series: 'HE40', label: 'AW-HE65' },
 	{ id: 'AW-HE68', series: 'UE70', label: 'AW-HE68' },
 	{ id: 'AW-HE70', series: 'HE40', label: 'AW-HE70' },
@@ -116,32 +116,8 @@ const BASE_CAPABILITIES = {
 	trackingAuto: true, // Has internal Autotracking features (OSL:B6 - OSL:C2)
 	version: true, // Camera provides software version (from initial getinfo or QSV, OSV)
 	videoFormat: true, // Camera reports current video format (OSA:87)
-	whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_SET }, // Has White Balance Modes (OAW)
+	whiteBalance: { dropdown: e.ENUM_WHITEBALANCE }, // Has White Balance Modes (OAW)
 	zoom: true, // Has Zoom control and position (Zxx and AXZxxx)
-}
-
-// The AW-HE50 and AW-HE60 have identical capabilities, so HE60 reuses this rather than repeating it.
-const HE50_CAPABILITIES = {
-	...BASE_CAPABILITIES,
-	audioVolumeLevel: false,
-	chromaPhase: false,
-	colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
-	colorPedestal: false,
-	colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE } },
-	drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
-	gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE50 },
-	ois: false,
-	pedestal: { cmd: 'OTD', offset: 0x1e, limit: 30, step: 3, hexlen: 2 },
-	presetTime: false,
-	recordSD: false,
-	restart: false,
-	shutter: { cmd: 'OSH', dropdown: e.ENUM_SHUTTER_HE40 },
-	streamRTMP: false,
-	streamSRT: false,
-	streamTS: false,
-	tally2: false,
-	tally3: false,
-	trackingAuto: false,
 }
 
 export const SERIES_SPECS = [
@@ -156,7 +132,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
-			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_99 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: {
@@ -208,7 +184,7 @@ export const SERIES_SPECS = [
 			tally3: false,
 			trackingAuto: false,
 			videoFormat: false,
-			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_SET_CX350 },
+			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_CX350 },
 		},
 	},
 	{
@@ -246,7 +222,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
-			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_SET_HE2 },
+			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_HE2 },
 			zoom: false,
 		},
 	},
@@ -259,7 +235,7 @@ export const SERIES_SPECS = [
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
 			colorPedestal: false,
-			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE } },
+			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_LINEAR } },
 			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
 			filter: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE40 },
@@ -301,14 +277,28 @@ export const SERIES_SPECS = [
 	{
 		// Specific for the AW-HE50 Camera
 		id: 'HE50',
-		capabilities: HE50_CAPABILITIES,
-	},
-	{
-		// Specific for the AW-HE60 Camera
-		// Capability-identical to the AW-HE50. Spread rather than shared by reference, so the two
-		// series stay independent objects.
-		id: 'HE60',
-		capabilities: { ...HE50_CAPABILITIES },
+		capabilities: {
+			...BASE_CAPABILITIES,
+			audioVolumeLevel: false,
+			chromaPhase: false,
+			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
+			colorPedestal: false,
+			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_LINEAR } },
+			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
+			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE50 },
+			ois: false,
+			pedestal: { cmd: 'OTD', offset: 0x1e, limit: 30, step: 3, hexlen: 2 },
+			presetTime: false,
+			recordSD: false,
+			restart: false,
+			shutter: { cmd: 'OSH', dropdown: e.ENUM_SHUTTER_HE40 },
+			streamRTMP: false,
+			streamSRT: false,
+			streamTS: false,
+			tally2: false,
+			tally3: false,
+			trackingAuto: false,
+		},
 	},
 	{
 		// Specific for the AW-HE120 Camera
@@ -317,7 +307,7 @@ export const SERIES_SPECS = [
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
 			chromaPhase: false,
-			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE } },
+			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_LINEAR } },
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE120 },
 			night: false,
@@ -341,10 +331,10 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
-			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_40 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_40 },
 			chromaPhase: false,
 			colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 100, step: 1, hexlen: 3 },
-			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_HE130 } },
+			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE130 },
 			pedestal: { cmd: 'OTP', offset: 0x96, limit: 150, step: 1, hexlen: 3 },
@@ -365,10 +355,10 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 4, min: -40, max: 12, step: 1 },
-			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_40 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_40 },
 			chromaPhase: false,
 			colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 100, step: 1, hexlen: 3 },
-			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_HE130 } },
+			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HR140 },
 			ois: { dropdown: e.ENUM_OIS_HR140 },
@@ -418,7 +408,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
-			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_40 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_40 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 1000, step: 1, hexlen: 3 },
 			colorPedestal: { cmd: { red: 'OSG:4C', blue: 'OSG:4E' }, offset: 0x800, limit: 800, step: 1, hexlen: 3 },
@@ -549,7 +539,7 @@ export const SERIES_SPECS = [
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
 			colorPedestal: false,
-			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE } },
+			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_LINEAR } },
 			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
 			filter: { dropdown: e.ENUM_FILTER_3A },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE40 },
@@ -571,7 +561,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 2, min: -36, max: 12, step: 3 },
-			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_99 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: false,
 			filter: { dropdown: e.ENUM_FILTER_3A },
@@ -595,7 +585,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
-			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_99 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: {
 				cmd: { red: 'ORP', blue: 'OBP', green: 'OSJ:10' },
@@ -650,7 +640,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
-			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_99 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: {
 				cmd: { red: 'ORP', blue: 'OBP', green: 'OSJ:10' },
@@ -679,7 +669,7 @@ export const SERIES_SPECS = [
 		id: 'UE160',
 		capabilities: {
 			...BASE_CAPABILITIES,
-			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_LEVEL_40 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_40 },
 			chromaPhase: false,
 			colorGain: {
 				cmd: { red: 'OSL:36', blue: 'OSL:38', green: 'OSL:37' },

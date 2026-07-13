@@ -43,7 +43,7 @@ const presetTimes = () => range(99, 1, -1).map((t) => ({ id: hex(t, 3), label: `
 // The HE130 colour temperatures are not on a regular grid, so the values stay as data; only the
 // sequential ids they are addressed by are generated.
 // prettier-ignore
-const COLOR_TEMPERATURE_HE130_KELVIN = [
+const COLOR_TEMPERATURE_NL = [
 	2000, 2010, 2020, 2040, 2050, 2070, 2080, 2090, 2110, 2120, 2140, 2150, 2170, 2180, 2200, 2210, 2230, 2240, 2260, 2280,
 	2300, 2310, 2330, 2340, 2360, 2380, 2400, 2420, 2440, 2460, 2480, 2500, 2520, 2540, 2560, 2600, 2620, 2640, 2680, 2700,
 	2720, 2740, 2780, 2800, 2820, 2850, 2870, 2920, 2950, 2970, 3000, 3020, 3070, 3100, 3120, 3150, 3200, 3250, 3270, 3330,
@@ -251,16 +251,16 @@ export const e = {
 	// ####################################
 	// #### Color Temperature Look Ups ####
 	// ####################################
-	ENUM_COLOR_TEMPERATURE: range(0, 75).map((i) => ({ id: hex(i, 3), label: `${2400 + i * 100}K` })),
-	ENUM_COLOR_TEMPERATURE_HE130: COLOR_TEMPERATURE_HE130_KELVIN.map((k, i) => ({ id: hex(i, 3), label: `${k}K` })),
+	ENUM_COLOR_TEMPERATURE_LINEAR: range(0, 75).map((i) => ({ id: hex(i, 3), label: `${2400 + i * 100}K` })),
+	ENUM_COLOR_TEMPERATURE_NONLINEAR: COLOR_TEMPERATURE_NL.map((k, i) => ({ id: hex(i, 3), label: `${k}K` })),
 
 	// ###############################
 	// #### Chroma Level Look Ups ####
 	// ###############################
 	ENUM_CHROMA_LEVEL_3: chromaSteps(-3, 3),
 	ENUM_CHROMA_LEVEL_10: chromaSteps(0, 10),
-	ENUM_CHROMA_LEVEL_40: chromaPercent(-99, 40),
-	ENUM_CHROMA_LEVEL_99: chromaPercent(-99, 99),
+	ENUM_CHROMA_PCT_40: chromaPercent(-99, 40),
+	ENUM_CHROMA_PCT_99: chromaPercent(-99, 99),
 
 	// ######################################
 	// #### Dynamic Range Stretch (DRS) #####
@@ -335,7 +335,7 @@ export const e = {
 	// ################################
 	// #### White Balance Look Ups ####
 	// ################################
-	ENUM_WHITEBALANCE_SET: [
+	ENUM_WHITEBALANCE: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
 		{ id: '2', label: 'AWC B' },
@@ -343,7 +343,7 @@ export const e = {
 		{ id: '5', label: 'Preset 5600K' },
 		{ id: '9', label: 'VAR' },
 	],
-	ENUM_WHITEBALANCE_SET_HE2: [
+	ENUM_WHITEBALANCE_HE2: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
 		{ id: '2', label: 'AWC B' },
@@ -353,7 +353,7 @@ export const e = {
 		{ id: '7', label: 'Preset 6000K' },
 		{ id: '8', label: 'Preset 2800K' },
 	],
-	ENUM_WHITEBALANCE_SET_CX350: [
+	ENUM_WHITEBALANCE_CX350: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
 		{ id: '2', label: 'AWC B' },

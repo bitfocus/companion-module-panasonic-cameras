@@ -32,12 +32,12 @@ describe('generated enums', () => {
 	})
 
 	it('centres chroma level on 0x80 and keeps an explicit OFF', () => {
-		expect(e.ENUM_CHROMA_LEVEL_99.at(0)).toEqual({ id: '00', label: 'OFF' })
-		expect(e.ENUM_CHROMA_LEVEL_99.at(1)).toEqual({ id: '1D', label: '-99%' })
-		expect(e.ENUM_CHROMA_LEVEL_99.at(-1)).toEqual({ id: 'E3', label: '+99%' })
-		expect(e.ENUM_CHROMA_LEVEL_40.at(-1)).toEqual({ id: 'A8', label: '+40%' })
+		expect(e.ENUM_CHROMA_PCT_99.at(0)).toEqual({ id: '00', label: 'OFF' })
+		expect(e.ENUM_CHROMA_PCT_99.at(1)).toEqual({ id: '1D', label: '-99%' })
+		expect(e.ENUM_CHROMA_PCT_99.at(-1)).toEqual({ id: 'E3', label: '+99%' })
+		expect(e.ENUM_CHROMA_PCT_40.at(-1)).toEqual({ id: 'A8', label: '+40%' })
 		// the 40 table is the 99 table cut short, so they must agree where they overlap
-		expect(e.ENUM_CHROMA_LEVEL_40).toEqual(e.ENUM_CHROMA_LEVEL_99.slice(0, e.ENUM_CHROMA_LEVEL_40.length))
+		expect(e.ENUM_CHROMA_PCT_40).toEqual(e.ENUM_CHROMA_PCT_99.slice(0, e.ENUM_CHROMA_PCT_40.length))
 	})
 
 	it('numbers presets 1..100 while addressing them 0-based', () => {
@@ -66,11 +66,11 @@ describe('generated enums', () => {
 		expect(e.ENUM_PRESET_SPEED_TIME.find((x) => x.label === 'Time 99s')).toEqual({ id: '063', label: 'Time 99s' }) // 0x63
 	})
 
-	it('generates sequential ids for the irregular HE130 colour temperatures', () => {
-		expect(e.ENUM_COLOR_TEMPERATURE_HE130).toHaveLength(121)
-		expect(e.ENUM_COLOR_TEMPERATURE_HE130.at(0)).toEqual({ id: '000', label: '2000K' })
-		expect(e.ENUM_COLOR_TEMPERATURE_HE130.at(-1)).toEqual({ id: '078', label: '15000K' })
-		expect(e.ENUM_COLOR_TEMPERATURE.at(0)).toEqual({ id: '000', label: '2400K' })
+	it('generates sequential ids for the non-linear colour temperature table', () => {
+		expect(e.ENUM_COLOR_TEMPERATURE_NONLINEAR).toHaveLength(121)
+		expect(e.ENUM_COLOR_TEMPERATURE_NONLINEAR.at(0)).toEqual({ id: '000', label: '2000K' })
+		expect(e.ENUM_COLOR_TEMPERATURE_NONLINEAR.at(-1)).toEqual({ id: '078', label: '15000K' })
+		expect(e.ENUM_COLOR_TEMPERATURE_LINEAR.at(0)).toEqual({ id: '000', label: '2400K' })
 	})
 
 	it('gives every entry of every enum a unique id', () => {
@@ -99,11 +99,10 @@ describe('models', () => {
 		}
 	})
 
-	it('keeps the AW-HE60 capability-identical to the AW-HE50, but as its own object', () => {
-		const he50 = SERIES_SPECS.find((s) => s.id === 'HE50').capabilities
-		const he60 = SERIES_SPECS.find((s) => s.id === 'HE60').capabilities
-		expect(he60).toEqual(he50)
-		// a shared reference would let a future mutation of one series leak into the other
-		expect(he60).not.toBe(he50)
+	it('drives the AW-HE60 off the HE50 series it is capability-identical to', () => {
+		// The two used to be separate series holding the same capabilities, which only invited the
+		// copies to drift apart. The HE60 series is gone; the model points at the HE50 one instead.
+		expect(MODELS.find((m) => m.id === 'AW-HE60').series).toBe('HE50')
+		expect(SERIES_SPECS.find((s) => s.id === 'HE60')).toBeUndefined()
 	})
 })
