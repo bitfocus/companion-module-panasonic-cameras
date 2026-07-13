@@ -81,6 +81,64 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 		})
 	})
 
+	describe('preset entities', () => {
+		// Companion parses every option a stored entity carries against its field definition, and it
+		// does not fall back to the default for one that was never set: for a dropdown, undefined is
+		// simply not in the list of choices, and the action fails to run. So a preset button is only
+		// as valid as the weakest option on it — an omitted option, a step below the model's own step
+		// size, or an action the model does not have at all each take the whole button down.
+		const presetEntities = Object.entries(presets).flatMap(([presetId, preset]) => [
+			...(preset.steps ?? []).flatMap((step) =>
+				Object.values(step)
+					.filter(Array.isArray)
+					.flatMap((set) => set.map((action) => [presetId, 'action', action.actionId, action.options, actions])),
+			),
+			...(preset.feedbacks ?? []).map((fb) => [presetId, 'feedback', fb.feedbackId, fb.options, feedbacks]),
+		])
+
+		it('only references actions and feedbacks this model actually has', () => {
+			for (const [presetId, kind, entityId, , definitions] of presetEntities) {
+				expect(definitions[entityId], `${presetId} uses ${kind} ${entityId}`).toBeDefined()
+			}
+		})
+
+		it('carries no option the model does not have', () => {
+			// A preset is written once for every model, so it can name an option — a step size, say —
+			// that a given model's action does not offer at all.
+			for (const [presetId, kind, entityId, options, definitions] of presetEntities) {
+				const known = (definitions[entityId]?.options ?? []).map((field) => field.id)
+				for (const id of Object.keys(options ?? {})) {
+					expect(known, `${presetId}: ${kind} ${entityId} has no option ${id}`).toContain(id)
+				}
+			}
+		})
+
+		it('gives every option of every preset entity a value its own definition accepts', () => {
+			for (const [presetId, kind, entityId, options, definitions] of presetEntities) {
+				for (const field of definitions[entityId]?.options ?? []) {
+					if (field.type === 'static-text') continue
+					const value = options?.[field.id]
+					const where = `${presetId}: ${kind} ${entityId}.${field.id}`
+
+					expect(value, `${where} is not set`).toBeDefined()
+					// An expression is only resolved on the button, so there is nothing to check here.
+					if (value?.isExpression) continue
+
+					if (field.type === 'dropdown') {
+						expect(
+							field.choices.map((c) => c.id),
+							where,
+						).toContain(value)
+					}
+					if (field.type === 'number') {
+						expect(value, where).toBeGreaterThanOrEqual(field.min ?? -Infinity)
+						expect(value, where).toBeLessThanOrEqual(field.max ?? Infinity)
+					}
+				}
+			}
+		})
+	})
+
 	describe('preset templates', () => {
 		const templates = structure.flatMap((s) => s.definitions.filter((d) => d.type === 'template'))
 

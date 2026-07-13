@@ -198,6 +198,25 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 	return optSetStepped('Increase', 'Decrease', label, def, min, max, step)
 }
 
+// Some cameras can only nudge a value up and down, never write one outright. Offering them a 'Set'
+// that quietly does nothing would be worse than not offering it at all, so they get the relative
+// half of the options only.
+function optIncDec() {
+	return [
+		{
+			type: 'dropdown',
+			label: 'Action',
+			id: 'op',
+			disableAutoExpression: true,
+			default: ACTION_INC,
+			choices: [
+				{ id: ACTION_INC, label: 'Increase' },
+				{ id: ACTION_DEC, label: 'Decrease' },
+			],
+		},
+	]
+}
+
 function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 	return optSetStepped('Raise', 'Lower', label, def, min, max, step)
 }
@@ -660,13 +679,17 @@ export function getActionDefinitions(self) {
 		)
 	}
 
-	if (caps.colorTemperature && caps.colorTemperature.advanced && caps.colorTemperature.advanced.set) {
+	// The UB300 steps its colour temperature but cannot be given one, so it gets Increase/Decrease
+	// without the Set it could not carry out.
+	if (caps.colorTemperature && caps.colorTemperature.advanced) {
 		const advanced = caps.colorTemperature.advanced
 		actions.colorTemperature = {
 			name: 'Image - Color Temperature',
-			options: optSetIncDecStep('Color Temperature [K]', 3200, advanced.min, advanced.max, 20),
+			options: advanced.set
+				? optSetIncDecStep('Color Temperature [K]', 3200, advanced.min, advanced.max, 20)
+				: optIncDec(),
 			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, advanced.min, advanced.max, 20)) return
+				if (advanced.set && !parseSetIncDecVariables(action, advanced.min, advanced.max, 20)) return
 				switch (action.options.op) {
 					case ACTION_SET:
 						await cam(advanced.set + ':' + toHexString(action.options.set, 5) + ':0')

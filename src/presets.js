@@ -1,4 +1,6 @@
 import { combineRgb } from '@companion-module/base'
+import { getActionDefinitions } from './actions.js'
+import { getFeedbackDefinitions } from './feedbacks.js'
 import { getAndUpdateSeries } from './common.js'
 import ICONS from './icons.js'
 import { e } from './enum.js'
@@ -733,6 +735,7 @@ export function getPresetDefinitions(self) {
 	if (SERIES.capabilities.pedestal) {
 		presets['image-pedestal'] = knobPreset('Image', 'Pedestal', 'Total Ped.\\n$(generic-module:masterPed)', 'ped', 0, {
 			bgcolor: colorGrey,
+			step: SERIES.capabilities.pedestal.step,
 		})
 	}
 
@@ -834,6 +837,9 @@ export function getPresetDefinitions(self) {
 			}
 		}
 
+		// The knob only turns, so it works the same whether the camera can be given a colour
+		// temperature outright or only stepped towards one. Options the model's action does not
+		// have (a UB300 has no step size) are dropped when the preset is built.
 		if (SERIES.capabilities.colorTemperature) {
 			presets['image-colortemp'] = {
 				type: 'simple',
@@ -1428,13 +1434,14 @@ export function getPresetDefinitions(self) {
 	// ########################
 
 	if (SERIES.capabilities.audioVolumeLevel) {
+		const audio = SERIES.capabilities.audioVolumeLevel
 		presets['audio-volume'] = {
 			type: 'simple',
 			category: 'Audio',
 			name: 'Audio Volume Level',
 			template: {
 				variableName: 'channel',
-				values: Array.from({ length: SERIES.capabilities.audioVolumeLevel.maxch }, (_, ch) => ({
+				values: Array.from({ length: audio.maxch }, (_, ch) => ({
 					name: `Audio Volume Level Channel ${ch + 1}`,
 					value: ch + 1,
 				})),
@@ -1466,7 +1473,7 @@ export function getPresetDefinitions(self) {
 							options: {
 								channel: LOCAL_CHANNEL_0,
 								op: -1,
-								step: 1,
+								step: audio.step,
 								useVar: false,
 							},
 						},
@@ -1477,7 +1484,7 @@ export function getPresetDefinitions(self) {
 							options: {
 								channel: LOCAL_CHANNEL_0,
 								op: 1,
-								step: 1,
+								step: audio.step,
 								useVar: false,
 							},
 						},
@@ -1502,7 +1509,7 @@ export function getPresetDefinitions(self) {
 					options: {
 						channel: LOCAL_CHANNEL_0,
 						minLevel: 6,
-						maxLevel: 20,
+						maxLevel: audio.max,
 					},
 					style: {
 						color: colorWhite,
@@ -1513,8 +1520,46 @@ export function getPresetDefinitions(self) {
 		}
 	}
 
-	return buildPresetDefinitions(presets)
+	return buildPresetDefinitions(presets, self)
 }
+
+// Companion validates every option an entity carries against the definition, and a stored option
+// it never got is as invalid as a wrong one — for a dropdown, undefined is simply "not in the list
+// of choices", which takes the whole action down. A preset that spells out only the options it
+// cares about (`{ op: 't' }`, the rest hidden behind an isVisibleExpression) therefore produces a
+// button that cannot run. In 1.x the omission was harmless, which is how the presets above came to
+// be written that way; rather than restating every option on every preset, reconcile each one
+// against the very definitions Companion validates it against: fill in what the preset left out,
+// and drop what this model's action does not have (an Increase/Decrease-only camera has no step
+// size, but the preset it shares with the others still names one).
+function optionSpecs(definitions) {
+	return Object.fromEntries(
+		Object.entries(definitions).map(([id, definition]) => {
+			const fields = (definition.options ?? []).filter((o) => o.id !== undefined && o.type !== 'static-text')
+			return [
+				id,
+				{
+					ids: fields.map((field) => field.id),
+					defaults: Object.fromEntries(
+						fields.filter((field) => field.default !== undefined).map((field) => [field.id, field.default]),
+					),
+				},
+			]
+		}),
+	)
+}
+
+const reconcileOptions = (entities, idKey, specs) =>
+	(entities ?? []).map((entity) => {
+		const spec = specs[entity[idKey]]
+		if (!spec) return entity
+
+		const options = { ...spec.defaults }
+		for (const id of spec.ids) {
+			if (entity.options && id in entity.options) options[id] = entity.options[id]
+		}
+		return { ...entity, options }
+	})
 
 // API 2.0 splits presets into a `structure` of UI sections plus the flat preset definitions.
 // Categories stay declared inline on each preset above and are lifted out here, so a section
@@ -1524,13 +1569,29 @@ export function getPresetDefinitions(self) {
 // than us emitting near-identical copies. A section's `definitions` may be either a plain list
 // of preset ids or a list of groups, but not a mix — so as soon as one preset in a section is
 // templated, the section's plain presets are wrapped in a simple group alongside it.
-function buildPresetDefinitions(presets) {
+function buildPresetDefinitions(presets, self) {
 	const structure = []
 	const sections = new Map()
 	const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
+	const actionSpecs = optionSpecs(getActionDefinitions(self))
+	const feedbackSpecs = optionSpecs(getFeedbackDefinitions(self))
+
 	for (const [id, preset] of Object.entries(presets)) {
 		const { category, template, ...definition } = preset
+
+		// A step maps each action-set name (down, up, rotate_left, …) to its actions, and may carry
+		// non-action keys such as `options` alongside them.
+		definition.steps = definition.steps.map((step) =>
+			Object.fromEntries(
+				Object.entries(step).map(([set, actions]) => [
+					set,
+					Array.isArray(actions) ? reconcileOptions(actions, 'actionId', actionSpecs) : actions,
+				]),
+			),
+		)
+		definition.feedbacks = reconcileOptions(definition.feedbacks, 'feedbackId', feedbackSpecs)
+
 		presets[id] = definition
 
 		let section = sections.get(category)
