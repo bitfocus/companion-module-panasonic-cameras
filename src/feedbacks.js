@@ -70,7 +70,6 @@ function optPreset(max) {
 			label: 'Preset # variable',
 			default: '1',
 			regex: Regex.SOMETHING,
-			minLength: 1,
 			useVariables: true,
 			tooltip: `This expression should return a preset number in the range 1 to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values disable the feedback.`,
 			isVisibleExpression: '$(options:useVar)',

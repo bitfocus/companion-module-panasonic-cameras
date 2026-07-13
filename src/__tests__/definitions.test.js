@@ -118,6 +118,17 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 			}
 		})
 
+		it('never enforces minLength on a field the user may not even see', () => {
+			// 1.x `required` was a hint; 2.0 `minLength` is enforced hard enough that an entity with an
+			// empty value fails to parse. A field hidden behind isVisibleExpression is legitimately
+			// empty when its condition is off, so requiring a length there breaks existing buttons.
+			for (const [defId, field] of allFields) {
+				if (field.isVisibleExpression) {
+					expect(field.minLength, `${defId}.${field.id} is conditionally visible`).toBeUndefined()
+				}
+			}
+		})
+
 		it('only lets isVisibleExpression read fields that opted out of auto-expression', () => {
 			for (const [defId, def] of [...Object.entries(actions), ...Object.entries(feedbacks)]) {
 				for (const field of def.options ?? []) {

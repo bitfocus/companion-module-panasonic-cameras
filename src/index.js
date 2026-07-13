@@ -512,7 +512,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.init_feedbacks()
 		this.init_presets()
 
-		this.subscribeFeedbacks()
+		// API 2.0 dropped subscribeFeedbacks: feedbacks no longer have a subscribe callback, so there
+		// is nothing to subscribe. Re-evaluating them is what we actually wanted here.
+		this.checkAllFeedbacks()
 	}
 
 	// Return config fields for web config
