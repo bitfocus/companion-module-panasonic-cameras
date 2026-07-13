@@ -7,7 +7,9 @@
 		"format": "prettier -w .",
 		"package": "companion-module-build",
 		"lint:raw": "eslint",
-		"lint": "yarn lint:raw ."
+		"lint": "yarn lint:raw .",
+		"test": "vitest run",
+		"test:watch": "vitest"
 	},
 	"repository": {
 		"type": "git",
@@ -16,14 +18,14 @@
 	"license": "MIT",
 	"dependencies": {
 		"@companion-module/base": "~2.0.4",
-		"got": "^13.0.0",
-		"jimp": "^0.22.12",
-		"yarn": "^1.22.22"
+		"got": "^15.1.0",
+		"jimp": "^1.6.1"
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^3.0.2",
 		"eslint": "^9.39.3",
-		"prettier": "^3.8.1"
+		"prettier": "^3.8.1",
+		"vitest": "^4.1.10"
 	},
 	"prettier": {
 		"printWidth": 360,
@@ -34,5 +36,8 @@
 		"useTabs": true,
 		"endOfLine": "lf"
 	},
-	"packageManager": "yarn@4.13.0"
+	"packageManager": "yarn@4.13.0",
+	"engines": {
+		"node": "^22.20"
+	}
 }

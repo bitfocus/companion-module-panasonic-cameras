@@ -7,14 +7,11 @@ import { setVariables, checkVariables } from './variables.js'
 import { ConfigFields } from './config.js'
 import * as net from 'net'
 import got from 'got'
-import JimpRaw from 'jimp'
+import { Jimp, JimpMime } from 'jimp'
 import EventEmitter from 'events'
 import { getAndUpdateSeries } from './common.js'
 import { parseUpdate, parseWeb, parseWebCode } from './parser.js'
 import { pollCameraStatus, getCameraStatusOnce } from './polling.js'
-
-// Webpack makes a mess..
-const Jimp = JimpRaw.default || JimpRaw
 
 // ########################
 // #### Instance setup ####
@@ -312,8 +309,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			try {
 				const response = await got.get(url, { timeout: { request: this.config.timeout } })
 
-				const img = await Jimp.read(response.rawBody)
-				const png64 = await img.scaleToFit(288, 288).getBase64Async('image/png')
+				// got returns rawBody as a plain Uint8Array, which Jimp would mistake for a URL
+				const img = await Jimp.read(Buffer.from(response.rawBody))
+				const png64 = await img.scaleToFit({ w: 288, h: 288 }).getBase64(JimpMime.png)
 
 				this.data.presetThumbnails[id] = png64
 

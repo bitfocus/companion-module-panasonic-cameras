@@ -3,6 +3,16 @@ import { getAndUpdateSeries } from './common.js'
 import ICONS from './icons.js'
 import { e } from './enum.js'
 
+// Templated presets drive the preset number from a local variable rather than baking it in.
+// The `useVar` branch of the preset action/feedbacks expects a 1-based number, which is what
+// the local variable carries, so the value can be handed straight through.
+const LOCAL_PRESET = { isExpression: true, value: '$(local:preset)' }
+const presetMemOptions = (op) => ({ op, val: e.ENUM_PRESET[0].id, useVar: true, valVar: LOCAL_PRESET })
+const presetFeedbackOptions = () => ({ option: e.ENUM_PRESET[0].id, useVar: true, optionVar: LOCAL_PRESET })
+
+// Same idea for audio: the channel option is 0-based while labels and variables are 1-based.
+const LOCAL_CHANNEL_0 = { isExpression: true, value: '$(local:channel) - 1' }
+
 export function getPresetDefinitions(self) {
 	const presets = {}
 
@@ -343,9 +353,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -399,9 +406,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -485,9 +489,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -525,9 +526,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -609,9 +607,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -711,9 +706,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -773,9 +765,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -917,9 +906,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -975,9 +961,6 @@ export function getPresetDefinitions(self) {
 					color: colorWhite,
 					bgcolor: colorBlack,
 				},
-				options: {
-					rotaryActions: true,
-				},
 				steps: [
 					{
 						down: [],
@@ -1009,9 +992,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -1109,9 +1089,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -1167,9 +1144,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -1213,9 +1187,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -1267,9 +1238,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -1314,9 +1282,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -1360,9 +1325,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorGrey,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -1414,9 +1376,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorRed,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -1464,9 +1423,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlue,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -1516,9 +1472,6 @@ export function getPresetDefinitions(self) {
 					size: '14',
 					color: colorWhite,
 					bgcolor: colorGreen,
-				},
-				options: {
-					rotaryActions: true,
 				},
 				steps: [
 					{
@@ -1571,9 +1524,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorDarkRed,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -1621,9 +1571,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorDarkBlue,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -1673,9 +1620,6 @@ export function getPresetDefinitions(self) {
 					size: '14',
 					color: colorWhite,
 					bgcolor: colorDarkGreen,
-				},
-				options: {
-					rotaryActions: true,
 				},
 				steps: [
 					{
@@ -1728,9 +1672,6 @@ export function getPresetDefinitions(self) {
 					size: '14',
 					color: colorBlack,
 					bgcolor: colorWhite,
-				},
-				options: {
-					rotaryActions: true,
 				},
 				steps: [
 					{
@@ -1786,9 +1727,6 @@ export function getPresetDefinitions(self) {
 					size: '14',
 					color: colorBlack,
 					bgcolor: colorWhite,
-				},
-				options: {
-					rotaryActions: true,
 				},
 				steps: [
 					{
@@ -2377,9 +2315,6 @@ export function getPresetDefinitions(self) {
 				color: colorWhite,
 				bgcolor: colorBlack,
 			},
-			options: {
-				rotaryActions: true,
-			},
 			steps: [
 				{
 					down: [
@@ -2672,110 +2607,97 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		for (let i = 0; i < 100; i++) {
-			presets[`preset-memory-${i}`] = {
-				type: 'simple',
-				category: 'Preset Memory',
-				name: 'Recall, Store or Clear Preset ' + (i + 1).toString(),
-				style: {
-					text: 'PRESET\\n' + (i + 1).toString(),
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'presetResetSelectedCompletedState',
-								options: {},
-							},
-						],
-						up: [
+		// One templated definition instead of a preset per memory slot. The template group in
+		// buildPresetDefinitions() fans `preset` out over the slots this model actually has —
+		// the old loop hardcoded 100, so a 9-preset camera was offered 91 dead buttons.
+		// The action/feedback `useVar` paths already take a 1-based preset number, which is
+		// exactly what the local variable holds, so no zero-padding is needed here.
+		presets['preset-memory'] = {
+			type: 'simple',
+			category: 'Preset Memory',
+			name: 'Recall, Store or Clear Preset',
+			template: {
+				variableName: 'preset',
+				values: Array.from({ length: SERIES.capabilities.preset }, (_, i) => ({
+					name: 'Recall, Store or Clear Preset ' + (i + 1).toString(),
+					value: i + 1,
+				})),
+			},
+			localVariables: [{ variableType: 'simple', variableName: 'preset', startupValue: 1 }],
+			style: {
+				text: 'PRESET\\n$(local:preset)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'presetResetSelectedCompletedState',
+							options: {},
+						},
+					],
+					up: [
+						{
+							actionId: 'presetMem',
+							options: presetMemOptions('R'),
+						},
+					],
+					1000: {
+						options: { runWhileHeld: true },
+						actions: [
 							{
 								actionId: 'presetMem',
-								options: {
-									op: 'R',
-									val: i.toString(10).padStart(2, '0'),
-									useVar: false,
-								},
+								options: presetMemOptions('M'),
 							},
 						],
-						1000: {
-							options: { runWhileHeld: true },
-							actions: [
-								{
-									actionId: 'presetMem',
-									options: {
-										op: 'M',
-										val: i.toString(10).padStart(2, '0'),
-										useVar: false,
-									},
-								},
-							],
-						},
-						2000: {
-							options: { runWhileHeld: true },
-							actions: [
-								{
-									actionId: 'presetMem',
-									options: {
-										op: 'C',
-										val: i.toString(10).padStart(2, '0'),
-										useVar: false,
-									},
-								},
-							],
-						},
 					},
-				],
-				feedbacks: [
-					{
-						feedbackId: 'presetMemory',
-						options: {
-							option: i.toString(10).padStart(2, '0'),
-							useVar: false,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorGrey,
-						},
+					2000: {
+						options: { runWhileHeld: true },
+						actions: [
+							{
+								actionId: 'presetMem',
+								options: presetMemOptions('C'),
+							},
+						],
 					},
-					...(SERIES.capabilities.presetThumbnails
-						? [
-								{
-									feedbackId: 'presetThumbnail',
-									options: {
-										option: i.toString(10).padStart(2, '0'),
-										useVar: false,
-									},
-								},
-							]
-						: []),
-					{
-						feedbackId: 'presetSelected',
-						options: {
-							option: i.toString(10).padStart(2, '0'),
-							useVar: false,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorOrange,
-						},
+				},
+			],
+			feedbacks: [
+				{
+					feedbackId: 'presetMemory',
+					options: presetFeedbackOptions(),
+					style: {
+						color: colorWhite,
+						bgcolor: colorGrey,
 					},
-					{
-						feedbackId: 'presetComplete',
-						options: {
-							option: i.toString(10).padStart(2, '0'),
-							useVar: false,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorBlue,
-						},
+				},
+				...(SERIES.capabilities.presetThumbnails
+					? [
+							{
+								feedbackId: 'presetThumbnail',
+								options: presetFeedbackOptions(),
+							},
+						]
+					: []),
+				{
+					feedbackId: 'presetSelected',
+					options: presetFeedbackOptions(),
+					style: {
+						color: colorWhite,
+						bgcolor: colorOrange,
 					},
-				],
-			}
+				},
+				{
+					feedbackId: 'presetComplete',
+					options: presetFeedbackOptions(),
+					style: {
+						color: colorWhite,
+						bgcolor: colorBlue,
+					},
+				},
+			],
 		}
 	}
 
@@ -2909,86 +2831,88 @@ export function getPresetDefinitions(self) {
 	// ########################
 
 	if (SERIES.capabilities.audioVolumeLevel) {
-		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
-			const disp = ch + 1 // channel is 0-based internally; display/variables are 1-based
-			presets[`audio-volume-ch${disp}`] = {
-				type: 'simple',
-				category: 'Audio',
-				name: `Audio Volume Level Channel ${disp}`,
-				style: {
-					text: `Audio CH${disp}\\n$(generic-module:audioVolumeLevel${disp})`,
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
+		presets['audio-volume'] = {
+			type: 'simple',
+			category: 'Audio',
+			name: 'Audio Volume Level',
+			template: {
+				variableName: 'channel',
+				values: Array.from({ length: SERIES.capabilities.audioVolumeLevel.maxch }, (_, ch) => ({
+					name: `Audio Volume Level Channel ${ch + 1}`,
+					value: ch + 1,
+				})),
+			},
+			localVariables: [{ variableType: 'simple', variableName: 'channel', startupValue: 1 }],
+			style: {
+				text: 'Audio CH$(local:channel)\\n$(generic-module:audioVolumeLevel$(local:channel))',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'audioVolumeLevel',
+							options: {
+								channel: LOCAL_CHANNEL_0,
+								op: 's',
+								set: 0,
+								useVar: false,
+							},
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'audioVolumeLevel',
+							options: {
+								channel: LOCAL_CHANNEL_0,
+								op: -1,
+								step: 1,
+								useVar: false,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'audioVolumeLevel',
+							options: {
+								channel: LOCAL_CHANNEL_0,
+								op: 1,
+								step: 1,
+								useVar: false,
+							},
+						},
+					],
 				},
-				options: {
-					rotaryActions: true,
+			],
+			feedbacks: [
+				{
+					feedbackId: 'audioVolumeLevel',
+					options: {
+						channel: LOCAL_CHANNEL_0,
+						minLevel: -5,
+						maxLevel: 5,
+					},
+					style: {
+						color: colorWhite,
+						bgcolor: colorGreen,
+					},
 				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'audioVolumeLevel',
-								options: {
-									channel: ch,
-									op: 's',
-									set: 0,
-									useVar: false,
-								},
-							},
-						],
-						up: [],
-						rotate_left: [
-							{
-								actionId: 'audioVolumeLevel',
-								options: {
-									channel: ch,
-									op: -1,
-									step: 1,
-									useVar: false,
-								},
-							},
-						],
-						rotate_right: [
-							{
-								actionId: 'audioVolumeLevel',
-								options: {
-									channel: ch,
-									op: 1,
-									step: 1,
-									useVar: false,
-								},
-							},
-						],
+				{
+					feedbackId: 'audioVolumeLevel',
+					options: {
+						channel: LOCAL_CHANNEL_0,
+						minLevel: 6,
+						maxLevel: 20,
 					},
-				],
-				feedbacks: [
-					{
-						feedbackId: 'audioVolumeLevel',
-						options: {
-							channel: ch,
-							minLevel: -5,
-							maxLevel: 5,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorGreen,
-						},
+					style: {
+						color: colorWhite,
+						bgcolor: colorOrange,
 					},
-					{
-						feedbackId: 'audioVolumeLevel',
-						options: {
-							channel: ch,
-							minLevel: 6,
-							maxLevel: 20,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorOrange,
-						},
-					},
-				],
-			}
+				},
+			],
 		}
 	}
 
@@ -2998,21 +2922,43 @@ export function getPresetDefinitions(self) {
 // API 2.0 splits presets into a `structure` of UI sections plus the flat preset definitions.
 // Categories stay declared inline on each preset above and are lifted out here, so a section
 // only ever lists the presets the connected model actually supports.
+//
+// A preset carrying a `template` is fanned out by Companion into one button per value, rather
+// than us emitting near-identical copies. A section's `definitions` may be either a plain list
+// of preset ids or a list of groups, but not a mix — so as soon as one preset in a section is
+// templated, the section's plain presets are wrapped in a simple group alongside it.
 function buildPresetDefinitions(presets) {
 	const structure = []
 	const sections = new Map()
+	const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
 	for (const [id, preset] of Object.entries(presets)) {
-		const { category, ...definition } = preset
+		const { category, template, ...definition } = preset
 		presets[id] = definition
 
 		let section = sections.get(category)
 		if (!section) {
-			section = { id: category.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: category, definitions: [] }
+			section = { id: slug(category), name: category, plain: [], templates: [] }
 			sections.set(category, section)
-			structure.push(section)
 		}
-		section.definitions.push(id)
+
+		if (template) {
+			section.templates.push({
+				id: `${slug(category)}-${id}`,
+				type: 'template',
+				name: definition.name,
+				presetId: id,
+				templateVariableName: template.variableName,
+				templateValues: template.values,
+			})
+		} else {
+			section.plain.push(id)
+		}
+	}
+
+	for (const { id, name, plain, templates } of sections.values()) {
+		const definitions = templates.length ? [...(plain.length ? [{ id: `${id}-general`, type: 'simple', name, presets: plain }] : []), ...templates] : plain
+		structure.push({ id, name, definitions })
 	}
 
 	return { structure, presets }

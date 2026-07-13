@@ -1,3 +1,7 @@
+import { createModuleLogger } from '@companion-module/base'
+
+const logger = createModuleLogger('parser')
+
 export function parseUpdate(self, str) {
 	if (str[0].substring(0, 3) === 'rER') {
 		self.data.error = str[0].substring(3)
@@ -193,7 +197,7 @@ export function parseUpdate(self, str) {
 			self.data.modelAuto = str[1]
 			// if another model is detected or selected, re-initialise all actions, variables and feedbacks
 			if (self.data.modelAuto !== self.data.model) {
-				self.log('info', 'Detected Camera Model: ' + self.data.modelAuto)
+				logger.info('Detected Camera Model: ' + self.data.modelAuto)
 				//self.reInitAll()
 			}
 			break
@@ -436,7 +440,7 @@ export function parseWeb(self, str, cmd) {
 					self.data.modelAuto = str[1]
 					// if a new model is detected or selected, re-initialise all actions, variables and feedbacks
 					if (self.data.modelAuto !== self.data.model) {
-						self.log('info', 'Detected Camera Model: ' + self.data.modelAuto)
+						logger.info('Detected Camera Model: ' + self.data.modelAuto)
 						//self.reInitAll()
 					}
 					break
