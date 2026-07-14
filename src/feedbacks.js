@@ -1,5 +1,5 @@
 import { combineRgb } from '@companion-module/base'
-import { getAndUpdateSeries, constrainRange } from './common.js'
+import { getAndUpdateSeries, optPresetNumber, parsePresetNumber } from './common.js'
 import { e } from './enum.js'
 import ICONS from './icons.js'
 
@@ -56,44 +56,13 @@ const selectionFeedback = (
 	callback: (feedback) => current(feedback) === feedback.options.option,
 })
 
-// Preset number option set with optional variable support (dropdown / variable toggled by checkbox)
 function optPreset(max) {
-	return [
-		{
-			type: 'dropdown',
-			label: 'Preset',
-			id: 'option',
-			default: e.ENUM_PRESET[0].id,
-			choices: e.ENUM_PRESET.slice(0, max),
-			isVisibleExpression: '!$(options:useVar)',
-		},
-		{
-			id: 'optionVar',
-			type: 'textinput',
-			label: 'Preset # variable',
-			default: '1',
-			useVariables: true,
-			tooltip: `This expression should return a preset number in the range 1 to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values disable the feedback.`,
-			isVisibleExpression: '$(options:useVar)',
-		},
-		{
-			id: 'useVar',
-			disableAutoExpression: true,
-			type: 'checkbox',
-			label: 'Use Variable',
-			default: false,
-		},
-	]
+	return [optPresetNumber('option', max)]
 }
 
-// Resolve the selected preset to its 0-based index, or null when a variable expression is unreadable
+// Resolve the selected preset to its 0-based index, or null when the value is unreadable
 function parsePresetIdx(feedback, max) {
-	if (feedback.options.useVar) {
-		const num = constrainRange(parseInt(feedback.options.optionVar), 1, max)
-		if (isNaN(num)) return null
-		return num - 1
-	}
-	return parseInt(feedback.options.option)
+	return parsePresetNumber(feedback.options.option, max)
 }
 
 // ##########################

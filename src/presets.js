@@ -5,12 +5,12 @@ import { getAndUpdateSeries, optionSpecs } from './common.js'
 import ICONS from './icons.js'
 import { e } from './enum.js'
 
-// Templated presets drive the preset number from a local variable rather than baking it in.
-// The `useVar` branch of the preset action/feedbacks expects a 1-based number, which is what
-// the local variable carries, so the value can be handed straight through.
-const LOCAL_PRESET = { isExpression: true, value: '$(local:preset)' }
-const presetMemOptions = (op) => ({ op, val: e.ENUM_PRESET[0].id, useVar: true, valVar: LOCAL_PRESET })
-const presetFeedbackOptions = () => ({ option: e.ENUM_PRESET[0].id, useVar: true, optionVar: LOCAL_PRESET })
+// Templated presets drive the preset number from a local variable rather than baking it in. The
+// preset option is 0-based (its choice ids are the camera's own preset numbers) while the local
+// variable counts from 1, so the expression takes the offset off.
+const LOCAL_PRESET_0 = { isExpression: true, value: '$(local:preset) - 1' }
+const presetMemOptions = (op) => ({ op, val: LOCAL_PRESET_0 })
+const presetFeedbackOptions = () => ({ option: LOCAL_PRESET_0 })
 
 // Same for audio: the channel option is 0-based while labels and variables are 1-based.
 const LOCAL_CHANNEL_0 = { isExpression: true, value: '$(local:channel) - 1' }
@@ -63,10 +63,10 @@ const knobPreset = (category, name, text, actionId, set, { bgcolor = colorBlack,
 	style: { text, size: '14', color: colorWhite, bgcolor },
 	steps: [
 		{
-			down: [{ actionId, options: { ...extra, op: 's', set, useVar: false } }],
+			down: [{ actionId, options: { ...extra, op: 's', set } }],
 			up: [],
-			rotate_left: [{ actionId, options: { ...extra, op: -1, step, useVar: false } }],
-			rotate_right: [{ actionId, options: { ...extra, op: 1, step, useVar: false } }],
+			rotate_left: [{ actionId, options: { ...extra, op: -1, step } }],
+			rotate_right: [{ actionId, options: { ...extra, op: 1, step } }],
 		},
 	],
 	feedbacks: [],
@@ -306,7 +306,6 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 10,
-								useVar: false,
 							},
 						},
 					],
@@ -316,7 +315,6 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 10,
-								useVar: false,
 							},
 						},
 					],
@@ -449,7 +447,6 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 30,
-								useVar: false,
 							},
 						},
 					],
@@ -459,7 +456,6 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 30,
-								useVar: false,
 							},
 						},
 					],
@@ -471,13 +467,11 @@ export function getPresetDefinitions(self) {
 		presets['exposure-iris-up'] = momentaryPreset('Exposure', 'Iris Up', 'IRIS\\nUP', 'iris', {
 			op: 1,
 			step: 0x1e,
-			useVar: false,
 		})
 
 		presets['exposure-iris-down'] = momentaryPreset('Exposure', 'Iris Down', 'IRIS\\nDOWN', 'iris', {
 			op: -1,
 			step: 0x1e,
-			useVar: false,
 		})
 	}
 
@@ -861,7 +855,6 @@ export function getPresetDefinitions(self) {
 								options: {
 									op: -1,
 									step: 20,
-									useVar: false,
 								},
 							},
 						],
@@ -871,7 +864,6 @@ export function getPresetDefinitions(self) {
 								options: {
 									op: 1,
 									step: 20,
-									useVar: false,
 								},
 							},
 						],
@@ -1266,8 +1258,6 @@ export function getPresetDefinitions(self) {
 		// One templated definition instead of a preset per memory slot. The template group in
 		// buildPresetDefinitions() fans `preset` out over the slots this model actually has —
 		// the old loop hardcoded 100, so a 9-preset camera was offered 91 dead buttons.
-		// The action/feedback `useVar` paths already take a 1-based preset number, which is
-		// exactly what the local variable holds, so no zero-padding is needed here.
 		presets['preset-memory'] = {
 			type: 'simple',
 			category: 'Preset Memory',
@@ -1462,7 +1452,6 @@ export function getPresetDefinitions(self) {
 								channel: LOCAL_CHANNEL_0,
 								op: 's',
 								set: 0,
-								useVar: false,
 							},
 						},
 					],
@@ -1474,7 +1463,6 @@ export function getPresetDefinitions(self) {
 								channel: LOCAL_CHANNEL_0,
 								op: -1,
 								step: audio.step,
-								useVar: false,
 							},
 						},
 					],
@@ -1485,7 +1473,6 @@ export function getPresetDefinitions(self) {
 								channel: LOCAL_CHANNEL_0,
 								op: 1,
 								step: audio.step,
-								useVar: false,
 							},
 						},
 					],

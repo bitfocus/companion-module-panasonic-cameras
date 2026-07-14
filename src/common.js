@@ -1,4 +1,5 @@
 import { MODELS, SERIES_SPECS } from './models.js'
+import { e } from './enum.js'
 
 export function getAndUpdateSeries(self) {
 	// Set the model and series selected, if in auto, detect what model is connected
@@ -50,6 +51,33 @@ export function constrainRange(value, min, max) {
 	if (value > max) return max
 	if (value < min) return min
 	return value
+}
+
+// The preset dropdown's choice ids are the camera's own preset numbers — 0-based and zero-padded
+// ("00".."99") — while the labels count from 1. Any field can hold an expression in 2.0, and an
+// expression yields a plain number rather than one of those padded strings: a value the choices do
+// not list. So the field has to accept it (`allowInvalidValues`, without which Companion would drop
+// every expression-driven preset button) and the reader below has to make sense of both forms.
+// Action and feedbacks share them, so the two cannot drift apart.
+export function optPresetNumber(id, max) {
+	return {
+		type: 'dropdown',
+		label: 'Preset #',
+		id: id,
+		default: e.ENUM_PRESET[0].id,
+		choices: e.ENUM_PRESET.slice(0, max),
+		allowInvalidValues: true,
+		expressionDescription:
+			`This expression should return a 0-based preset index: 0 is Preset 1, ${max - 1} is Preset ${max}. ` +
+			`Values outside this range are constrained to it; an unreadable value takes no action.`,
+	}
+}
+
+// The selected preset as a 0-based index — parseInt reads both the dropdown's '07' and an
+// expression's 7 — or null when the value does not read as a number at all.
+export function parsePresetNumber(value, max) {
+	const idx = constrainRange(parseInt(value, 10), 0, max - 1)
+	return isNaN(idx) ? null : idx
 }
 
 // The option ids an entity definition declares, plus the default for each. Both the presets we hand

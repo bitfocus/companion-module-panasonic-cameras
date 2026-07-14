@@ -24,6 +24,19 @@ const FIELD_TYPES = [
 const REMOVED_FIELD_PROPS = ['isVisible', 'required']
 const REMOVED_PRESET_OPTIONS = ['relativeDelay', 'rotaryActions']
 
+// The module used to hand-build a "Use Variable" checkbox that swapped a field for a parallel
+// textinput. In 2.0 every field can be toggled into expression mode on its own, so the construct is
+// gone; these are the option ids it left behind (see dropUseVarToggles in upgrades.js).
+const REMOVED_OPTION_IDS = ['useVar', 'setVar', 'stepVar', 'valVar', 'optionVar']
+
+// The fields whose value a callback parses and constrains itself: the stepped number inputs (marked
+// by `asInteger`, which only that builder sets) and the preset dropdown. Other number fields are
+// deliberately not in here — nothing constrains them, so Companion rejecting an out-of-range
+// expression is exactly what should happen.
+const isConstrained = (field) =>
+	(field.type === 'number' && field.asInteger) ||
+	(field.type === 'dropdown' && field.choices?.[0]?.label?.startsWith('Preset '))
+
 // One representative model per series, so every capability branch gets built.
 const seenSeries = new Set()
 const MODELS_BY_SERIES = MODELS.filter((m) => m.id !== 'Auto' && !seenSeries.has(m.series) && seenSeries.add(m.series))
@@ -173,6 +186,26 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 				for (const prop of REMOVED_FIELD_PROPS) {
 					expect(field, `${defId}.${field.id}`).not.toHaveProperty(prop)
 				}
+			}
+		})
+
+		it('builds no "Use Variable" companion field, because every field can be one', () => {
+			for (const [defId, field] of allFields) {
+				expect(REMOVED_OPTION_IDS, `${defId} still declares ${field.id}`).not.toContain(field.id)
+			}
+		})
+
+		it('lets every field the callbacks constrain hold what an expression produced', () => {
+			// resolveSetStep and parsePresetNumber parse and clamp these values themselves. Without
+			// `allowInvalidValues` Companion drops the whole entity before the callback ever sees one it
+			// considers invalid — and on the preset dropdown that is not an edge case but the normal
+			// path: the templated preset buttons drive it from an expression, which yields the number 4
+			// where the choice ids are the strings '00'..'99'.
+			const constrained = allFields.filter(([, field]) => isConstrained(field))
+			expect(constrained.length).toBeGreaterThan(0)
+
+			for (const [defId, field] of constrained) {
+				expect(field.allowInvalidValues, `${defId}.${field.id}`).toBe(true)
 			}
 		})
 

@@ -1,5 +1,13 @@
 import { e } from './enum.js'
-import { getAndUpdateSeries, getNext, getNextValue, constrainRange, toHexString } from './common.js'
+import {
+	getAndUpdateSeries,
+	getNext,
+	getNextValue,
+	constrainRange,
+	toHexString,
+	optPresetNumber,
+	parsePresetNumber,
+} from './common.js'
 
 const SPEED_OFFSET = 50
 const SPEED_MIN = 0
@@ -130,9 +138,14 @@ function optSetToggleNextPrev(choices, label = 'Setting', def = 0) {
 	)
 }
 
-// A numeric value that can be set outright or stepped, with either input optionally driven by a
-// variable. The two wrappers below differ only in what the relative choices are called.
+// A numeric value that can be set outright or stepped. Either input can be driven by a variable
+// without any help from us: every field is expression-capable in 2.0 unless it opts out, so the user
+// just flips the field itself into expression mode. `allowInvalidValues` keeps an out-of-range
+// expression result from silently taking the whole action down — resolveSetStep constrains it below.
+// The two wrappers differ only in what the relative choices are called.
 function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
+	const outOfRange = 'Values outside this range are constrained to it; an unreadable value takes no action.'
+
 	return [
 		{
 			type: 'dropdown',
@@ -155,16 +168,10 @@ function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
 			max: max,
 			step: step,
 			range: true,
-			isVisibleExpression: '$(options:op) == "s" && !$(options:useVar)',
-		},
-		{
-			id: 'setVar',
-			type: 'textinput',
-			label: label + ' variable',
-			default: `${def}`,
-			useVariables: true,
-			tooltip: `This expression should return digits in the range ${min} to ${max}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisibleExpression: '$(options:op) == "s" && $(options:useVar)',
+			asInteger: true,
+			allowInvalidValues: true,
+			expressionDescription: `This expression should return a number in the range ${min} to ${max}. ${outOfRange}`,
+			isVisibleExpression: '$(options:op) == "s"',
 		},
 		{
 			id: 'step',
@@ -173,23 +180,10 @@ function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
 			default: step,
 			min: step,
 			max: max - min,
-			isVisibleExpression: '$(options:op) != "s" && !$(options:useVar)',
-		},
-		{
-			id: 'stepVar',
-			type: 'textinput',
-			label: 'Step size variable',
-			default: `${step}`,
-			useVariables: true,
-			tooltip: `This expression should return digits in the range ${step} to ${max - min}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-			isVisibleExpression: '$(options:op) != "s" && $(options:useVar)',
-		},
-		{
-			id: 'useVar',
-			disableAutoExpression: true,
-			type: 'checkbox',
-			label: 'Use Variable',
-			default: false,
+			asInteger: true,
+			allowInvalidValues: true,
+			expressionDescription: `This expression should return a number in the range ${step} to ${max - min}. ${outOfRange}`,
+			isVisibleExpression: '$(options:op) != "s"',
 		},
 	]
 }
@@ -225,20 +219,20 @@ function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 // #### Command formatting ####
 // ############################
 
-// Resolves the variable-driven inputs onto the plain ones, so the command builders below only ever
-// see numbers. Returns false when a variable does not currently read as a number, which aborts the
-// action rather than sending a garbage value to the camera.
-function parseSetIncDecVariables(action, min, max, step) {
-	if (action.options.useVar) {
-		if (action.options.op === ACTION_SET) {
-			const setVar = constrainRange(parseInt(action.options.setVar), min, max)
-			if (isNaN(setVar)) return false
-			action.options.set = setVar
-		} else {
-			const stepVar = constrainRange(parseInt(action.options.stepVar), step, max - min)
-			if (isNaN(stepVar)) return false
-			action.options.step = stepVar
-		}
+// Constrains the value the user's input produced, so the command builders below only ever see a
+// number the camera will accept. Any of these fields may hold an expression, and `allowInvalidValues`
+// hands us whatever that expression evaluated to rather than dropping the action — so the range check
+// that used to guard only the variable inputs now guards every input. Returns false when the value
+// does not read as a number, which aborts the action rather than sending garbage to the camera.
+function resolveSetStep(action, min, max, step) {
+	if (action.options.op === ACTION_SET) {
+		const set = constrainRange(parseInt(action.options.set, 10), min, max)
+		if (isNaN(set)) return false
+		action.options.set = set
+	} else {
+		const size = constrainRange(parseInt(action.options.step, 10), step, max - min)
+		if (isNaN(size)) return false
+		action.options.step = size
 	}
 	return true
 }
@@ -289,7 +283,7 @@ export function getActionDefinitions(self) {
 		name,
 		options: optSetIncDecStep(label, 0, -level.limit, +level.limit, level.step),
 		callback: async (action) => {
-			if (!parseSetIncDecVariables(action, -level.limit, level.limit, level.step)) return
+			if (!resolveSetStep(action, -level.limit, level.limit, level.step)) return
 			const value = cmdValue(action, level.offset, -level.limit, level.limit, action.options.step, level.hexlen, read())
 			await cam(`${command}:${value}`)
 		},
@@ -433,7 +427,7 @@ export function getActionDefinitions(self) {
 				...optSetLowerRaise('Speed', SPEED_DEFAULT, SPEED_MIN, SPEED_MAX, 1),
 			],
 			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, SPEED_MIN, SPEED_MAX, 1)) return
+				if (!resolveSetStep(action, SPEED_MIN, SPEED_MAX, 1)) return
 				switch (action.options.scope) {
 					case 'pt':
 						self.ptSpeed =
@@ -488,7 +482,7 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Follow Focus',
 			options: optSetIncDecStep('Focus setting', 0x555, 0x0, 0xaaa, 10),
 			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, 0x0, 0xaaa, 10)) return
+				if (!resolveSetStep(action, 0x0, 0xaaa, 10)) return
 				await ptz('AXF' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.focusPosition))
 			},
 		}
@@ -520,7 +514,7 @@ export function getActionDefinitions(self) {
 						name: 'Exposure - Iris',
 						options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
 						callback: async (action) => {
-							if (!parseSetIncDecVariables(action, 0x0, 0x3ff, 0xa)) return
+							if (!resolveSetStep(action, 0x0, 0x3ff, 0xa)) return
 							await cam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
 						},
 					}
@@ -528,7 +522,7 @@ export function getActionDefinitions(self) {
 						name: 'Exposure - Iris',
 						options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
 						callback: async (action) => {
-							if (!parseSetIncDecVariables(action, 0x0, 0xaaa, 0x1e)) return
+							if (!resolveSetStep(action, 0x0, 0xaaa, 0x1e)) return
 							await ptz('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
 						},
 					}
@@ -688,7 +682,7 @@ export function getActionDefinitions(self) {
 				? optSetIncDecStep('Color Temperature [K]', 3200, advanced.min, advanced.max, 20)
 				: optIncDec(),
 			callback: async (action) => {
-				if (advanced.set && !parseSetIncDecVariables(action, advanced.min, advanced.max, 20)) return
+				if (advanced.set && !resolveSetStep(action, advanced.min, advanced.max, 20)) return
 				switch (action.options.op) {
 					case ACTION_SET:
 						await cam(advanced.set + ':' + toHexString(action.options.set, 5) + ':0')
@@ -735,39 +729,12 @@ export function getActionDefinitions(self) {
 						{ id: 'C', label: 'Clear / Delete' },
 					],
 				},
-				{
-					type: 'dropdown',
-					label: 'Preset #',
-					id: 'val',
-					default: e.ENUM_PRESET[0].id,
-					choices: e.ENUM_PRESET.slice(0, caps.preset),
-					isVisibleExpression: '!$(options:useVar)',
-				},
-				{
-					id: 'valVar',
-					type: 'textinput',
-					label: 'Preset # variable',
-					default: '1',
-					useVariables: true,
-					tooltip: `This expression should return a preset number in the range 1 to ${caps.preset}. Numeric values outside this range will be constrained to this range. Invalid (unreadable) values will result in no action being taken.`,
-					isVisibleExpression: '$(options:useVar)',
-				},
-				{
-					id: 'useVar',
-					disableAutoExpression: true,
-					type: 'checkbox',
-					label: 'Use Variable',
-					default: false,
-				},
+				optPresetNumber('val', caps.preset),
 			],
 			callback: async (action) => {
-				let val = action.options.val
-				if (action.options.useVar) {
-					const num = constrainRange(parseInt(action.options.valVar), 1, caps.preset)
-					if (isNaN(num)) return
-					val = (num - 1).toString(10).padStart(2, '0')
-				}
-				await ptz(action.options.op + val)
+				const idx = parsePresetNumber(action.options.val, caps.preset)
+				if (idx === null) return
+				await ptz(action.options.op + idx.toString(10).padStart(2, '0'))
 			},
 		}
 
@@ -914,7 +881,7 @@ export function getActionDefinitions(self) {
 				...optSetIncDecStep('Volume Level (dB)', 0, audio.min, audio.max, audio.step),
 			],
 			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, audio.min, audio.max, audio.step)) return
+				if (!resolveSetStep(action, audio.min, audio.max, audio.step)) return
 				const value = cmdValue(
 					action,
 					0x80,
