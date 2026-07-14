@@ -26,6 +26,7 @@ export const MODELS = [
 	{ id: 'AW-HR140', series: 'HR140', label: 'AW-HR140' },
 	{ id: 'AW-UE4', series: 'UE4', label: 'AW-UE4' },
 	{ id: 'AW-UE20', series: 'UE20', label: 'AW-UE20' },
+	{ id: 'AW-UE30', series: 'UE50', label: 'AW-UE30' },
 	{ id: 'AW-UE40', series: 'UE50', label: 'AW-UE40' },
 	{ id: 'AW-UE50', series: 'UE50', label: 'AW-UE50' },
 	{ id: 'AW-UE63', series: 'UE70', label: 'AW-UE63' },
@@ -33,12 +34,15 @@ export const MODELS = [
 	{ id: 'AW-UE70', series: 'UE70', label: 'AW-UE70' },
 	{ id: 'AW-UE80', series: 'UE80', label: 'AW-UE80' },
 	{ id: 'AW-UE100', series: 'UE100', label: 'AW-UE100' },
-	{ id: 'AW-UR100', series: 'UE100', label: 'AW-UR100' },
+	{ id: 'AW-UR100', series: 'UR100', label: 'AW-UR100' },
 	{ id: 'AW-UE150', series: 'UE150', label: 'AW-UE150' },
+	{ id: 'AW-UE150A', series: 'UE150A', label: 'AW-UE150A' },
 	{ id: 'AW-UE155', series: 'UE150', label: 'AW-UE155' },
 	{ id: 'AW-UE160', series: 'UE160', label: 'AW-UE160' },
 	{ id: 'AW-UN70', series: 'UE70', label: 'AW-UN70' },
 	{ id: 'AW-UN145', series: 'UE150', label: 'AW-UN145' },
+	{ id: 'AK-UB10', series: 'UB50', label: 'AK-UB10' },
+	{ id: 'AK-UB50', series: 'UB50', label: 'AK-UB50' },
 	{ id: 'AK-UB300', series: 'UB300', label: 'AK-UB300' },
 	{ id: 'AG-CX350', series: 'CX350', label: 'AG-CX350' },
 	{ id: 'AG-CX200', series: 'CX350', label: 'AG-CX200' },
@@ -47,26 +51,6 @@ export const MODELS = [
 	{ id: 'AJ-UPX900', series: 'CX350', label: 'AJ-UPX900' },
 	{ id: 'Other', series: 'Other', label: 'Other Cameras' },
 ]
-
-// list of all Series:
-// Other
-// CX350
-// HE2
-// HE40
-// HE50
-// HE60
-// HE120
-// HE130
-// HR140
-// UB300
-// UE4
-// UE20
-// UE70
-// UE50
-// UE80
-// UE100
-// UE150
-// UE160
 
 // The feature set shared by every model. Each series below spreads this and states only what it
 // changes, so a series body is exactly the list of ways that model deviates from the norm.
@@ -104,7 +88,7 @@ const BASE_CAPABILITIES = {
 	pull: false, // Additional definition of states that needs to be pulled from camera if no event subscription is available
 	recordSD: true, // Has SD Card Recording control (sdctrl?save=start or sdctrl?save=end)
 	restart: true, // Has Restart command (initial?cmd=reset)
-	shootingMode: false, // Has Shooting Mode control (OSJ:0C)
+	shootingMode: false, // Has Shooting Mode control (OSI:30)
 	shutter: { cmd: 'OSJ:03', inc: 'OSJ:04', dec: 'OSJ:05', dropdown: e.ENUM_SHUTTER_ADV }, // Has Shutter Support (OSH, OSJ:03 - OSJ:06, ...)
 	streamRTMP: true, // Has RTMP Push Streaming control (rtmp_ctrl?cmd=start or rtmp_ctrl?cmd=stop)
 	streamSRT: true, // Has SRT Caller Streaming control (srt_ctrl?cmd=start or srt_ctrl?cmd=stop)
@@ -421,6 +405,7 @@ export const SERIES_SPECS = [
 			focusPushAuto: false,
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
 			install: false,
+			iris: { cmd: 'ORV' }, // box camera: drives the lens iris directly instead of the head's AXI
 			irisF: true,
 			night: false,
 			ois: false,
@@ -431,6 +416,7 @@ export const SERIES_SPECS = [
 			presetTime: false,
 			recordSD: false,
 			restart: false,
+			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			shutter: false, // special implementation req. 'OSG:5D', e.ENUM_SHUTTER_UB300
 			streamRTMP: false,
 			streamSRT: false,
@@ -441,6 +427,49 @@ export const SERIES_SPECS = [
 			whiteBalance: true, // no white balance mode
 			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZS:xx'
 		},
+	},
+	{
+		// Specific for the AK-UB50 / AK-UB10 box cameras. Like the UB300 these have no pan/tilt head,
+		// so none of the PT commands (presets, power, install, tally green) apply.
+		id: 'UB50',
+		capabilities: {
+			...BASE_CAPABILITIES,
+			audioVolumeLevel: false,
+			chromaLevel: false,
+			chromaPhase: false,
+			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
+			colorPedestal: false,
+			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F', set: 'OSI:20', min: 2500, max: 10000 } },
+			dnr: false,
+			drs: false,
+			error: false, // reports errors via OSI:46 instead of rER, which is not parsed yet
+			filter: false,
+			focus: false, // special implementation req. 'HFF', 'HFN', 'HFS', 'LFP:xxx', 'LFS:x'
+			focusAuto: false,
+			gain: { cmd: 'OSL:25', dropdown: e.ENUM_GAIN_UB50 },
+			install: false,
+			iris: { cmd: 'ORV' }, // box camera: drives the lens iris directly instead of the head's AXI
+			irisF: true,
+			night: false,
+			ois: false,
+			panTilt: false,
+			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 15, step: 1, hexlen: 3 },
+			power: false,
+			preset: false,
+			presetSpeed: false,
+			presetTime: false,
+			recordSD: false,
+			restart: false,
+			shutter: false,
+			streamRTMP: false,
+			streamSRT: false,
+			streamTS: false,
+			tally2: false,
+			tally3: false, // TLY is query only
+			trackingAuto: false,
+			version: false,
+			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZP:xxx', 'LZS:x'
+		}, // ToDo: poll/pull lists need a camdata dump from a real UB50/UB10
 	},
 	{
 		// Specific for the AW-UE4 Camera
@@ -629,7 +658,62 @@ export const SERIES_SPECS = [
 				web: false,
 			},
 			recordSD: false,
-			shootingMode: { cmd: 'OSJ:0C', dropdown: e.ENUM_SHOOTING_MODE },
+			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
+			tally3: false,
+			trackingAuto: false,
+		},
+	},
+	{
+		// Specific for the AW-UR100 Camera, the ruggedized UE100: two audio channels instead of one,
+		// an extra Auto ND filter step, and no Shooting Mode.
+		id: 'UR100',
+		capabilities: {
+			...BASE_CAPABILITIES,
+			audioVolumeLevel: { maxch: 2, min: -30, max: 20, step: 1 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
+			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
+			colorPedestal: {
+				cmd: { red: 'ORP', blue: 'OBP', green: 'OSJ:10' },
+				offset: 0x96,
+				limit: 100,
+				step: 1,
+				hexlen: 3,
+			},
+			filter: { dropdown: e.ENUM_FILTER_3A },
+			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
+			irisF: true,
+			ois: { dropdown: e.ENUM_OIS_UE100 },
+			poll: {
+				ptz: false,
+				cam: ['QIF', 'QSD:B0', 'QSJ:10'],
+				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
+			},
+			presetThumbnails: true,
+			pull: {
+				ptz: ['O', 'PE00', 'PE01', 'PE02', 'D6', 'INS', 'PST', 'PTD', 'PTG', 'PTV', 'RER', 'S', 'TAA', 'UPVS'],
+				cam: [
+					'QAF',
+					'QAW',
+					'QBR',
+					'QBP',
+					'QIS',
+					'QRP',
+					'QRS',
+					'QSA:87',
+					'QSD:3A',
+					'QSE:33',
+					'QSE:71',
+					'QSG:39',
+					'QSG:3A',
+					'QSJ:0B',
+					'QSJ:0F',
+					'QSJ:10',
+					'QSJ:29',
+					'QSA:D5:0',
+				],
+				web: false,
+			},
+			recordSD: false,
 			tally3: false,
 			trackingAuto: false,
 		},
@@ -654,14 +738,44 @@ export const SERIES_SPECS = [
 			irisF: true,
 			poll: {
 				ptz: false,
-				cam: ['QIF', 'QSD:B0', 'QSJ:10'],
+				cam: ['QIF', 'QSD:B0', 'QSJ:10', 'QSA:D5:0'],
 				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 			},
 			presetThumbnails: true,
 			recordSD: false,
-			shootingMode: { cmd: 'OSJ:0C', dropdown: e.ENUM_SHOOTING_MODE },
+			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			tally3: false,
 			trackingAuto: false,
+		},
+	},
+	{
+		// Specific for the AW-UE150A Camera, which adds autotracking over the UE150. Everything else
+		// the compatible model table lists for it (crop, down convert, 12G SDI) is not modelled here.
+		id: 'UE150A',
+		capabilities: {
+			...BASE_CAPABILITIES,
+			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
+			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
+			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
+			colorPedestal: {
+				cmd: { red: 'ORP', blue: 'OBP', green: 'OSJ:10' },
+				offset: 0x96,
+				limit: 100,
+				step: 1,
+				hexlen: 3,
+			},
+			filter: { dropdown: e.ENUM_FILTER_3 },
+			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE150 },
+			irisF: true,
+			poll: {
+				ptz: false,
+				cam: ['QIF', 'QSD:B0', 'QSJ:10', 'QSA:D5:0'],
+				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
+			},
+			presetThumbnails: true,
+			recordSD: false,
+			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
+			tally3: false,
 		},
 	},
 	{
@@ -694,7 +808,7 @@ export const SERIES_SPECS = [
 			poll: { ptz: false, cam: false, web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'] },
 			presetThumbnails: true,
 			recordSD: false,
-			shootingMode: { cmd: 'OSJ:0C', dropdown: e.ENUM_SHOOTING_MODE },
+			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			trackingAuto: false,
 		},
 	},

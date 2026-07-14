@@ -513,26 +513,25 @@ export function getActionDefinitions(self) {
 	// ##########################
 
 	if (caps.iris) {
-		actions.iris = {
-			name: 'Exposure - Iris',
-			options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, 0x0, 0xaaa, 0x1e)) return
-				await ptz('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
-			},
-		}
-	}
-
-	// special case for UB300
-	if (caps.iris && SERIES.id === 'UB300') {
-		actions.iris = {
-			name: 'Exposure - Iris',
-			options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
-			callback: async (action) => {
-				if (!parseSetIncDecVariables(action, 0x0, 0x3ff, 0xa)) return
-				await cam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
-			},
-		}
+		// Box cameras have no pan/tilt head and drive the lens iris directly (ORV, 0x0 - 0x3FF).
+		actions.iris =
+			caps.iris.cmd === 'ORV'
+				? {
+						name: 'Exposure - Iris',
+						options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
+						callback: async (action) => {
+							if (!parseSetIncDecVariables(action, 0x0, 0x3ff, 0xa)) return
+							await cam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
+						},
+					}
+				: {
+						name: 'Exposure - Iris',
+						options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
+						callback: async (action) => {
+							if (!parseSetIncDecVariables(action, 0x0, 0xaaa, 0x1e)) return
+							await ptz('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
+						},
+					}
 	}
 
 	if (caps.irisAuto) {

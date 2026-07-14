@@ -265,6 +265,9 @@ export function parseUpdate(self, str) {
 				case '20':
 					self.data.colorTempLabel = parseInt(str[2].substring(0, 5), 16).toString() + 'K'
 					break // VAR
+				case '30':
+					self.data.shootingMode = str[2]
+					break
 				// case 'D2': self.data.filter = str[2]; break // UB300's additional "Intelligent ND Filter"
 			}
 			break
@@ -321,9 +324,7 @@ export function parseUpdate(self, str) {
 				case '0B':
 					self.data.chromaPhaseValue = parseInt(str[2], 16) - 0x80
 					break
-				case '0C':
-					self.data.shootingMode = str[2]
-					break
+				//case '0C': break // AWB Gain Offset
 				case '0F':
 					self.data.masterPedValue = parseInt(str[2], 16) - 0x800
 					break
@@ -344,6 +345,9 @@ export function parseUpdate(self, str) {
 			break
 		case 'OSL':
 			switch (str[1]) {
+				case '25':
+					self.data.gain = str[2].replace('0x', '').padStart(2, '0') // same encoding as OGU/OGS
+					break
 				case '36':
 					self.data.redGainValue = parseInt(str[2], 16) - 0x800
 					break

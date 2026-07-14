@@ -28,20 +28,23 @@ const stateFeedback = (name, description, isActive, style = STYLE_RED) => ({
 })
 
 // A feedback that lights up while the camera's current setting equals the one picked in the dropdown.
-// `current` is likewise re-read on every evaluation.
+// `current` is likewise re-read on every evaluation, and is handed the feedback for the settings that
+// are read per channel rather than per camera. `options` are extra fields shown ahead of the dropdown,
+// such as the audio channel to look at.
 const selectionFeedback = (
 	name,
 	description,
 	label,
 	choices,
 	current,
-	{ defaultIndex = 0, style = STYLE_RED } = {},
+	{ defaultIndex = 0, style = STYLE_RED, options = [] } = {},
 ) => ({
 	type: 'boolean',
 	name,
 	description,
 	defaultStyle: { ...style },
 	options: [
+		...options,
 		{
 			type: 'dropdown',
 			label,
@@ -50,7 +53,7 @@ const selectionFeedback = (
 			choices,
 		},
 	],
-	callback: (feedback) => current() === feedback.options.option,
+	callback: (feedback) => current(feedback) === feedback.options.option,
 })
 
 // Preset number option set with optional variable support (dropdown / variable toggled by checkbox)
@@ -439,42 +442,32 @@ export function getFeedbackDefinitions(self) {
 
 	if (caps.audioVolumeLevel) {
 		const audio = caps.audioVolumeLevel
-		feedbacks.audioVolumeLevel = {
-			type: 'boolean',
-			name: 'Audio - Volume Level Range',
-			description: 'Indicates if the audio volume level of the selected channel is within the specified range',
-			defaultStyle: { ...STYLE_RED },
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Audio Channel',
-					id: 'channel',
-					default: 0,
-					choices: Array.from({ length: audio.maxch }, (_, i) => ({ id: i, label: `Channel ${i + 1}` })),
-				},
-				{
-					type: 'number',
-					label: 'Minimum Level (dB)',
-					id: 'minLevel',
-					default: audio.min,
-					min: audio.min,
-					max: audio.max,
-				},
-				{
-					type: 'number',
-					label: 'Maximum Level (dB)',
-					id: 'maxLevel',
-					default: audio.max,
-					min: audio.min,
-					max: audio.max,
-				},
-			],
-			callback: (feedback) => {
-				const currentLevel = self.data.audioVolumeLevels && self.data.audioVolumeLevels[feedback.options.channel]
-				if (currentLevel === undefined) return false
-				return currentLevel >= feedback.options.minLevel && currentLevel <= feedback.options.maxLevel
+		// The levels the camera will actually take, which are the model's own range and step size.
+		const levels = Array.from({ length: (audio.max - audio.min) / audio.step + 1 }, (_, i) => {
+			const dB = audio.min + i * audio.step
+			return { id: dB, label: `${dB} dB` }
+		})
+
+		feedbacks.audioVolumeLevel = selectionFeedback(
+			'Audio - Volume Level',
+			'Indicates if the audio volume level of the selected channel is at the configured one',
+			'Volume Level (dB)',
+			levels,
+			(feedback) => self.data.audioVolumeLevels?.[feedback.options.channel],
+			{
+				// Every model's range straddles 0 dB on its own grid, so nominal is always a level it has.
+				defaultIndex: levels.findIndex((level) => level.id === 0),
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Audio Channel',
+						id: 'channel',
+						default: 0,
+						choices: Array.from({ length: audio.maxch }, (_, i) => ({ id: i, label: `Channel ${i + 1}` })),
+					},
+				],
 			},
-		}
+		)
 	}
 
 	return feedbacks

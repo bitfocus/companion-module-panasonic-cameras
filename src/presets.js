@@ -12,7 +12,7 @@ const LOCAL_PRESET = { isExpression: true, value: '$(local:preset)' }
 const presetMemOptions = (op) => ({ op, val: e.ENUM_PRESET[0].id, useVar: true, valVar: LOCAL_PRESET })
 const presetFeedbackOptions = () => ({ option: e.ENUM_PRESET[0].id, useVar: true, optionVar: LOCAL_PRESET })
 
-// Same idea for audio: the channel option is 0-based while labels and variables are 1-based.
+// Same for audio: the channel option is 0-based while labels and variables are 1-based.
 const LOCAL_CHANNEL_0 = { isExpression: true, value: '$(local:channel) - 1' }
 
 const colorWhite = combineRgb(255, 255, 255)
@@ -1496,24 +1496,12 @@ export function getPresetDefinitions(self) {
 					feedbackId: 'audioVolumeLevel',
 					options: {
 						channel: LOCAL_CHANNEL_0,
-						minLevel: -5,
-						maxLevel: 5,
+						option: 0,
 					},
+					isInverted: true,
 					style: {
 						color: colorWhite,
-						bgcolor: colorGreen,
-					},
-				},
-				{
-					feedbackId: 'audioVolumeLevel',
-					options: {
-						channel: LOCAL_CHANNEL_0,
-						minLevel: 6,
-						maxLevel: audio.max,
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorOrange,
+						bgcolor: colorRed,
 					},
 				},
 			],
