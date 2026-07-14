@@ -921,6 +921,38 @@ export function getPresetDefinitions(self) {
 		}
 	}
 
+	if (SERIES.capabilities.imageTransmission) {
+		// The tallies colour the button behind the picture. Under the default Letterbox scaling that
+		// reads as a coloured band above and below the image; Crop and Squeeze fill the button edge to
+		// edge, so there the colour is covered and only the title is left to carry it.
+		//
+		// Companion applies feedbacks in order and the last one to set a property wins, so red is listed
+		// last: a camera that is on air says so, even while a green or yellow tally is also lit.
+		const tally = (capability, feedbackId, bgcolor) =>
+			SERIES.capabilities[capability] ? [{ feedbackId, style: { color: colorWhite, bgcolor } }] : []
+
+		presets['system-image'] = {
+			type: 'simple',
+			category: 'System',
+			name: 'Live camera image',
+			style: {
+				text: '$(generic-module:title)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+				alignment: 'center:bottom', // keep the title clear of the picture
+				show_topbar: false,
+			},
+			steps: [],
+			feedbacks: [
+				{ feedbackId: 'liveImage' },
+				...tally('tally2', 'tally2State', colorGreen),
+				...tally('tally3', 'tally3State', colorYellow),
+				...tally('tally', 'tallyState', colorRed),
+			],
+		}
+	}
+
 	if (SERIES.capabilities.tally) {
 		presets['system-tally'] = togglePreset(
 			'System',

@@ -1,8 +1,18 @@
+import { sleep } from './common.js'
+
 // Maps each transport group of a model's pull/poll capabilities to the instance method that queries it.
 const transports = { ptz: 'getPTZ', cam: 'getCam', web: 'getWeb' }
 
+// The `poll` flag alone cannot say whether this loop is still the wanted one, and never could: a
+// teardown clears it, the re-initialisation that follows sets it again, and a loop parked in an await
+// across those two wakes up to a flag that reads true. It then runs alongside the loop the
+// re-initialisation started — one more camera-hammering loop per reconnect, forever. The token is what
+// distinguishes "still running" from "running again".
 export async function pollCameraStatus(self) {
-	while (self.poll) {
+	const generation = ++self.pollGen
+	const alive = () => self.poll && self.pollGen === generation
+
+	while (alive()) {
 		// When subscription is disabled, also poll the data it would otherwise push (pull).
 		// The additional data (poll) is always queried, regardless of subscription.
 		const groups = self.config.subscriptionEnable
@@ -13,14 +23,65 @@ export async function pollCameraStatus(self) {
 			if (!caps) continue
 			for (const [key, method] of Object.entries(transports)) {
 				for (const cmd of caps[key] || []) {
-					if (!self.poll) return
+					if (!alive()) return
 					await self[method](cmd)
-					if (!self.poll) return
+					if (!alive()) return
 					await sleep(self.config.pollDelay)
 				}
 			}
 		}
 	}
+}
+
+// A feedback that is still on a button re-registers itself every time it is evaluated, and getImage()
+// evaluates every placed instance after each frame — so a live subscriber refreshes its timestamp
+// each cycle and only a departed one goes quiet. unsubscribe() covers the normal removal; this
+// catches the paths it never fires on (page import, a moved control), so a lost subscriber costs a
+// few wasted frames rather than polling the camera forever.
+function pruneImageSubscribers(self) {
+	const deadline = Date.now() - 3 * self.config.imageInterval - self.config.timeout
+
+	for (const [id, seen] of self.imageSubscribers) {
+		if (seen < deadline) self.imageSubscribers.delete(id)
+	}
+}
+
+// The live image runs on its own loop rather than inside pollCameraStatus: it is fetched every second
+// or so where status commands go out every few hundred milliseconds, and a full-size frame takes long
+// enough that interleaving the two would stall every status command queued behind it.
+//
+// Module API 2.0 removed the feedback subscribe hook, so there is nothing to hook: the loop runs
+// while — and only while — a button is asking for the image, which the feedback's own callback says
+// by registering itself on every evaluation (see feedbacks.js).
+export async function pollLiveImage(self) {
+	const generation = ++self.pollImageGen // a loop from before a re-init must not outlive it
+
+	while (self.pollImage && self.pollImageGen === generation) {
+		pruneImageSubscribers(self)
+		if (self.imageSubscribers.size === 0) break
+
+		await self.getImage()
+		if (!self.pollImage || self.pollImageGen !== generation) return
+
+		// Back off while the camera is not answering rather than hammering it once a second.
+		await sleep(self.config.imageInterval * (self.imageErrors ? 5 : 1))
+	}
+
+	if (self.pollImageGen === generation) self.pollImage = false
+}
+
+// Started from the feedback's callback: the first button to show the image starts the loop, and the
+// re-entrancy guard is why the many evaluations that follow do not each start another.
+export function startLiveImagePoll(self) {
+	if (self.pollImage) return
+	if (!self.SERIES?.capabilities.imageTransmission || !self.config.imageEnable) return
+
+	self.pollImage = true
+
+	pollLiveImage(self).catch((err) => {
+		self.pollImage = false
+		self.log('error', 'Live image polling stopped: ' + String(err))
+	})
 }
 
 // One-shot query of all data defined by the model's pull and poll capabilities.
@@ -143,8 +204,4 @@ export async function getAllCameraStatus(self) {
 	for (const [key, method] of Object.entries(transports)) {
 		for (const cmd of cmds[key] || []) await self[method](cmd)
 	}
-}
-
-function sleep(ms) {
-	return new Promise((resolve) => setTimeout(resolve, ms))
 }

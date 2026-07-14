@@ -1,48 +1,47 @@
+import { IMAGE_SCALING } from './common.js'
 import { MODELS } from './models.js'
 
+const section = (id, label) => ({ type: 'static-text', id, label, value: '<hr>', width: 12 })
+
 export const ConfigFields = [
-	{
-		type: 'static-text',
-		id: 'info',
-		width: 12,
-		label: 'Information',
-		value:
-			"This module controls Panasonic cameras, you can find supported models in the dropdown below.<br/>If your camera isn't in the list below yet, feel free to try it anyway by option 'Other Cameras'. This should still support some basic operation.",
-	},
 	{
 		type: 'textinput',
 		id: 'host',
 		label: 'Camera IP / Hostname',
-		width: 4,
+		description: 'The address the camera answers on. Nothing is queried until this is set.',
+		width: 6,
+		default: '',
 		// regex: Regex.IP
 	},
 	{
 		type: 'number',
 		id: 'httpPort',
-		label: 'HTTP Port (Default: 80)',
-		width: 3,
+		label: 'HTTP Port',
+		description: 'The port the camera serves its web interface on. Panasonic cameras use 80 unless told otherwise.',
+		width: 6,
 		default: 80,
 		min: 1,
 		max: 65535,
 	},
 	{
-		type: 'static-text',
-		id: 'dummy1',
-		width: 12,
-		label: ' ',
-		value: ' ',
+		type: 'number',
+		id: 'timeout',
+		label: 'Timeout (ms)',
+		description:
+			'How long to wait for the camera to answer a request. Past this the connection is considered lost, and repeated attempts are made to re-initialise it.',
+		width: 6,
+		default: 2000,
+		min: 100,
+		max: 5000,
 	},
-	{
-		type: 'static-text',
-		id: 'modelInfo',
-		width: 12,
-		label: 'Camera Model',
-		value: "Please select the camera model or feel free to leave it on 'Auto Detect'.",
-	},
+
+	section('sectionModel', ''),
 	{
 		type: 'dropdown',
 		id: 'model',
-		label: 'Select Your Camera Model',
+		label: 'Camera Model',
+		description:
+			"Leave this on 'Auto Detect' and the camera is asked what it is. If your model is not listed, 'Other Cameras' drives it with a generic feature set, which should still give you basic operation.",
 		width: 6,
 		default: 'Auto',
 		choices: MODELS,
@@ -50,112 +49,161 @@ export const ConfigFields = [
 	},
 	{
 		type: 'static-text',
-		id: 'dummy2',
-		width: 12,
-		label: ' ',
-		value: ' ',
+		id: 'modelDetected',
+		label: '',
+		width: 6,
+		value: '', // filled per instance by getConfigFields()
+	},
+
+	section('sectionUpdates', ''),
+	{
+		type: 'checkbox',
+		id: 'subscriptionEnable',
+		label: 'Subscription',
+		description:
+			'Let the camera push its state changes to this instance, on models that support it. With this off, the camera is polled for its state instead (if polling is allowed below). Turn it off where the camera cannot open a TCP connection back to Companion — behind a NAT router or a firewall, or on a faulty IP configuration.',
+		width: 6,
+		default: true,
+		disableAutoExpression: true, // referenced by an isVisibleExpression below
 	},
 	{
-		type: 'static-text',
-		id: 'Info',
-		width: 12,
-		label: 'Other Settings',
-		value:
-			'These setting can be left on the default values and should give you a consistent setup, but they are there for you to use if need be.',
+		type: 'checkbox',
+		id: 'portManual',
+		label: 'Manual Local TCP Port',
+		description:
+			'Bind the local port the subscription connects back to by hand instead of letting the system pick one. Only useful for special network configurations. Each camera needs its own port.',
+		width: 6,
+		default: false,
+		disableAutoExpression: true,
+		isVisibleExpression: '$(options:subscriptionEnable)', // there is no connection back without one
 	},
 	{
 		type: 'number',
-		id: 'timeout',
-		label: 'Timeout (ms)',
-		width: 3,
-		default: 2000,
-		min: 100,
-		max: 5000,
-	},
-	{
-		type: 'static-text',
-		id: 'timeoutInfo',
-		width: 9,
-		label: '',
-		value:
-			'Sets the maximum amount of time to wait for a response from the camera after a request command. Otherwise the connection is considered lost and repeated attempts are made to reinitialize the connection.',
+		id: 'tcpPort',
+		label: 'Local TCP Port',
+		description: 'The port to bind, when the local port is assigned by hand.',
+		width: 6,
+		default: 31004,
+		min: 1024,
+		max: 65535,
+		isVisibleExpression: '$(options:subscriptionEnable) && $(options:portManual)',
 	},
 	{
 		type: 'checkbox',
 		id: 'pollAllow',
-		width: 1,
-		label: 'Allow',
-		default: true,
-	},
-	{
-		type: 'static-text',
-		id: 'pollInfo',
-		width: 9,
 		label: 'Polling',
-		value:
-			'Allows periodic querying of data that is not automatically updated by the camera. It is mandatory to obtain updated operational data from camera models that do not support any update notification subscription. Additionally allows operating status values ​​to be kept in sync that never have an update notification. The delay setting specifies the waiting time between individual requests to the camera.',
+		description:
+			'Periodically query the data the camera does not report on its own. This is mandatory for models that support no update notification subscription, and it also keeps the operating values in sync that never have an update notification.',
+		width: 6,
+		default: true,
+		disableAutoExpression: true,
 	},
 	{
 		type: 'number',
 		id: 'pollDelay',
 		label: 'Poll Delay (ms)',
-		width: 2,
+		description: 'The waiting time between individual poll requests to the camera.',
+		width: 6,
 		default: 100,
 		min: 1,
 		max: 1000,
+		isVisibleExpression: '$(options:pollAllow)',
+	},
+
+	section('sectionImage', ''),
+	{
+		type: 'dropdown',
+		id: 'imageScaling',
+		label: 'Thumbnail Scaling',
+		description:
+			'How a camera image is fitted onto a square button. This governs every image the module draws — the preset thumbnails as much as the live one.',
+		width: 6,
+		default: 'letterbox',
+		choices: IMAGE_SCALING,
 	},
 	{
 		type: 'checkbox',
-		id: 'subscriptionEnable',
-		width: 1,
-		label: 'Enable',
+		id: 'imageEnable',
+		label: 'Live Image',
+		description:
+			'Periodically fetch a snapshot from the camera and offer it as a button background, through the feedback "System - Live Image". It is only requested while a button actually shows one. The camera serves these snapshots from the same web server that answers the control commands, so a short interval may slow down its response to those.',
+		width: 6,
 		default: true,
-	},
-	{
-		type: 'static-text',
-		id: 'subscriptionInfo',
-		width: 11,
-		label: 'Subscription',
-		value:
-			'Enables the event update subscription channel setup from the camera to this module instance on camera models that support this feature. If this option is disabled, the camera will always be polled for states on a regular basis (if polling is permitted). May be disabled for network constellations where the camera cannot establish a TCP connection to this instance, for example due to an intermediate NAT router, a firewall or a faulty IP configuration.',
-	},
-	{
-		type: 'checkbox',
-		id: 'portManual',
-		width: 1,
-		label: 'Manual',
-		default: false,
-	},
-	{
-		type: 'static-text',
-		id: 'manualTCPInfo',
-		width: 9,
-		label: 'Local TCP port assignment',
-		value:
-			'Manually bind local TCP Port for incoming update subscription connection. May be helpfull only for some special network configurations. Each instance / camera needs its own port.',
+		disableAutoExpression: true,
 	},
 	{
 		type: 'number',
-		id: 'tcpPort',
-		label: 'TCP Port (1024-65535)',
-		width: 2,
-		default: 31004,
-		min: 1024,
-		max: 65535,
+		id: 'imageInterval',
+		label: 'Image Interval (ms)',
+		description: 'How often a new snapshot is fetched while a button is showing one.',
+		width: 6,
+		default: 1000,
+		min: 200,
+		max: 60000,
+		isVisibleExpression: '$(options:imageEnable)',
 	},
+
+	section('sectionDiagnostics', ''),
 	{
 		type: 'checkbox',
 		id: 'debug',
-		width: 1,
-		label: 'Enable',
+		label: 'Debug Mode',
+		description:
+			'Log every exchange between this instance and the camera in detail. Only turn this on to investigate a protocol-level problem: it floods the log, and it can slow the whole system down. DO NOT ENABLE THIS IN PRODUCTION!',
+		width: 6,
 		default: false,
 	},
-	{
-		type: 'static-text',
-		id: 'debugInfo',
-		width: 11,
-		label: 'Debug Mode',
-		value:
-			'This allows you to output the communication between this module instance and the camera in detail. Do not enable this unless you have protocol-level issues that you want to investigate. It will cause the log to be flooded with a lot of data, but it can also cause operational delays and a general slowdown of the system. DO NOT ENABLE THIS IN PRODUCTION!',
-	},
 ]
+
+// The config panel renders static text as HTML but strips style attributes, so the one case the user
+// has to act on cannot be coloured. A leading symbol is what survives, and the wording carries the
+// warning regardless.
+const warn = (text) => `⚠ ${text}`
+
+// Companion asks the module for the fields each time the config panel is opened, so the text is
+// current as of that moment — it does not tick over while the panel sits open.
+
+export function describeDetectedModel(config, data) {
+	const detected = data?.modelAuto
+
+	if (!detected) {
+		return 'Nothing detected yet — the camera has not answered. Check the address above, or open this panel again once the connection is up.'
+	}
+
+	const label = MODELS.find((m) => m.id === detected)?.label
+	const selected = config?.model
+
+	const pinned = selected && selected !== 'Auto' && selected !== 'Other'
+
+	if (pinned && selected !== detected) {
+		return warn(
+			`Detected <b>${label ?? detected}</b>, but this connection is set to <b>${selected}</b>. ` +
+				`The camera is driven as the model you selected, which may not match what it can do.`,
+		)
+	}
+
+	if (!label) {
+		return `Detected <b>${detected}</b>, which is not a model this module knows. It is driven with the generic 'Other Cameras' feature set, so expect only basic operation.`
+	}
+
+	return `Detected <b>${label}</b>.`
+}
+
+// A connection only carries the fields it was saved with: one added to this module after the user
+// last hit Save is simply absent from their config, and reads `undefined`. That is how a poll delay
+// becomes NaN and a dropdown lands on a value it does not list.
+//
+// The fields above already state every default, so they are the only place one is written down —
+// each reader inventing its own fallback is how two copies of a default drift apart. Filling the
+// gaps here, once, lets the rest of the module treat this.config as complete. Static text carries no
+// value, and a field with no default has nothing to fall back on.
+export function applyConfigDefaults(config) {
+	const filled = { ...config }
+
+	for (const field of ConfigFields) {
+		if (field.type === 'static-text' || field.default === undefined) continue
+		if (filled[field.id] === undefined) filled[field.id] = field.default
+	}
+
+	return filled
+}

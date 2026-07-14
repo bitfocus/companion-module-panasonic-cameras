@@ -1,5 +1,6 @@
 import { combineRgb } from '@companion-module/base'
 import { getAndUpdateSeries, optPresetNumber, parsePresetNumber } from './common.js'
+import { startLiveImagePoll } from './polling.js'
 import { e } from './enum.js'
 import ICONS from './icons.js'
 
@@ -135,6 +136,24 @@ export function getFeedbackDefinitions(self) {
 			e.ENUM_INSTALL_POSITION,
 			() => self.data.installMode,
 		)
+	}
+
+	if (caps.imageTransmission) {
+		feedbacks.liveImage = {
+			type: 'advanced',
+			name: 'System - Live Image',
+			description: 'Provides the current camera image as the button background, refreshed periodically',
+			options: [],
+			callback: (feedback) => {
+				self.imageSubscribers.set(feedback.id, Date.now())
+				startLiveImagePoll(self)
+
+				return self.data.image ? { png64: self.data.image, pngalignment: 'center:center' } : {}
+			},
+			unsubscribe: (feedback) => {
+				self.imageSubscribers.delete(feedback.id)
+			},
+		}
 	}
 
 	// ---- Lens ----

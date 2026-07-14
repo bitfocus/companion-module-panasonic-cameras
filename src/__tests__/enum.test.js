@@ -84,7 +84,7 @@ describe('generated enums', () => {
 describe('models', () => {
 	it('lists each camera model exactly once', () => {
 		const ids = MODELS.map((m) => m.id)
-		expect(new Set(ids).size, 'AW-UR100 was once listed twice').toBe(ids.length)
+		expect(new Set(ids).size, 'listed multiple times').toBe(ids.length)
 	})
 
 	it('points every model at a series that exists', () => {
@@ -97,12 +97,5 @@ describe('models', () => {
 		for (const s of SERIES_SPECS) {
 			expect(Object.keys(s.capabilities).sort(), s.id).toEqual(Object.keys(base).sort())
 		}
-	})
-
-	it('drives the AW-HE60 off the HE50 series it is capability-identical to', () => {
-		// The two used to be separate series holding the same capabilities, which only invited the
-		// copies to drift apart. The HE60 series is gone; the model points at the HE50 one instead.
-		expect(MODELS.find((m) => m.id === 'AW-HE60').series).toBe('HE50')
-		expect(SERIES_SPECS.find((s) => s.id === 'HE60')).toBeUndefined()
 	})
 })

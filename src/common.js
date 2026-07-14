@@ -10,7 +10,11 @@ export function getAndUpdateSeries(self) {
 	}
 
 	if (self.data.model !== null) {
-		self.data.series = MODELS.find((MODELS) => MODELS.id === self.data.model).series
+		// A camera is free to report a model this table has never heard of, and the auto-detected id is
+		// taken from its answer unvalidated (parser.js). Falling back to the generic feature set gives
+		// that camera basic operation; reading `.series` off the undefined this used to find took the
+		// whole re-initialisation down with a TypeError instead.
+		self.data.series = MODELS.find((m) => m.id === self.data.model)?.series ?? 'Other'
 	}
 
 	// Find the specific commands for a given series
@@ -51,6 +55,44 @@ export function constrainRange(value, min, max) {
 	if (value > max) return max
 	if (value < min) return min
 	return value
+}
+
+export function sleep(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// Waits for `promise`, but no longer than `ms`. Leaves no timer behind either way — a bare
+// Promise.race against sleep() keeps the loser's timer pending, which is enough to make a torn-down
+// connection look like it still has work outstanding.
+export function raceTimeout(promise, ms) {
+	let timer
+
+	return Promise.race([promise, new Promise((resolve) => (timer = setTimeout(resolve, ms)))]).finally(() =>
+		clearTimeout(timer),
+	)
+}
+
+export const IMAGE_SIZE = 288
+
+export const IMAGE_SCALING = [
+	{ id: 'letterbox', label: 'Letterbox' },
+	{ id: 'crop', label: 'Crop' },
+	{ id: 'squeeze', label: 'Squeeze' },
+]
+
+// Jimp mutates and returns the image it is given.
+export function fitImage(img, scaling) {
+	switch (scaling) {
+		case 'crop':
+			return img.cover({ w: IMAGE_SIZE, h: IMAGE_SIZE })
+		case 'squeeze':
+			return img.resize({ w: IMAGE_SIZE, h: IMAGE_SIZE })
+		default:
+			// Letterbox scales down until the whole frame fits, and stops there — the result is 288x162
+			// rather than a padded square, so the button's own background shows through above and below
+			// instead of a baked-in black bar.
+			return img.scaleToFit({ w: IMAGE_SIZE, h: IMAGE_SIZE })
+	}
 }
 
 // The preset dropdown's choice ids are the camera's own preset numbers — 0-based and zero-padded
