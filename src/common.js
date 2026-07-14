@@ -51,3 +51,23 @@ export function constrainRange(value, min, max) {
 	if (value < min) return min
 	return value
 }
+
+// The option ids an entity definition declares, plus the default for each. Both the presets we hand
+// out and the buttons already on disk are reconciled against this, so they are repaired by the same
+// rule. Static text carries no value, and a field without an id is not an option at all.
+export function optionSpecs(definitions) {
+	return Object.fromEntries(
+		Object.entries(definitions).map(([id, definition]) => {
+			const fields = (definition.options ?? []).filter((o) => o.id !== undefined && o.type !== 'static-text')
+			return [
+				id,
+				{
+					ids: fields.map((field) => field.id),
+					defaults: Object.fromEntries(
+						fields.filter((field) => field.default !== undefined).map((field) => [field.id, field.default]),
+					),
+				},
+			]
+		}),
+	)
+}

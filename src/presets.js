@@ -1,7 +1,7 @@
 import { combineRgb } from '@companion-module/base'
 import { getActionDefinitions } from './actions.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
-import { getAndUpdateSeries } from './common.js'
+import { getAndUpdateSeries, optionSpecs } from './common.js'
 import ICONS from './icons.js'
 import { e } from './enum.js'
 
@@ -1519,24 +1519,8 @@ export function getPresetDefinitions(self) {
 // be written that way; rather than restating every option on every preset, reconcile each one
 // against the very definitions Companion validates it against: fill in what the preset left out,
 // and drop what this model's action does not have (an Increase/Decrease-only camera has no step
-// size, but the preset it shares with the others still names one).
-function optionSpecs(definitions) {
-	return Object.fromEntries(
-		Object.entries(definitions).map(([id, definition]) => {
-			const fields = (definition.options ?? []).filter((o) => o.id !== undefined && o.type !== 'static-text')
-			return [
-				id,
-				{
-					ids: fields.map((field) => field.id),
-					defaults: Object.fromEntries(
-						fields.filter((field) => field.default !== undefined).map((field) => [field.id, field.default]),
-					),
-				},
-			]
-		}),
-	)
-}
-
+// size, but the preset it shares with the others still names one). Buttons already on disk get the
+// same treatment from the upgrade script in upgrades.js.
 const reconcileOptions = (entities, idKey, specs) =>
 	(entities ?? []).map((entity) => {
 		const spec = specs[entity[idKey]]
