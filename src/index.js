@@ -212,7 +212,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				// 'close' is the one event that always fires — 'end' does not, on a socket we destroy
 				// ourselves, which is exactly what teardown() does to every one of these.
 				socket.on('close', () => {
-					this.clients.splice(this.clients.indexOf(socket), 1)
+					// indexOf can be -1 for a stale socket teardown() has already dropped from the list;
+					// splice(-1, 1) would then remove an unrelated, current socket, so guard against it.
+					const index = this.clients.indexOf(socket)
+					if (index !== -1) this.clients.splice(index, 1)
 				})
 
 				socket.on('error', () => {
@@ -266,7 +269,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 			// common error handler
 			this.server.on('error', (err) => {
-				// Catch uncaught Exception "EADDRINUSE" error that orcures if the port is already in use
+				// Catch uncaught Exception "EADDRINUSE" error that occurs if the port is already in use
 				if (err.code === 'EADDRINUSE') {
 					this.log('error', 'TCP error: Please use another TCP port, ' + tcpPortSelected + ' is already in use')
 					this.log('error', 'TCP error: The TCP port must be unique between instances')
