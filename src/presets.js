@@ -1,388 +1,218 @@
 import { combineRgb } from '@companion-module/base'
-import { getAndUpdateSeries } from './common.js'
+import { getActionDefinitions } from './actions.js'
+import { getFeedbackDefinitions } from './feedbacks.js'
+import { getAndUpdateSeries, optionSpecs } from './common.js'
 import ICONS from './icons.js'
 import { e } from './enum.js'
+
+// Preset option is 0-based, local variable is 1-based; subtract the offset.
+const LOCAL_PRESET_0 = { isExpression: true, value: '$(local:preset) - 1' }
+const presetMemOptions = (op) => ({ op, val: LOCAL_PRESET_0 })
+const presetFeedbackOptions = () => ({ option: LOCAL_PRESET_0 })
+
+// Audio channel option 0-based, labels/variables 1-based.
+const LOCAL_CHANNEL_0 = { isExpression: true, value: '$(local:channel) - 1' }
+
+const colorWhite = combineRgb(255, 255, 255)
+const colorRed = combineRgb(255, 0, 0)
+const colorOrange = combineRgb(255, 102, 0)
+const colorYellow = combineRgb(255, 255, 0)
+const colorGreen = combineRgb(0, 255, 0)
+const colorBlue = combineRgb(0, 51, 204)
+const colorDarkRed = combineRgb(102, 0, 0)
+const colorDarkYellow = combineRgb(102, 102, 0)
+const colorDarkBlue = combineRgb(0, 0, 102)
+const colorDarkGreen = combineRgb(0, 102, 0)
+const colorGrey = combineRgb(51, 51, 51)
+const colorBlack = combineRgb(0, 0, 0)
+
+// #########################
+// #### Preset builders ####
+// #########################
+
+// Held button: action on press, counterpart on release.
+const jogPreset = (category, name, icon, actionId, downOptions, upOptions) => ({
+	type: 'simple',
+	category,
+	name,
+	style: {
+		text: '',
+		png64: icon,
+		pngalignment: 'center:center',
+		size: '18',
+		color: colorWhite,
+		bgcolor: colorBlack,
+	},
+	steps: [
+		{
+			down: [{ actionId, options: downOptions }],
+			up: [{ actionId, options: upOptions }],
+		},
+	],
+	feedbacks: [],
+})
+
+// Rotary knob: press sets value (`set`), turn steps it.
+const knobPreset = (category, name, text, actionId, set, { bgcolor = colorBlack, step = 1, extra = {} } = {}) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color: colorWhite, bgcolor },
+	steps: [
+		{
+			down: [{ actionId, options: { ...extra, op: 's', set } }],
+			up: [],
+			rotate_left: [{ actionId, options: { ...extra, op: -1, step } }],
+			rotate_right: [{ actionId, options: { ...extra, op: 1, step } }],
+		},
+	],
+	feedbacks: [],
+})
+
+// Speed knob: press centres the range, turn nudges it.
+const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	steps: [
+		{
+			down: [{ actionId, options: { ...extra, op: 's', set: 25 } }],
+			up: [],
+			rotate_left: [{ actionId, options: { ...extra, op: -1, step: 1 } }],
+			rotate_right: [{ actionId, options: { ...extra, op: 1, step: 1 } }],
+		},
+	],
+	feedbacks: [],
+})
+
+// Mode knob: press toggles, turn steps through the list.
+const enumKnobPreset = (category, name, text, actionId) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	steps: [
+		{
+			down: [{ actionId, options: { op: 't' } }],
+			up: [],
+			rotate_left: [{ actionId, options: { op: -1 } }],
+			rotate_right: [{ actionId, options: { op: 1 } }],
+		},
+	],
+	feedbacks: [],
+})
+
+// Toggle button; lights up while active if a feedback is given.
+const togglePreset = (
+	category,
+	name,
+	text,
+	actionId,
+	feedbackId,
+	style,
+	{ size = '14', color = colorWhite, bgcolor = colorBlack, feedbackOptions, isInverted } = {},
+) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size, color, bgcolor },
+	steps: [{ down: [{ actionId, options: { op: 't' } }], up: [] }],
+	feedbacks: feedbackId
+		? [
+				{
+					feedbackId,
+					...(feedbackOptions ? { options: feedbackOptions } : {}),
+					...(isInverted ? { isInverted } : {}),
+					style,
+				},
+			]
+		: [],
+})
+
+// Fires one action on press.
+const momentaryPreset = (
+	category,
+	name,
+	text,
+	actionId,
+	options,
+	{ color = colorWhite, bgcolor = colorBlack } = {},
+) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color, bgcolor },
+	steps: [{ down: [{ actionId, ...(options ? { options } : {}) }], up: [] }],
+	feedbacks: [],
+})
+
+// Text-labelled jog: drive while held, stop on release.
+const textJogPreset = (category, name, text, actionId, dir) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	steps: [
+		{
+			down: [{ actionId, options: { dir } }],
+			up: [{ actionId, options: { dir: 0 } }],
+		},
+	],
+	feedbacks: [],
+})
+
+// Applies a fixed value; lights up while on that value.
+const valuePreset = (category, name, text, actionId, feedbackId, value, style) => ({
+	type: 'simple',
+	category,
+	name,
+	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	steps: [{ down: [{ actionId, options: { op: 's', set: value } }], up: [] }],
+	feedbacks: [{ feedbackId, options: { option: value }, style }],
+})
 
 export function getPresetDefinitions(self) {
 	const presets = {}
 
-	const colorWhite = combineRgb(255, 255, 255)
-	const colorRed = combineRgb(255, 0, 0)
-	const colorOrange = combineRgb(255, 102, 0)
-	const colorYellow = combineRgb(255, 255, 0)
-	const colorGreen = combineRgb(0, 255, 0)
-	//const colorPurple = combineRgb(255, 0, 255)
-	//const colorActiveBlue = combineRgb(0, 51, 204)
-	const colorBlue = combineRgb(0, 51, 204)
-	const colorDarkRed = combineRgb(102, 0, 0)
-	const colorDarkYellow = combineRgb(102, 102, 0)
-	const colorDarkBlue = combineRgb(0, 0, 102)
-	const colorDarkGreen = combineRgb(0, 102, 0)
-	const colorGrey = combineRgb(51, 51, 51)
-	const colorBlack = combineRgb(0, 0, 0)
-
 	const SERIES = getAndUpdateSeries(self)
-	// console.log(SERIES);
 
 	// ##########################
 	// #### Pan/Tilt Presets ####
 	// ##########################
 
 	if (SERIES.capabilities.panTilt) {
-		presets['pan-tilt-up'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'UP',
-			style: {
-				text: '',
-				png64: ICONS.UP,
-				pngalignment: 'center:center',
-				size: '18',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '12',
-							},
-						},
-					],
-					up: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '11',
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
+		// Icon + two-digit direction code; '11' is the stop code released to.
+		const PAN_TILT_JOG = [
+			['pan-tilt-up', 'UP', ICONS.UP, '12'],
+			['pan-tilt-down', 'DOWN', ICONS.DOWN, '10'],
+			['pan-tilt-left', 'LEFT', ICONS.LEFT, '01'],
+			['pan-tilt-right', 'RIGHT', ICONS.RIGHT, '21'],
+			['pan-tilt-up-right', 'UP RIGHT', ICONS.UP_RIGHT, '22'],
+			['pan-tilt-up-left', 'UP LEFT', ICONS.UP_LEFT, '02'],
+			['pan-tilt-down-left', 'DOWN LEFT', ICONS.DOWN_LEFT, '00'],
+			['pan-tilt-down-right', 'DOWN RIGHT', ICONS.DOWN_RIGHT, '20'],
+		]
+
+		for (const [id, name, icon, dir] of PAN_TILT_JOG) {
+			presets[id] = jogPreset('Pan/Tilt', name, icon, 'ptMove', { dir }, { dir: '11' })
 		}
 
-		presets['pan-tilt-down'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'DOWN',
-			style: {
-				text: '',
-				png64: ICONS.DOWN,
-				pngalignment: 'center:center',
-				size: '18',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '10',
-							},
-						},
-					],
-					up: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '11',
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['pan-tilt-position'] = momentaryPreset(
+			'Pan/Tilt',
+			'Pan/Tilt Position',
+			'P/T Pos.\\n$(generic-module:panPositionDeg)°\\n$(generic-module:tiltPositionDeg)°',
+			'home',
+			{},
+		)
 
-		presets['pan-tilt-left'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'LEFT',
-			style: {
-				text: '',
-				png64: ICONS.LEFT,
-				pngalignment: 'center:center',
-				size: '18',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '01',
-							},
-						},
-					],
-					up: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '11',
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
-
-		presets['pan-tilt-right'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'RIGHT',
-			style: {
-				text: '',
-				png64: ICONS.RIGHT,
-				pngalignment: 'center:center',
-				size: '18',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '21',
-							},
-						},
-					],
-					up: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '11',
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
-
-		presets['pan-tilt-up-right'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'UP RIGHT',
-			style: {
-				text: '',
-				png64: ICONS.UP_RIGHT,
-				pngalignment: 'center:center',
-				size: '18',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '22',
-							},
-						},
-					],
-					up: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '11',
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
-
-		presets['pan-tilt-up-left'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'UP LEFT',
-			style: {
-				text: '',
-				png64: ICONS.UP_LEFT,
-				pngalignment: 'center:center',
-				size: '18',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '02',
-							},
-						},
-					],
-					up: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '11',
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
-
-		presets['pan-tilt-down-left'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'DOWN LEFT',
-			style: {
-				text: '',
-				png64: ICONS.DOWN_LEFT,
-				pngalignment: 'center:center',
-				size: '18',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '00',
-							},
-						},
-					],
-					up: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '11',
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
-
-		presets['pan-tilt-down-right'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'DOWN RIGHT',
-			style: {
-				text: '',
-				png64: ICONS.DOWN_RIGHT,
-				pngalignment: 'center:center',
-				size: '18',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '20',
-							},
-						},
-					],
-					up: [
-						{
-							actionId: 'ptMove',
-							options: {
-								dir: '11',
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
-
-		presets['pan-tilt-position'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'Pan/Tilt Position',
-			style: {
-				text: 'P/T Pos.\\n$(generic-module:panPositionDeg)°\\n$(generic-module:tiltPositionDeg)°',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'home',
-							options: {},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
-
-		presets['pan-tilt-speed'] = {
-			type: 'button',
-			category: 'Pan/Tilt',
-			name: 'Speed',
-			style: {
-				text: 'P/T Speed\\n$(generic-module:ptSpeed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ptSpeed',
-							options: {
-								scope: 'pt',
-								op: 's',
-								set: 25,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'ptSpeed',
-							options: {
-								scope: 'pt',
-								op: -1,
-								step: 1,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'ptSpeed',
-							options: {
-								scope: 'pt',
-								op: 1,
-								step: 1,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['pan-tilt-speed'] = speedKnobPreset(
+			'Pan/Tilt',
+			'Speed',
+			'P/T Speed\\n$(generic-module:ptSpeed)',
+			'ptSpeed',
+			{ scope: 'pt' },
+		)
 	}
 
 	// ######################
@@ -391,7 +221,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.zoom) {
 		presets['lens-zoom'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Zoom',
 			style: {
@@ -399,9 +229,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -437,87 +264,21 @@ export function getPresetDefinitions(self) {
 			],
 		}
 
-		presets['lens-zoom-in'] = {
-			type: 'button',
-			category: 'Lens',
-			name: 'Zoom In',
-			style: {
-				text: 'ZOOM\\nIN',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [{ actionId: 'zoom', options: { dir: 1 } }],
-					up: [{ actionId: 'zoom', options: { dir: 0 } }],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-zoom-in'] = textJogPreset('Lens', 'Zoom In', 'ZOOM\\nIN', 'zoom', 1)
 
-		presets['lens-zoom-out'] = {
-			type: 'button',
-			category: 'Lens',
-			name: 'Zoom Out',
-			style: {
-				text: 'ZOOM\\nOUT',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [{ actionId: 'zoom', options: { dir: -1 } }],
-					up: [{ actionId: 'zoom', options: { dir: 0 } }],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-zoom-out'] = textJogPreset('Lens', 'Zoom Out', 'ZOOM\\nOUT', 'zoom', -1)
 
-		presets['lens-zoom-speed'] = {
-			type: 'button',
-			category: 'Lens',
-			name: 'Zoom Speed',
-			style: {
-				text: 'Zoom\\nSpeed\\n$(generic-module:zSpeed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'zoomSpeed',
-							options: { op: 's', set: 25 },
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'zoomSpeed',
-							options: { op: -1, step: 1 },
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'zoomSpeed',
-							options: { op: 1, step: 1 },
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-zoom-speed'] = speedKnobPreset(
+			'Lens',
+			'Zoom Speed',
+			'Zoom\\nSpeed\\n$(generic-module:zSpeed)',
+			'zoomSpeed',
+		)
 	}
 
 	if (SERIES.capabilities.focus) {
 		presets['lens-focus'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'Focus',
 			style: {
@@ -525,9 +286,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -543,7 +301,6 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 10,
-								useVar: false,
 							},
 						},
 					],
@@ -553,7 +310,6 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 10,
-								useVar: false,
 							},
 						},
 					],
@@ -562,147 +318,42 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		presets['lens-focus-far'] = {
-			type: 'button',
-			category: 'Lens',
-			name: 'Focus Far',
-			style: {
-				text: 'FOCUS\\nFAR',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [{ actionId: 'focus', options: { dir: 1 } }],
-					up: [{ actionId: 'focus', options: { dir: 0 } }],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-focus-far'] = textJogPreset('Lens', 'Focus Far', 'FOCUS\\nFAR', 'focus', 1)
 
-		presets['lens-focus-near'] = {
-			type: 'button',
-			category: 'Lens',
-			name: 'Focus Near',
-			style: {
-				text: 'FOCUS\\nNEAR',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [{ actionId: 'focus', options: { dir: -1 } }],
-					up: [{ actionId: 'focus', options: { dir: 0 } }],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-focus-near'] = textJogPreset('Lens', 'Focus Near', 'FOCUS\\nNEAR', 'focus', -1)
 
-		presets['lens-focus-speed'] = {
-			type: 'button',
-			category: 'Lens',
-			name: 'Focus Speed',
-			style: {
-				text: 'Focus\\nSpeed\\n$(generic-module:fSpeed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'focusSpeed',
-							options: { op: 's', set: 25 },
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'focusSpeed',
-							options: { op: -1, step: 1 },
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'focusSpeed',
-							options: { op: 1, step: 1 },
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['lens-focus-speed'] = speedKnobPreset(
+			'Lens',
+			'Focus Speed',
+			'Focus\\nSpeed\\n$(generic-module:fSpeed)',
+			'focusSpeed',
+		)
 
 		if (SERIES.capabilities.focusAuto) {
-			presets['lens-focus-mode'] = {
-				type: 'button',
-				category: 'Lens',
-				name: 'Focus Mode',
-				style: {
-					text: 'FOCUS MODE\\n$(generic-module:focusMode)',
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'focusMode',
-								options: { op: 't' },
-							},
-						],
-						up: [],
-					},
-				],
-				feedbacks: [
-					{
-						feedbackId: 'focusMode',
-						style: {
-							color: colorWhite,
-							bgcolor: colorRed,
-						},
-					},
-				],
-			}
+			presets['lens-focus-mode'] = togglePreset(
+				'Lens',
+				'Focus Mode',
+				'FOCUS MODE\\n$(generic-module:focusMode)',
+				'focusMode',
+				'focusMode',
+				{ color: colorWhite, bgcolor: colorRed },
+			)
 		}
 
 		if (SERIES.capabilities.focusPushAuto) {
-			presets['lens-focus-push-auto'] = {
-				type: 'button',
-				category: 'Lens',
-				name: 'Push Auto Focus',
-				style: {
-					text: 'PUSH\\nAUTO\\nFOCUS',
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'focusPushAuto',
-								options: {},
-							},
-						],
-						up: [],
-					},
-				],
-				feedbacks: [],
-			}
+			presets['lens-focus-push-auto'] = momentaryPreset(
+				'Lens',
+				'Push Auto Focus',
+				'PUSH\\nAUTO\\nFOCUS',
+				'focusPushAuto',
+				{},
+			)
 		}
 	}
 
 	if (SERIES.capabilities.ois) {
 		presets[`lens-ois-mode`] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Lens',
 			name: 'O.I.S. Mode',
 			style: {
@@ -710,9 +361,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -765,17 +413,17 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.iris) {
 		presets['exposure-iris'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'Iris',
 			style: {
-				text: 'IRIS\\n$(generic-module:' + (SERIES.capabilities.irisF ? 'irisF' : 'irisPosition') + ')\\n$(generic-module:irisPositionBar)',
+				text:
+					'IRIS\\n$(generic-module:' +
+					(SERIES.capabilities.irisF ? 'irisF' : 'irisPosition') +
+					')\\n$(generic-module:irisPositionBar)',
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -794,7 +442,6 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: -1,
 								step: 30,
-								useVar: false,
 							},
 						},
 					],
@@ -804,7 +451,6 @@ export function getPresetDefinitions(self) {
 							options: {
 								op: 1,
 								step: 30,
-								useVar: false,
 							},
 						},
 					],
@@ -813,102 +459,31 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		presets['exposure-iris-up'] = {
-			type: 'button',
-			category: 'Exposure',
-			name: 'Iris Up',
-			style: {
-				text: 'IRIS\\nUP',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'iris',
-							options: {
-								op: 1,
-								step: 0x1e,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['exposure-iris-up'] = momentaryPreset('Exposure', 'Iris Up', 'IRIS\\nUP', 'iris', {
+			op: 1,
+			step: 0x1e,
+		})
 
-		presets['exposure-iris-down'] = {
-			type: 'button',
-			category: 'Exposure',
-			name: 'Iris Down',
-			style: {
-				text: 'IRIS\\nDOWN',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'iris',
-							options: {
-								op: -1,
-								step: 0x1e,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['exposure-iris-down'] = momentaryPreset('Exposure', 'Iris Down', 'IRIS\\nDOWN', 'iris', {
+			op: -1,
+			step: 0x1e,
+		})
 	}
 
 	if (SERIES.capabilities.irisAuto) {
-		presets['exposure-iris-mode'] = {
-			type: 'button',
-			category: 'Exposure',
-			name: 'Iris Mode',
-			style: {
-				text: 'IRIS MODE\\n$(generic-module:irisMode)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'irisMode',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'irisMode',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['exposure-iris-mode'] = togglePreset(
+			'Exposure',
+			'Iris Mode',
+			'IRIS MODE\\n$(generic-module:irisMode)',
+			'irisMode',
+			'irisMode',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	if (SERIES.capabilities.shutter) {
 		presets[`exposure-shutter`] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'Shutter',
 			style: {
@@ -916,9 +491,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -966,7 +538,7 @@ export function getPresetDefinitions(self) {
 
 		if (SERIES.capabilities.shutter.inc && SERIES.capabilities.shutter.dec) {
 			presets[`exposure-shutter-step`] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Exposure',
 				name: 'Shutter Step',
 				style: {
@@ -974,9 +546,6 @@ export function getPresetDefinitions(self) {
 					size: '14',
 					color: colorWhite,
 					bgcolor: colorBlack,
-				},
-				options: {
-					rotaryActions: true,
 				},
 				steps: [
 					{
@@ -1001,7 +570,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.filter) {
 		presets['exposure-filter'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Exposure',
 			name: 'ND Filter',
 			style: {
@@ -1009,9 +578,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -1059,39 +625,14 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.night) {
-		presets['exposure-night-mode'] = {
-			type: 'button',
-			category: 'Exposure',
-			name: 'Night Mode',
-			style: {
-				text: 'Night Mode\\n$(generic-module:nightMode)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'nightMode',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'nightMode',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['exposure-night-mode'] = togglePreset(
+			'Exposure',
+			'Night Mode',
+			'Night Mode\\n$(generic-module:nightMode)',
+			'nightMode',
+			'nightMode',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	// #########################
@@ -1100,7 +641,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.gain) {
 		presets[`image-gain`] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Image',
 			name: 'Gain',
 			style: {
@@ -1108,9 +649,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -1157,570 +695,84 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.chromaLevel && SERIES.capabilities.chromaLevel.dropdown) {
-		presets['image-chroma-level'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'Chroma Level',
-			style: {
-				text: 'Chroma\\n$(generic-module:chromaLevel)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'chromaLevel',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'chromaLevel',
-							options: {
-								op: -1,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'chromaLevel',
-							options: {
-								op: 1,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-chroma-level'] = enumKnobPreset(
+			'Image',
+			'Chroma Level',
+			'Chroma\\n$(generic-module:chromaLevel)',
+			'chromaLevel',
+		)
 	}
 
 	if (SERIES.capabilities.chromaPhase) {
-		presets['image-chroma-phase'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'Chroma Phase',
-			style: {
-				text: 'Phase\\n$(generic-module:chromaPhase)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'chromaPhase',
-							options: {
-								op: 's',
-								set: 0,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'chromaPhase',
-							options: {
-								op: -1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'chromaPhase',
-							options: {
-								op: 1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-chroma-phase'] = knobPreset(
+			'Image',
+			'Chroma Phase',
+			'Phase\\n$(generic-module:chromaPhase)',
+			'chromaPhase',
+			0,
+		)
 	}
 
 	if (SERIES.capabilities.dnr && SERIES.capabilities.dnr.dropdown) {
-		presets['image-dnr'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'DNR',
-			style: {
-				text: 'DNR\\n$(generic-module:dnr)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'dnr',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'dnr',
-							options: {
-								op: -1,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'dnr',
-							options: {
-								op: 1,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-dnr'] = enumKnobPreset('Image', 'DNR', 'DNR\\n$(generic-module:dnr)', 'dnr')
 	}
 
 	if (SERIES.capabilities.drs && SERIES.capabilities.drs.dropdown) {
-		presets['image-drs'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'DRS',
-			style: {
-				text: 'DRS\\n$(generic-module:drs)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'drs',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'drs',
-							options: {
-								op: -1,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'drs',
-							options: {
-								op: 1,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-drs'] = enumKnobPreset('Image', 'DRS', 'DRS\\n$(generic-module:drs)', 'drs')
 	}
 
 	if (SERIES.capabilities.pedestal) {
-		presets['image-pedestal'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'Pedestal',
-			style: {
-				text: 'Total Ped.\\n$(generic-module:masterPed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorGrey,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'ped',
-							options: {
-								op: 's',
-								set: 0,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'ped',
-							options: {
-								op: -1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'ped',
-							options: {
-								op: 1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-pedestal'] = knobPreset('Image', 'Pedestal', 'Total Ped.\\n$(generic-module:masterPed)', 'ped', 0, {
+			bgcolor: colorGrey,
+			step: SERIES.capabilities.pedestal.step,
+		})
 	}
 
-	if (SERIES.capabilities.colorGain) {
-		presets['image-red-gain'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'Red Gain',
-			style: {
-				text: 'Red Gain\\n$(generic-module:redGain)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorRed,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'gainRed',
-							options: {
-								op: 's',
-								set: 0,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'gainRed',
-							options: {
-								op: -1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'gainRed',
-							options: {
-								op: 1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-				},
+	// Same knob for R/B/G gain and pedestal; green gated per-model.
+	const COLOR_KNOBS = [
+		[
+			'colorGain',
+			'gain',
+			'Gain',
+			'Gain',
+			[
+				['red', 'image-red-gain', 'Red Gain', 'redGain', colorRed],
+				['blue', 'image-blue-gain', 'Blue Gain', 'blueGain', colorBlue],
+				['green', 'image-green-gain', 'Green Gain', 'greenGain', colorGreen],
 			],
-			feedbacks: [],
-		}
-
-		presets['image-blue-gain'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'Blue Gain',
-			style: {
-				text: 'Blue Gain\\n$(generic-module:blueGain)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlue,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'gainBlue',
-							options: {
-								op: 's',
-								set: 0,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'gainBlue',
-							options: {
-								op: -1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'gainBlue',
-							options: {
-								op: 1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-				},
+		],
+		[
+			'colorPedestal',
+			'ped',
+			'Pedestal',
+			'Ped.',
+			[
+				['red', 'image-red-ped', 'Red Pedestal', 'redPed', colorDarkRed],
+				['blue', 'image-blue-ped', 'Blue Pedestal', 'bluePed', colorDarkBlue],
+				['green', 'image-green-ped', 'Green Pedestal', 'greenPed', colorDarkGreen],
 			],
-			feedbacks: [],
-		}
+		],
+	]
 
-		if (SERIES.capabilities.colorGain.cmd.green) {
-			presets['image-green-gain'] = {
-				type: 'button',
-				category: 'Image',
-				name: 'Green Gain',
-				style: {
-					text: 'Green Gain\\n$(generic-module:greenGain)',
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorGreen,
-				},
-				options: {
-					rotaryActions: true,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'gainGreen',
-								options: {
-									op: 's',
-									set: 0,
-									useVar: false,
-								},
-							},
-						],
-						up: [],
-						rotate_left: [
-							{
-								actionId: 'gainGreen',
-								options: {
-									op: -1,
-									step: 1,
-									useVar: false,
-								},
-							},
-						],
-						rotate_right: [
-							{
-								actionId: 'gainGreen',
-								options: {
-									op: 1,
-									step: 1,
-									useVar: false,
-								},
-							},
-						],
-					},
-				],
-				feedbacks: [],
-			}
-		}
-	}
+	for (const [capability, actionPrefix, , label, channels] of COLOR_KNOBS) {
+		const caps = SERIES.capabilities[capability]
+		if (!caps) continue
 
-	if (SERIES.capabilities.colorPedestal) {
-		presets['image-red-ped'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'Red Pedestal',
-			style: {
-				text: 'Red Ped.\\n$(generic-module:redPed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorDarkRed,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'pedRed',
-							options: {
-								op: 's',
-								set: 0,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'pedRed',
-							options: {
-								op: -1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'pedRed',
-							options: {
-								op: 1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
+		for (const [channel, id, name, variable, bgcolor] of channels) {
+			if (!caps.cmd[channel]) continue
 
-		presets['image-blue-ped'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'Blue Pedestal',
-			style: {
-				text: 'Blue Ped.\\n$(generic-module:bluePed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorDarkBlue,
-			},
-			options: {
-				rotaryActions: true,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'pedBlue',
-							options: {
-								op: 's',
-								set: 0,
-								useVar: false,
-							},
-						},
-					],
-					up: [],
-					rotate_left: [
-						{
-							actionId: 'pedBlue',
-							options: {
-								op: -1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-					rotate_right: [
-						{
-							actionId: 'pedBlue',
-							options: {
-								op: 1,
-								step: 1,
-								useVar: false,
-							},
-						},
-					],
-				},
-			],
-			feedbacks: [],
-		}
-
-		if (SERIES.capabilities.colorPedestal.cmd.green) {
-			presets['image-green-ped'] = {
-				type: 'button',
-				category: 'Image',
-				name: 'Green Pedestal',
-				style: {
-					text: 'Green Ped.\\n$(generic-module:greenPed)',
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorDarkGreen,
-				},
-				options: {
-					rotaryActions: true,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'pedGreen',
-								options: {
-									op: 's',
-									set: 0,
-									useVar: false,
-								},
-							},
-						],
-						up: [],
-						rotate_left: [
-							{
-								actionId: 'pedGreen',
-								options: {
-									op: -1,
-									step: 1,
-									useVar: false,
-								},
-							},
-						],
-						rotate_right: [
-							{
-								actionId: 'pedGreen',
-								options: {
-									op: 1,
-									step: 1,
-									useVar: false,
-								},
-							},
-						],
-					},
-				],
-				feedbacks: [],
-			}
+			const actionId = actionPrefix + channel[0].toUpperCase() + channel.slice(1)
+			const title = channel[0].toUpperCase() + channel.slice(1)
+			presets[id] = knobPreset('Image', name, `${title} ${label}\\n$(generic-module:${variable})`, actionId, 0, {
+				bgcolor,
+			})
 		}
 	}
 
 	if (SERIES.capabilities.whiteBalance) {
 		if (SERIES.capabilities.whiteBalance.dropdown) {
 			presets[`image-whitebalance`] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Image',
 				name: 'White Balance',
 				style: {
@@ -1728,9 +780,6 @@ export function getPresetDefinitions(self) {
 					size: '14',
 					color: colorBlack,
 					bgcolor: colorWhite,
-				},
-				options: {
-					rotaryActions: true,
 				},
 				steps: [
 					{
@@ -1776,9 +825,10 @@ export function getPresetDefinitions(self) {
 			}
 		}
 
+		// Knob only turns; unsupported options (e.g. UB300 step size) dropped at build.
 		if (SERIES.capabilities.colorTemperature) {
 			presets['image-colortemp'] = {
-				type: 'button',
+				type: 'simple',
 				category: 'Image',
 				name: 'Color Temperature',
 				style: {
@@ -1786,9 +836,6 @@ export function getPresetDefinitions(self) {
 					size: '14',
 					color: colorBlack,
 					bgcolor: colorWhite,
-				},
-				options: {
-					rotaryActions: true,
 				},
 				steps: [
 					{
@@ -1800,7 +847,6 @@ export function getPresetDefinitions(self) {
 								options: {
 									op: -1,
 									step: 20,
-									useVar: false,
 								},
 							},
 						],
@@ -1810,7 +856,6 @@ export function getPresetDefinitions(self) {
 								options: {
 									op: 1,
 									step: 20,
-									useVar: false,
 								},
 							},
 						],
@@ -1820,51 +865,22 @@ export function getPresetDefinitions(self) {
 			}
 		}
 
-		presets['image-awb'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'Execute Auto White Balance',
-			style: {
-				text: 'Execute\\nAWB',
-				size: '14',
-				color: colorBlack,
-				bgcolor: colorWhite,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'whiteBalanceExecAWB',
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-awb'] = momentaryPreset(
+			'Image',
+			'Execute Auto White Balance',
+			'Execute\\nAWB',
+			'whiteBalanceExecAWB',
+			undefined,
+			{ color: colorBlack, bgcolor: colorWhite },
+		)
 
-		presets['image-abb'] = {
-			type: 'button',
-			category: 'Image',
-			name: 'Execute Auto Black Balance',
-			style: {
-				text: 'Execute\\nABB',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'whiteBalanceExecABB',
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['image-abb'] = momentaryPreset(
+			'Image',
+			'Execute Auto Black Balance',
+			'Execute\\nABB',
+			'whiteBalanceExecABB',
+			undefined,
+		)
 	}
 
 	// ########################
@@ -1873,7 +889,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.error || SERIES.capabilities.version) {
 		presets['system-cam-info'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Camera title, model, version and error indication',
 			style: {
@@ -1897,248 +913,114 @@ export function getPresetDefinitions(self) {
 		}
 	}
 
-	if (SERIES.capabilities.tally) {
-		presets['system-tally'] = {
-			type: 'button',
+	if (SERIES.capabilities.imageTransmission) {
+		// Feedbacks apply in order, last wins; red listed last so on-air always shows.
+		const tally = (capability, feedbackId, bgcolor) =>
+			SERIES.capabilities[capability] ? [{ feedbackId, style: { color: colorWhite, bgcolor } }] : []
+
+		presets['system-image'] = {
+			type: 'simple',
 			category: 'System',
-			name: 'Red Tally',
+			name: 'Live camera image',
 			style: {
-				text: 'TALLY',
-				size: '18',
-				color: colorDarkRed,
+				text: '$(generic-module:title)',
+				size: '14',
+				color: colorWhite,
 				bgcolor: colorBlack,
+				alignment: 'center:bottom', // keep title clear of picture
+				show_topbar: false,
 			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'tally',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
+			steps: [],
 			feedbacks: [
-				{
-					feedbackId: 'tallyState',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
+				{ feedbackId: 'liveImage' },
+				...tally('tally2', 'tally2State', colorGreen),
+				...tally('tally3', 'tally3State', colorYellow),
+				...tally('tally', 'tallyState', colorRed),
 			],
 		}
+	}
+
+	if (SERIES.capabilities.tally) {
+		presets['system-tally'] = togglePreset(
+			'System',
+			'Red Tally',
+			'TALLY',
+			'tally',
+			'tallyState',
+			{ color: colorWhite, bgcolor: colorRed },
+			{ size: '18', color: colorDarkRed },
+		)
 	}
 
 	if (SERIES.capabilities.tally2) {
-		presets['system-tally2'] = {
-			type: 'button',
-			category: 'System',
-			name: 'Green Tally',
-			style: {
-				text: 'TALLY',
-				size: '18',
-				color: colorDarkGreen,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'tally2',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'tally2State',
-					style: {
-						color: colorWhite,
-						bgcolor: colorGreen,
-					},
-				},
-			],
-		}
+		presets['system-tally2'] = togglePreset(
+			'System',
+			'Green Tally',
+			'TALLY',
+			'tally2',
+			'tally2State',
+			{ color: colorWhite, bgcolor: colorGreen },
+			{ size: '18', color: colorDarkGreen },
+		)
 	}
 
 	if (SERIES.capabilities.tally3) {
-		presets['system-tally3'] = {
-			type: 'button',
-			category: 'System',
-			name: 'Yellow Tally',
-			style: {
-				text: 'TALLY',
-				size: '18',
-				color: colorDarkYellow,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'tally3',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'tally3State',
-					style: {
-						color: colorWhite,
-						bgcolor: colorYellow,
-					},
-				},
-			],
-		}
+		presets['system-tally3'] = togglePreset(
+			'System',
+			'Yellow Tally',
+			'TALLY',
+			'tally3',
+			'tally3State',
+			{ color: colorWhite, bgcolor: colorYellow },
+			{ size: '18', color: colorDarkYellow },
+		)
 	}
 
 	if (SERIES.capabilities.power) {
-		presets['system-power'] = {
-			type: 'button',
-			category: 'System',
-			name: 'Power',
-			style: {
-				text: '⏻ Power\\n$(generic-module:power)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorOrange,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'power',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'powerState',
-					style: {
-						color: colorWhite,
-						bgcolor: colorDarkGreen,
-					},
-				},
-			],
-		}
+		presets['system-power'] = togglePreset(
+			'System',
+			'Power',
+			'⏻ Power\\n$(generic-module:power)',
+			'power',
+			'powerState',
+			{ color: colorWhite, bgcolor: colorDarkGreen },
+			{ bgcolor: colorOrange },
+		)
 	}
 
 	if (SERIES.capabilities.restart) {
-		presets['system-restart'] = {
-			type: 'button',
-			category: 'System',
-			name: 'Restart',
-			style: {
-				text: 'Restart\\n🗘',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'restart',
-							options: {
-								username: 'admin',
-								password: '12345',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['system-restart'] = momentaryPreset('System', 'Restart', 'Restart\\n🗘', 'restart', {
+			username: 'admin',
+			password: '12345',
+		})
 	}
 
 	if (SERIES.capabilities.colorbar) {
-		presets['system-colorbar'] = {
-			type: 'button',
-			category: 'System',
-			name: 'Color Bar',
-			style: {
-				text: 'Color Bar\\n$(generic-module:colorbar)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'colorbar',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'colorbarState',
-					style: {
-						png64: ICONS.COLORBAR,
-						pngalignment: 'center:center',
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		// Only toggle whose lit state also swaps in an image.
+		presets['system-colorbar'] = togglePreset(
+			'System',
+			'Color Bar',
+			'Color Bar\\n$(generic-module:colorbar)',
+			'colorbar',
+			'colorbarState',
+			{ color: colorWhite, bgcolor: colorRed, png64: ICONS.COLORBAR, pngalignment: 'center:center' },
+		)
 	}
 
 	if (SERIES.capabilities.install) {
-		presets['system-install-position'] = {
-			type: 'button',
-			category: 'System',
-			name: 'Installation Position',
-			style: {
-				text: 'INSTALL. POS.\\n$(generic-module:installMode)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'installPosition',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['system-install-position'] = togglePreset(
+			'System',
+			'Installation Position',
+			'INSTALL. POS.\\n$(generic-module:installMode)',
+			'installPosition',
+			null,
+			null,
+		)
 	}
 
 	if (SERIES.capabilities.videoFormat) {
 		presets['system-video-format'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'Video Format',
 			style: {
@@ -2159,7 +1041,7 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.recordSD) {
 		presets['system-sd-recording'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'System',
 			name: 'SD Card Recording',
 			style: {
@@ -2201,111 +1083,36 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.streamSRT) {
-		presets['system-srt-stream'] = {
-			type: 'button',
-			category: 'System',
-			name: 'SRT Caller Streaming',
-			style: {
-				text: 'SRT Caller\\n$(generic-module:streamingSRT)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'srtStreamCtrl',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'streamStateSRT',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['system-srt-stream'] = togglePreset(
+			'System',
+			'SRT Caller Streaming',
+			'SRT Caller\\n$(generic-module:streamingSRT)',
+			'srtStreamCtrl',
+			'streamStateSRT',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	if (SERIES.capabilities.streamTS) {
-		presets['system-ts-stream'] = {
-			type: 'button',
-			category: 'System',
-			name: 'MPEG-TS Output Streaming',
-			style: {
-				text: 'MPEG-TS Output\\n$(generic-module:streamingTS)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'tsStreamCtrl',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'streamStateTS',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['system-ts-stream'] = togglePreset(
+			'System',
+			'MPEG-TS Output Streaming',
+			'MPEG-TS Output\\n$(generic-module:streamingTS)',
+			'tsStreamCtrl',
+			'streamStateTS',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	if (SERIES.capabilities.streamRTMP) {
-		presets['system-rtmp-stream'] = {
-			type: 'button',
-			category: 'System',
-			name: 'RTMP Push Streaming',
-			style: {
-				text: 'RTMP Push\\n$(generic-module:streamingRTMP)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'rtmpStreamCtrl',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'streamStateRTMP',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['system-rtmp-stream'] = togglePreset(
+			'System',
+			'RTMP Push Streaming',
+			'RTMP Push\\n$(generic-module:streamingRTMP)',
+			'rtmpStreamCtrl',
+			'streamStateRTMP',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	// #################
@@ -2313,62 +1120,28 @@ export function getPresetDefinitions(self) {
 	// #################
 
 	if (SERIES.capabilities.presetSpeed && SERIES.capabilities.presetTime) {
-		presets['preset-mode'] = {
-			type: 'button',
-			category: 'Preset Memory',
-			name: 'Preset Recall Mode',
-			style: {
-				text: 'RECALL MODE\\n$(generic-module:presetSpeedUnit)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetSpeedTimeUnit',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['preset-mode'] = togglePreset(
+			'Preset Memory',
+			'Preset Recall Mode',
+			'RECALL MODE\\n$(generic-module:presetSpeedUnit)',
+			'presetSpeedTimeUnit',
+			null,
+			null,
+		)
 
-		presets['preset-speed-table'] = {
-			type: 'button',
-			category: 'Preset Memory',
-			name: 'Preset Recall Speed Table',
-			style: {
-				text: 'SPEED TABLE\\n$(generic-module:presetSpeedTable)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetSpeedTable',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+		presets['preset-speed-table'] = togglePreset(
+			'Preset Memory',
+			'Preset Recall Speed Table',
+			'SPEED TABLE\\n$(generic-module:presetSpeedTable)',
+			'presetSpeedTable',
+			null,
+			null,
+		)
 	}
 
 	if (SERIES.capabilities.presetSpeed) {
 		presets[`preset-velocity`] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Preset Recall Velocity',
 			style: {
@@ -2376,9 +1149,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				rotaryActions: true,
 			},
 			steps: [
 				{
@@ -2412,238 +1182,70 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		presets['preset-speed-high'] = {
-			type: 'button',
-			category: 'Preset Memory',
-			name: 'Set Recall Speed High',
-			style: {
-				text: 'RECALL SPEED\\nHIGH',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetSpeedTime',
-							options: {
-								op: 's',
-								set: '999',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'presetSpeedTime',
-					options: {
-						option: '999',
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['preset-speed-high'] = valuePreset(
+			'Preset Memory',
+			'Set Recall Speed High',
+			'RECALL SPEED\\nHIGH',
+			'presetSpeedTime',
+			'presetSpeedTime',
+			'999',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 
-		presets['preset-speed-mid'] = {
-			type: 'button',
-			category: 'Preset Memory',
-			name: 'Set Recall Speed Mid',
-			style: {
-				text: 'RECALL SPEED\\nMID',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetSpeedTime',
-							options: {
-								op: 's',
-								set: '625',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'presetSpeedTime',
-					options: {
-						option: '625',
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['preset-speed-mid'] = valuePreset(
+			'Preset Memory',
+			'Set Recall Speed Mid',
+			'RECALL SPEED\\nMID',
+			'presetSpeedTime',
+			'presetSpeedTime',
+			'625',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 
-		presets['preset-speed-low'] = {
-			type: 'button',
-			category: 'Preset Memory',
-			name: 'Set Recall Speed Low',
-			style: {
-				text: 'RECALL SPEED\\nLOW',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetSpeedTime',
-							options: {
-								op: 's',
-								set: '275',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'presetSpeedTime',
-					options: {
-						option: '275',
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['preset-speed-low'] = valuePreset(
+			'Preset Memory',
+			'Set Recall Speed Low',
+			'RECALL SPEED\\nLOW',
+			'presetSpeedTime',
+			'presetSpeedTime',
+			'275',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 	}
 
 	if (SERIES.capabilities.preset) {
-		presets['preset-scope-a'] = {
-			type: 'button',
-			category: 'Preset Memory',
-			name: 'Preset Recall Scope A',
-			style: {
-				text: 'Preset Recall Scope\\nA',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetRecallScope',
-							options: {
-								op: 's',
-								set: '0',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'presetRecallScope',
-					options: {
-						option: '0',
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['preset-scope-a'] = valuePreset(
+			'Preset Memory',
+			'Preset Recall Scope A',
+			'Preset Recall Scope\\nA',
+			'presetRecallScope',
+			'presetRecallScope',
+			'0',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 
-		presets['preset-scope-b'] = {
-			type: 'button',
-			category: 'Preset Memory',
-			name: 'Preset Recall Scope B',
-			style: {
-				text: 'Preset Recall Scope\\nB',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetRecallScope',
-							options: {
-								op: 's',
-								set: '1',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'presetRecallScope',
-					options: {
-						option: '1',
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['preset-scope-b'] = valuePreset(
+			'Preset Memory',
+			'Preset Recall Scope B',
+			'Preset Recall Scope\\nB',
+			'presetRecallScope',
+			'presetRecallScope',
+			'1',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 
-		presets['preset-scope-c'] = {
-			type: 'button',
-			category: 'Preset Memory',
-			name: 'Preset Recall Scope C',
-			style: {
-				text: 'Preset Recall Scope\\nC',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'presetRecallScope',
-							options: {
-								op: 's',
-								set: '2',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'presetRecallScope',
-					options: {
-						option: '2',
-					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['preset-scope-c'] = valuePreset(
+			'Preset Memory',
+			'Preset Recall Scope C',
+			'Preset Recall Scope\\nC',
+			'presetRecallScope',
+			'presetRecallScope',
+			'2',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 
 		presets['preset-clear-all'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Preset Memory',
 			name: 'Clear All Presets (hold 3s)',
 			style: {
@@ -2651,9 +1253,6 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-			},
-			options: {
-				relativeDelay: false,
 			},
 			steps: [
 				{
@@ -2675,113 +1274,93 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		for (let i = 0; i < 100; i++) {
-			presets[`preset-memory-${i}`] = {
-				type: 'button',
-				category: 'Preset Memory',
-				name: 'Recall, Store or Clear Preset ' + (i + 1).toString(),
-				style: {
-					text: 'PRESET\\n' + (i + 1).toString(),
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
-				options: {
-					relativeDelay: false,
-				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'presetResetSelectedCompletedState',
-								options: {},
-							},
-						],
-						up: [
+		// Templated over the model's actual preset slots (not a hardcoded 100).
+		presets['preset-memory'] = {
+			type: 'simple',
+			category: 'Preset Memory',
+			name: 'Recall, Store or Clear Preset',
+			template: {
+				variableName: 'preset',
+				values: Array.from({ length: SERIES.capabilities.preset }, (_, i) => ({
+					name: 'Recall, Store or Clear Preset ' + (i + 1).toString(),
+					value: i + 1,
+				})),
+			},
+			localVariables: [{ variableType: 'simple', variableName: 'preset', startupValue: 1 }],
+			style: {
+				text: 'PRESET\\n$(local:preset)',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'presetResetSelectedCompletedState',
+							options: {},
+						},
+					],
+					up: [
+						{
+							actionId: 'presetMem',
+							options: presetMemOptions('R'),
+						},
+					],
+					1000: {
+						options: { runWhileHeld: true },
+						actions: [
 							{
 								actionId: 'presetMem',
-								options: {
-									op: 'R',
-									val: i.toString(10).padStart(2, '0'),
-									useVar: false,
-								},
+								options: presetMemOptions('M'),
 							},
 						],
-						1000: {
-							options: { runWhileHeld: true },
-							actions: [
-								{
-									actionId: 'presetMem',
-									options: {
-										op: 'M',
-										val: i.toString(10).padStart(2, '0'),
-										useVar: false,
-									},
-								},
-							],
-						},
-						2000: {
-							options: { runWhileHeld: true },
-							actions: [
-								{
-									actionId: 'presetMem',
-									options: {
-										op: 'C',
-										val: i.toString(10).padStart(2, '0'),
-										useVar: false,
-									},
-								},
-							],
-						},
 					},
-				],
-				feedbacks: [
-					{
-						feedbackId: 'presetMemory',
-						options: {
-							option: i.toString(10).padStart(2, '0'),
-							useVar: false,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorGrey,
-						},
+					2000: {
+						options: { runWhileHeld: true },
+						actions: [
+							{
+								actionId: 'presetMem',
+								options: presetMemOptions('C'),
+							},
+						],
 					},
-					...(SERIES.capabilities.presetThumbnails
-						? [
-								{
-									feedbackId: 'presetThumbnail',
-									options: {
-										option: i.toString(10).padStart(2, '0'),
-										useVar: false,
-									},
-								},
-							]
-						: []),
-					{
-						feedbackId: 'presetSelected',
-						options: {
-							option: i.toString(10).padStart(2, '0'),
-							useVar: false,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorOrange,
-						},
+				},
+			],
+			feedbacks: [
+				{
+					feedbackId: 'presetMemory',
+					options: presetFeedbackOptions(),
+					style: {
+						color: colorWhite,
+						bgcolor: colorGrey,
 					},
-					{
-						feedbackId: 'presetComplete',
-						options: {
-							option: i.toString(10).padStart(2, '0'),
-							useVar: false,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorBlue,
-						},
+				},
+				...(SERIES.capabilities.presetThumbnails
+					? [
+							{
+								feedbackId: 'presetThumbnail',
+								options: presetFeedbackOptions(),
+							},
+						]
+					: []),
+				{
+					feedbackId: 'presetSelected',
+					options: presetFeedbackOptions(),
+					style: {
+						color: colorWhite,
+						bgcolor: colorOrange,
 					},
-				],
-			}
+				},
+				{
+					feedbackId: 'presetComplete',
+					options: presetFeedbackOptions(),
+					style: {
+						color: colorWhite,
+						bgcolor: colorBlue,
+					},
+				},
+			],
 		}
 	}
 
@@ -2790,80 +1369,27 @@ export function getPresetDefinitions(self) {
 	// #######################
 
 	if (SERIES.capabilities.trackingAuto) {
-		presets['autotracking-mode'] = {
-			type: 'button',
-			category: 'Auto Tracking',
-			name: 'Auto Tracking Mode',
-			style: {
-				text: 'Auto Tracking\\n$(generic-module:autotrackingMode)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'autotrackingMode',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'autotrackingMode',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['autotracking-mode'] = togglePreset(
+			'Auto Tracking',
+			'Auto Tracking Mode',
+			'Auto Tracking\\n$(generic-module:autotrackingMode)',
+			'autotrackingMode',
+			'autotrackingMode',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
 
-		presets['autotracking-angle'] = {
-			type: 'button',
-			category: 'Auto Tracking',
-			name: 'Auto Tracking Angle',
-			style: {
-				text: 'ANGLE\\n$(generic-module:autotrackingAngle)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
-			steps: [
-				{
-					down: [
-						{
-							actionId: 'autotrackingAngle',
-							options: {
-								op: 't',
-							},
-						},
-					],
-					up: [],
-				},
-			],
-			feedbacks: [
-				{
-					feedbackId: 'autotrackingAngle',
-					options: {
-						option: e.ENUM_AUTOTRACKING_ANGLE[0].id,
-					},
-					isInverted: true,
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
-				},
-			],
-		}
+		presets['autotracking-angle'] = togglePreset(
+			'Auto Tracking',
+			'Auto Tracking Angle',
+			'ANGLE\\n$(generic-module:autotrackingAngle)',
+			'autotrackingAngle',
+			'autotrackingAngle',
+			{ color: colorWhite, bgcolor: colorRed },
+			{ feedbackOptions: { option: e.ENUM_AUTOTRACKING_ANGLE[0].id }, isInverted: true },
+		)
 
 		presets['autotracking-status'] = {
-			type: 'button',
+			type: 'simple',
 			category: 'Auto Tracking',
 			name: 'Auto Tracking Status & Start/Stop',
 			style: {
@@ -2915,88 +1441,147 @@ export function getPresetDefinitions(self) {
 	// ########################
 
 	if (SERIES.capabilities.audioVolumeLevel) {
-		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
-			const disp = ch + 1 // channel is 0-based internally; display/variables are 1-based
-			presets[`audio-volume-ch${disp}`] = {
-				type: 'button',
-				category: 'Audio',
-				name: `Audio Volume Level Channel ${disp}`,
-				style: {
-					text: `Audio CH${disp}\\n$(generic-module:audioVolumeLevel${disp})`,
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
+		const audio = SERIES.capabilities.audioVolumeLevel
+		presets['audio-volume'] = {
+			type: 'simple',
+			category: 'Audio',
+			name: 'Audio Volume Level',
+			template: {
+				variableName: 'channel',
+				values: Array.from({ length: audio.maxch }, (_, ch) => ({
+					name: `Audio Volume Level Channel ${ch + 1}`,
+					value: ch + 1,
+				})),
+			},
+			localVariables: [{ variableType: 'simple', variableName: 'channel', startupValue: 1 }],
+			style: {
+				text: 'Audio CH$(local:channel)\\n$(generic-module:audioVolumeLevel$(local:channel))',
+				size: '14',
+				color: colorWhite,
+				bgcolor: colorBlack,
+			},
+			steps: [
+				{
+					down: [
+						{
+							actionId: 'audioVolumeLevel',
+							options: {
+								channel: LOCAL_CHANNEL_0,
+								op: 's',
+								set: 0,
+							},
+						},
+					],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'audioVolumeLevel',
+							options: {
+								channel: LOCAL_CHANNEL_0,
+								op: -1,
+								step: audio.step,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'audioVolumeLevel',
+							options: {
+								channel: LOCAL_CHANNEL_0,
+								op: 1,
+								step: audio.step,
+							},
+						},
+					],
 				},
-				options: {
-					rotaryActions: true,
+			],
+			feedbacks: [
+				{
+					feedbackId: 'audioVolumeLevel',
+					options: {
+						channel: LOCAL_CHANNEL_0,
+						option: 0,
+					},
+					isInverted: true,
+					style: {
+						color: colorWhite,
+						bgcolor: colorRed,
+					},
 				},
-				steps: [
-					{
-						down: [
-							{
-								actionId: 'audioVolumeLevel',
-								options: {
-									channel: ch,
-									op: 's',
-									set: 0,
-									useVar: false,
-								},
-							},
-						],
-						up: [],
-						rotate_left: [
-							{
-								actionId: 'audioVolumeLevel',
-								options: {
-									channel: ch,
-									op: -1,
-									step: 1,
-									useVar: false,
-								},
-							},
-						],
-						rotate_right: [
-							{
-								actionId: 'audioVolumeLevel',
-								options: {
-									channel: ch,
-									op: 1,
-									step: 1,
-									useVar: false,
-								},
-							},
-						],
-					},
-				],
-				feedbacks: [
-					{
-						feedbackId: 'audioVolumeLevel',
-						options: {
-							channel: ch,
-							minLevel: -5,
-							maxLevel: 5,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorGreen,
-						},
-					},
-					{
-						feedbackId: 'audioVolumeLevel',
-						options: {
-							channel: ch,
-							minLevel: 6,
-							maxLevel: 20,
-						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorOrange,
-						},
-					},
-				],
-			}
+			],
 		}
 	}
 
-	return presets
+	return buildPresetDefinitions(presets, self)
+}
+
+// Companion validates every option, so fill in ones a preset omits and drop ones this model's
+// action lacks (e.g. no step size on an Inc/Dec-only camera). upgrades.js does the same on disk.
+const reconcileOptions = (entities, idKey, specs) =>
+	(entities ?? []).map((entity) => {
+		const spec = specs[entity[idKey]]
+		if (!spec) return entity
+
+		const options = { ...spec.defaults }
+		for (const id of spec.ids) {
+			if (entity.options && id in entity.options) options[id] = entity.options[id]
+		}
+		return { ...entity, options }
+	})
+
+// API 2.0 splits presets into a `structure` of sections plus flat definitions; categories are
+// lifted from each preset. A section's `definitions` must be all plain ids or all groups, not a
+// mix, so once one preset is templated the plain ones are wrapped in a group alongside it.
+function buildPresetDefinitions(presets, self) {
+	const structure = []
+	const sections = new Map()
+	const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+
+	const actionSpecs = optionSpecs(getActionDefinitions(self))
+	const feedbackSpecs = optionSpecs(getFeedbackDefinitions(self))
+
+	for (const [id, preset] of Object.entries(presets)) {
+		const { category, template, ...definition } = preset
+
+		// A step maps action-set names to actions, plus non-action keys like `options`.
+		definition.steps = definition.steps.map((step) =>
+			Object.fromEntries(
+				Object.entries(step).map(([set, actions]) => [
+					set,
+					Array.isArray(actions) ? reconcileOptions(actions, 'actionId', actionSpecs) : actions,
+				]),
+			),
+		)
+		definition.feedbacks = reconcileOptions(definition.feedbacks, 'feedbackId', feedbackSpecs)
+
+		presets[id] = definition
+
+		let section = sections.get(category)
+		if (!section) {
+			section = { id: slug(category), name: category, plain: [], templates: [] }
+			sections.set(category, section)
+		}
+
+		if (template) {
+			section.templates.push({
+				id: `${slug(category)}-${id}`,
+				type: 'template',
+				name: definition.name,
+				presetId: id,
+				templateVariableName: template.variableName,
+				templateValues: template.values,
+			})
+		} else {
+			section.plain.push(id)
+		}
+	}
+
+	for (const { id, name, plain, templates } of sections.values()) {
+		const definitions = templates.length
+			? [...(plain.length ? [{ id: `${id}-general`, type: 'simple', name, presets: plain }] : []), ...templates]
+			: plain
+		structure.push({ id, name, definitions })
+	}
+
+	return { structure, presets }
 }

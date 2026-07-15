@@ -1,3 +1,7 @@
+import { createModuleLogger } from '@companion-module/base'
+
+const logger = createModuleLogger('parser')
+
 export function parseUpdate(self, str) {
 	if (str[0].substring(0, 3) === 'rER') {
 		self.data.error = str[0].substring(3)
@@ -69,15 +73,21 @@ export function parseUpdate(self, str) {
 		switch (str[0].substring(2, 4)) {
 			case '00':
 				self.data.presetEntries0 = parseInt(str[0].substring(4), 16).toString(2).padStart(40, 0).split('').reverse()
-				self.data.presetEntries0.forEach((p, i) => (p === '1' ? self.getThumbnail(i) : (self.data.presetThumbnails[i] = undefined)))
+				self.data.presetEntries0.forEach((p, i) =>
+					p === '1' ? self.getThumbnail(i) : (self.data.presetThumbnails[i] = undefined),
+				)
 				break
 			case '01':
 				self.data.presetEntries1 = parseInt(str[0].substring(4), 16).toString(2).padStart(40, 0).split('').reverse()
-				self.data.presetEntries1.forEach((p, i) => (p === '1' ? self.getThumbnail(i + 40) : (self.data.presetThumbnails[i + 40] = undefined)))
+				self.data.presetEntries1.forEach((p, i) =>
+					p === '1' ? self.getThumbnail(i + 40) : (self.data.presetThumbnails[i + 40] = undefined),
+				)
 				break
 			case '02':
 				self.data.presetEntries2 = parseInt(str[0].substring(4), 16).toString(2).padStart(20, 0).split('').reverse()
-				self.data.presetEntries2.forEach((p, i) => (p === '1' ? self.getThumbnail(i + 80) : (self.data.presetThumbnails[i + 80] = undefined)))
+				self.data.presetEntries2.forEach((p, i) =>
+					p === '1' ? self.getThumbnail(i + 80) : (self.data.presetThumbnails[i + 80] = undefined),
+				)
 				break
 		}
 
@@ -104,7 +114,8 @@ export function parseUpdate(self, str) {
 		//self.data.tiltPosition = parseInt(str[0].substring(7, 11), 16)
 		//self.data.zoom999Position = parseInt(str[0].substring(11, 14), 16)
 		//self.data.focus99Position = parseInt(str[0].substring(14, 16), 16)
-		self.data.irisLabel = str[0].substring(16, 18) === 'FF' ? 'CLOSE' : 'f/' + (parseInt(str[0].substring(16, 18), 16) / 10).toFixed(1)
+		self.data.irisLabel =
+			str[0].substring(16, 18) === 'FF' ? 'CLOSE' : 'f/' + (parseInt(str[0].substring(16, 18), 16) / 10).toFixed(1)
 	}
 
 	if (str[0].substring(0, 3) === 'pTG') {
@@ -191,9 +202,9 @@ export function parseUpdate(self, str) {
 			break
 		case 'OID':
 			self.data.modelAuto = str[1]
-			// if another model is detected or selected, re-initialise all actions, variables and feedbacks
+			// re-init all if model changed
 			if (self.data.modelAuto !== self.data.model) {
-				self.log('info', 'Detected Camera Model: ' + self.data.modelAuto)
+				logger.info('Detected Camera Model: ' + self.data.modelAuto)
 				//self.reInitAll()
 			}
 			break
@@ -254,6 +265,9 @@ export function parseUpdate(self, str) {
 				case '20':
 					self.data.colorTempLabel = parseInt(str[2].substring(0, 5), 16).toString() + 'K'
 					break // VAR
+				case '30':
+					self.data.shootingMode = str[2]
+					break
 				// case 'D2': self.data.filter = str[2]; break // UB300's additional "Intelligent ND Filter"
 			}
 			break
@@ -310,9 +324,7 @@ export function parseUpdate(self, str) {
 				case '0B':
 					self.data.chromaPhaseValue = parseInt(str[2], 16) - 0x80
 					break
-				case '0C':
-					self.data.shootingMode = str[2]
-					break
+				//case '0C': break // AWB Gain Offset
 				case '0F':
 					self.data.masterPedValue = parseInt(str[2], 16) - 0x800
 					break
@@ -333,6 +345,9 @@ export function parseUpdate(self, str) {
 			break
 		case 'OSL':
 			switch (str[1]) {
+				case '25':
+					self.data.gain = str[2].replace('0x', '').padStart(2, '0') // same encoding as OGU/OGS
+					break
 				case '36':
 					self.data.redGainValue = parseInt(str[2], 16) - 0x800
 					break
@@ -434,9 +449,9 @@ export function parseWeb(self, str, cmd) {
 					break
 				case 'NAME':
 					self.data.modelAuto = str[1]
-					// if a new model is detected or selected, re-initialise all actions, variables and feedbacks
+					// re-init all if model changed
 					if (self.data.modelAuto !== self.data.model) {
-						self.log('info', 'Detected Camera Model: ' + self.data.modelAuto)
+						logger.info('Detected Camera Model: ' + self.data.modelAuto)
 						//self.reInitAll()
 					}
 					break
@@ -447,7 +462,6 @@ export function parseWeb(self, str, cmd) {
 
 export function parseWebCode(self, code, cmd) {
 	if (code === 204 || code === 503) {
-		// no content
 		switch (cmd) {
 			case 'srt_ctrl?cmd=start':
 				self.data.srt = '1'

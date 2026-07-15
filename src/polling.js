@@ -1,19 +1,27 @@
-// Maps each transport group of a model's pull/poll capabilities to the instance method that queries it.
+import { sleep } from './common.js'
+
+// Transport group -> instance method that queries it.
 const transports = { ptz: 'getPTZ', cam: 'getCam', web: 'getWeb' }
 
+// A teardown clears `poll` and the reinit sets it again, so a loop awaiting across that wakes to a
+// true flag and runs a duplicate. The generation token distinguishes "still running" from "running again".
 export async function pollCameraStatus(self) {
-	while (self.poll) {
-		// When subscription is disabled, also poll the data it would otherwise push (pull).
-		// The additional data (poll) is always queried, regardless of subscription.
-		const groups = self.config.subscriptionEnable ? [self.SERIES.capabilities.poll] : [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]
+	const generation = ++self.pollGen
+	const alive = () => self.poll && self.pollGen === generation
+
+	while (alive()) {
+		// Subscription off: also query the pull data it would otherwise push. Poll data always runs.
+		const groups = self.config.subscriptionEnable
+			? [self.SERIES.capabilities.poll]
+			: [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]
 
 		for (const caps of groups) {
 			if (!caps) continue
 			for (const [key, method] of Object.entries(transports)) {
 				for (const cmd of caps[key] || []) {
-					if (!self.poll) return
+					if (!alive()) return
 					await self[method](cmd)
-					if (!self.poll) return
+					if (!alive()) return
 					await sleep(self.config.pollDelay)
 				}
 			}
@@ -21,8 +29,51 @@ export async function pollCameraStatus(self) {
 	}
 }
 
-// One-shot query of all data defined by the model's pull and poll capabilities.
-// Functional, capability-driven alternative to getAllCameraStatus for use at initialisation.
+// Live subscribers refresh their timestamp on every getImage() evaluation; departed ones go quiet.
+// unsubscribe() covers normal removal; this catches the paths it misses (page import, moved control)
+// so a lost subscriber stops the poll instead of hammering the camera forever.
+function pruneImageSubscribers(self) {
+	const deadline = Date.now() - 3 * self.config.imageInterval - self.config.timeout
+
+	for (const [id, seen] of self.imageSubscribers) {
+		if (seen < deadline) self.imageSubscribers.delete(id)
+	}
+}
+
+// Separate loop from pollCameraStatus: a full-size frame every ~second would stall the sub-second
+// status commands queued behind it. Module API 2.0 has no feedback subscribe hook, so the loop runs
+// only while a button's feedback re-registers itself on each evaluation (see feedbacks.js).
+export async function pollLiveImage(self) {
+	const generation = ++self.pollImageGen // a loop from before a re-init must not outlive it
+
+	while (self.pollImage && self.pollImageGen === generation) {
+		pruneImageSubscribers(self)
+		if (self.imageSubscribers.size === 0) break
+
+		await self.getImage()
+		if (!self.pollImage || self.pollImageGen !== generation) return
+
+		// Back off while the camera is not answering.
+		await sleep(self.config.imageInterval * (self.imageErrors ? 5 : 1))
+	}
+
+	if (self.pollImageGen === generation) self.pollImage = false
+}
+
+// Called from the feedback callback; the guard stops the following evaluations from each starting a loop.
+export function startLiveImagePoll(self) {
+	if (self.pollImage) return
+	if (!self.SERIES?.capabilities.imageTransmission || !self.config.imageEnable) return
+
+	self.pollImage = true
+
+	pollLiveImage(self).catch((err) => {
+		self.pollImage = false
+		self.log('error', 'Live image polling stopped: ' + String(err))
+	})
+}
+
+// One-shot query of the model's pull+poll capabilities, run at initialisation.
 export async function getCameraStatusOnce(self) {
 	for (const caps of [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]) {
 		if (!caps) continue
@@ -32,6 +83,8 @@ export async function getCameraStatusOnce(self) {
 	}
 }
 
+// Reference used when bringing up a new model, to see what the device answers before models.js is
+// filled in. Deliberately unused — do not delete as dead code; getCameraStatusOnce is the runtime path.
 export async function getAllCameraStatus(self) {
 	const cmds = {
 		ptz: [
@@ -137,8 +190,4 @@ export async function getAllCameraStatus(self) {
 	for (const [key, method] of Object.entries(transports)) {
 		for (const cmd of cmds[key] || []) await self[method](cmd)
 	}
-}
-
-function sleep(ms) {
-	return new Promise((resolve) => setTimeout(resolve, ms))
 }

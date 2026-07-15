@@ -1,219 +1,171 @@
 import { constrainRange, getAndUpdateSeries, getLabel } from './common.js'
 import { e } from './enum.js'
 
-// ##########################
-// #### Define Variables ####
-// ##########################
 export function setVariables(self) {
 	const SERIES = getAndUpdateSeries(self)
+	const caps = SERIES.capabilities
 
-	const variables = []
+	// [capability guard, variables it unlocks]. Guard is a capability key or a predicate.
+	const VARIABLES = [
+		[null, { model: 'Model of camera', title: 'Title of camera' }],
+		['version', { version: 'Firmware Version' }],
+		['error', { error: 'Error Code' }],
+		['install', { installMode: 'Install Position' }],
+		['power', { power: 'Power Status' }],
+		['colorbar', { colorbar: 'Color Bar Status' }],
+		['tally', { tally: 'Red Tally Status' }],
+		[(c) => c.tally && c.tally2, { tally2: 'Green Tally Status' }],
+		[(c) => c.tally && c.tally2 && c.tally3, { tally3: 'Yellow Tally Status' }],
+		['focusAuto', { focusMode: 'Focus Mode' }],
+		[(c) => c.whiteBalance && c.whiteBalance.dropdown, { whiteBalance: 'White Balance Mode' }],
+		['colorTemperature', { colorTemperature: 'Color Temperature' }],
+		['filter', { filter: 'ND Filter' }],
+		['gain', { gain: 'Gain' }],
+		['shootingMode', { shootingMode: 'Shooting Mode' }],
+		['night', { nightMode: 'Night Mode' }],
+		[
+			'preset',
+			{
+				presetScope: 'Preset Recall Scope',
+				presetCompleted: 'Preset # Completed',
+				presetSelected: 'Preset # Selected',
+				presetMemory: 'Used Preset Memory slots',
+			},
+		],
+		['shutter', { shutter: 'Shutter Mode' }],
+		[(c) => c.shutter && c.shutter.dropdown === e.ENUM_SHUTTER_ADV, { shutterStep: 'Shutter Step' }],
+		['ois', { ois: 'O.I.S.' }],
+		[
+			'panTilt',
+			{
+				ptSpeed: 'Pan/Tilt Speed',
+				pSpeed: 'Pan Speed',
+				tSpeed: 'Tilt Speed',
+				panPosition: 'Pan Position',
+				tiltPosition: 'Tilt Position',
+				panPositionDeg: 'Pan Position °',
+				tiltPositionDeg: 'Tilt Position °',
+			},
+		],
+		[
+			'zoom',
+			{
+				zoomPosition: 'Zoom Position',
+				zoomPositionPct: 'Zoom Position %',
+				zoomPositionBar: 'Zoom Position',
+				zoomSpeed: 'Zoom Speed Control',
+				zSpeed: 'Zoom Speed',
+			},
+		],
+		[
+			'focus',
+			{
+				focusPosition: 'Focus Position',
+				focusPositionPct: 'Focus Position %',
+				focusPositionBar: 'Focus Position',
+				focusSpeed: 'Focus Speed Control',
+				fSpeed: 'Focus Speed',
+			},
+		],
+		[
+			'iris',
+			{
+				irisPosition: 'Iris Position',
+				irisPositionPct: 'Iris Position %',
+				irisPositionBar: 'Iris Position',
+				irisVolume: 'Iris Volume',
+			},
+		],
+		['irisAuto', { irisMode: 'Iris Mode' }],
+		['irisF', { irisF: 'Iris F No.' }],
+		['pedestal', { masterPed: 'Master Pedestal' }],
+		['chromaLevel', { chromaLevel: 'Chroma Level' }],
+		['chromaPhase', { chromaPhase: 'Chroma Phase' }],
+		['dnr', { dnr: 'Digital Noise Reduction' }],
+		['drs', { drs: 'Dynamic Range Stretch' }],
+		['colorGain', { redGain: 'Red Gain', blueGain: 'Blue Gain' }],
+		[(c) => c.colorGain && c.colorGain.cmd.green, { greenGain: 'Green Gain' }],
+		['colorPedestal', { redPed: 'Red Pedestal', bluePed: 'Blue Pedestal' }],
+		[(c) => c.colorPedestal && c.colorPedestal.cmd.green, { greenPed: 'Green Pedestal' }],
+		['presetSpeed', { presetSpeed: 'Preset Recall Speed/Time', presetSpeedTable: 'Preset Recall Speed Table' }],
+		['presetTime', { presetSpeedUnit: 'Preset Recall Speed Unit' }],
+		['recordSD', { recording: 'SD Card Recording Status' }],
+		['streamRTMP', { streamingRTMP: 'RTMP Push Status' }],
+		['streamSRT', { streamingSRT: 'SRT Caller Status' }],
+		['streamTS', { streamingTS: 'MPEG-TS Output Status' }],
+		['videoFormat', { videoFormat: 'Video Format' }],
+		[
+			'trackingAuto',
+			{
+				autotrackingMode: 'Autotracking Mode',
+				autotrackingAngle: 'Autotracking Angle',
+				autotrackingStatus: 'Autotracking Status',
+			},
+		],
+	]
 
-	variables.push({ variableId: 'model', name: 'Model of camera' })
-	variables.push({ variableId: 'title', name: 'Title of camera' })
-	if (SERIES.capabilities.version) {
-		variables.push({ variableId: 'version', name: 'Firmware Version' })
+	const variables = {}
+
+	for (const [guard, names] of VARIABLES) {
+		const supported = guard === null || (typeof guard === 'function' ? guard(caps) : caps[guard])
+		if (!supported) continue
+		for (const [id, name] of Object.entries(names)) variables[id] = { name }
 	}
-	if (SERIES.capabilities.error) {
-		variables.push({ variableId: 'error', name: 'Error Code' })
-	}
-	if (SERIES.capabilities.install) {
-		variables.push({ variableId: 'installMode', name: 'Install Position' })
-	}
-	if (SERIES.capabilities.power) {
-		variables.push({ variableId: 'power', name: 'Power Status' })
-	}
-	if (SERIES.capabilities.colorbar) {
-		variables.push({ variableId: 'colorbar', name: 'Color Bar Status' })
-	}
-	if (SERIES.capabilities.tally) {
-		variables.push({ variableId: 'tally', name: 'Red Tally Status' })
-		if (SERIES.capabilities.tally2) {
-			variables.push({ variableId: 'tally2', name: 'Green Tally Status' })
-			if (SERIES.capabilities.tally3) {
-				variables.push({ variableId: 'tally3', name: 'Yellow Tally Status' })
-			}
-		}
-	}
-	if (SERIES.capabilities.focusAuto) {
-		variables.push({ variableId: 'focusMode', name: 'Focus Mode' })
-	}
-	if (SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown) {
-		variables.push({ variableId: 'whiteBalance', name: 'White Balance Mode' })
-	}
-	if (SERIES.capabilities.colorTemperature) {
-		variables.push({ variableId: 'colorTemperature', name: 'Color Temperature' })
-	}
-	if (SERIES.capabilities.filter) {
-		variables.push({ variableId: 'filter', name: 'ND Filter' })
-	}
-	if (SERIES.capabilities.gain) {
-		variables.push({ variableId: 'gain', name: 'Gain' })
-	}
-	if (SERIES.capabilities.shootingMode) {
-		variables.push({ variableId: 'shootingMode', name: 'Shooting Mode' })
-	}
-	if (SERIES.capabilities.night) {
-		variables.push({ variableId: 'nightMode', name: 'Night Mode' })
-	}
-	if (SERIES.capabilities.preset) {
-		variables.push({ variableId: 'presetScope', name: 'Preset Recall Scope' })
-		variables.push({ variableId: 'presetCompleted', name: 'Preset # Completed' })
-		variables.push({ variableId: 'presetSelected', name: 'Preset # Selected' })
-		variables.push({ variableId: 'presetMemory', name: 'Used Preset Memory slots' })
-	}
-	if (SERIES.capabilities.shutter) {
-		variables.push({ variableId: 'shutter', name: 'Shutter Mode' })
-	}
-	if (SERIES.capabilities.shutter && SERIES.capabilities.shutter.dropdown === e.ENUM_SHUTTER_ADV) {
-		variables.push({ variableId: 'shutterStep', name: 'Shutter Step' })
-	}
-	if (SERIES.capabilities.ois) {
-		variables.push({ variableId: 'ois', name: 'O.I.S.' })
-	}
-	if (SERIES.capabilities.panTilt) {
-		variables.push({ variableId: 'ptSpeed', name: 'Pan/Tilt Speed' })
-		variables.push({ variableId: 'pSpeed', name: 'Pan Speed' })
-		variables.push({ variableId: 'tSpeed', name: 'Tilt Speed' })
-		variables.push({ variableId: 'panPosition', name: 'Pan Position' })
-		variables.push({ variableId: 'tiltPosition', name: 'Tilt Position' })
-		variables.push({ variableId: 'panPositionDeg', name: 'Pan Position °' })
-		variables.push({ variableId: 'tiltPositionDeg', name: 'Tilt Position °' })
-	}
-	if (SERIES.capabilities.zoom) {
-		variables.push({ variableId: 'zoomPosition', name: 'Zoom Position' })
-		variables.push({ variableId: 'zoomPositionPct', name: 'Zoom Position %' })
-		variables.push({ variableId: 'zoomPositionBar', name: 'Zoom Position' })
-		variables.push({ variableId: 'zoomSpeed', name: 'Zoom Speed Control' })
-		variables.push({ variableId: 'zSpeed', name: 'Zoom Speed' })
-	}
-	if (SERIES.capabilities.focus) {
-		variables.push({ variableId: 'focusPosition', name: 'Focus Position' })
-		variables.push({ variableId: 'focusPositionPct', name: 'Focus Position %' })
-		variables.push({ variableId: 'focusPositionBar', name: 'Focus Position' })
-		variables.push({ variableId: 'focusSpeed', name: 'Focus Speed Control' })
-		variables.push({ variableId: 'fSpeed', name: 'Focus Speed' })
-	}
-	if (SERIES.capabilities.iris) {
-		variables.push({ variableId: 'irisPosition', name: 'Iris Position' })
-		variables.push({ variableId: 'irisPositionPct', name: 'Iris Position %' })
-		variables.push({ variableId: 'irisPositionBar', name: 'Iris Position' })
-		variables.push({ variableId: 'irisVolume', name: 'Iris Volume' })
-	}
-	if (SERIES.capabilities.irisAuto) {
-		variables.push({ variableId: 'irisMode', name: 'Iris Mode' })
-	}
-	if (SERIES.capabilities.irisF) {
-		variables.push({ variableId: 'irisF', name: 'Iris F No.' })
-	}
-	if (SERIES.capabilities.pedestal) {
-		variables.push({ variableId: 'masterPed', name: 'Master Pedestal' })
-	}
-	if (SERIES.capabilities.chromaLevel) {
-		variables.push({ variableId: 'chromaLevel', name: 'Chroma Level' })
-	}
-	if (SERIES.capabilities.chromaPhase) {
-		variables.push({ variableId: 'chromaPhase', name: 'Chroma Phase' })
-	}
-	if (SERIES.capabilities.dnr) {
-		variables.push({ variableId: 'dnr', name: 'Digital Noise Reduction' })
-	}
-	if (SERIES.capabilities.drs) {
-		variables.push({ variableId: 'drs', name: 'Dynamic Range Stretch' })
-	}
-	if (SERIES.capabilities.colorGain) {
-		variables.push({ variableId: 'redGain', name: 'Red Gain' })
-		variables.push({ variableId: 'blueGain', name: 'Blue Gain' })
-		if (SERIES.capabilities.colorGain.cmd.green) {
-			variables.push({ variableId: 'greenGain', name: 'Green Gain' })
-		}
-	}
-	if (SERIES.capabilities.colorPedestal) {
-		variables.push({ variableId: 'redPed', name: 'Red Pedestal' })
-		variables.push({ variableId: 'bluePed', name: 'Blue Pedestal' })
-		if (SERIES.capabilities.colorPedestal.cmd.green) {
-			variables.push({ variableId: 'greenPed', name: 'Green Pedestal' })
-		}
-	}
-	if (SERIES.capabilities.presetSpeed) {
-		variables.push({ variableId: 'presetSpeed', name: 'Preset Recall Speed/Time' })
-		variables.push({ variableId: 'presetSpeedTable', name: 'Preset Recall Speed Table' })
-	}
-	if (SERIES.capabilities.presetTime) {
-		variables.push({ variableId: 'presetSpeedUnit', name: 'Preset Recall Speed Unit' })
-	}
-	if (SERIES.capabilities.recordSD) {
-		variables.push({ variableId: 'recording', name: 'SD Card Recording Status' })
-	}
-	if (SERIES.capabilities.streamRTMP) {
-		variables.push({ variableId: 'streamingRTMP', name: 'RTMP Push Status' })
-	}
-	if (SERIES.capabilities.streamSRT) {
-		variables.push({ variableId: 'streamingSRT', name: 'SRT Caller Status' })
-	}
-	if (SERIES.capabilities.streamTS) {
-		variables.push({ variableId: 'streamingTS', name: 'MPEG-TS Output Status' })
-	}
-	if (SERIES.capabilities.videoFormat) {
-		variables.push({ variableId: 'videoFormat', name: 'Video Format' })
-	}
-	if (SERIES.capabilities.trackingAuto) {
-		variables.push({ variableId: 'autotrackingMode', name: 'Autotracking Mode' })
-		variables.push({ variableId: 'autotrackingAngle', name: 'Autotracking Angle' })
-		variables.push({ variableId: 'autotrackingStatus', name: 'Autotracking Status' })
-	}
-	if (SERIES.capabilities.audioVolumeLevel) {
-		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
-			variables.push({ variableId: `audioVolumeLevel${ch + 1}`, name: `Audio Volume Level Channel ${ch + 1} (dB)` })
+
+	if (caps.audioVolumeLevel) {
+		for (let ch = 1; ch <= caps.audioVolumeLevel.maxch; ch++) {
+			variables[`audioVolumeLevel${ch}`] = { name: `Audio Volume Level Channel ${ch} (dB)` }
 		}
 	}
 
 	return variables
 }
 
-// #########################
-// #### Check Variables ####
-// #########################
 export function checkVariables(self) {
 	const SERIES = getAndUpdateSeries(self)
 
-	const autotrackingAngle = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_AUTOTRACKING_ANGLE, self.data.autotrackingAngle) : null
+	// [variable, capability, choices or fn(capability), data key if it differs]
+	const LABELLED = [
+		['autotrackingAngle', 'trackingAuto', e.ENUM_AUTOTRACKING_ANGLE],
+		['autotrackingMode', 'trackingAuto', e.ENUM_OFF_ON],
+		['autotrackingStatus', 'trackingAuto', e.ENUM_AUTOTRACKING_STATUS],
+		['chromaLevel', 'chromaLevel', (cap) => cap.dropdown],
+		['colorbar', 'colorbar', e.ENUM_OFF_ON],
+		['colorTemperature', 'colorTemperature', (cap) => cap.index?.dropdown],
+		['dnr', 'dnr', (cap) => cap.dropdown],
+		['drs', 'drs', (cap) => cap.dropdown],
+		['error', 'error', e.ENUM_ERROR],
+		['filter', 'filter', (cap) => cap.dropdown],
+		['focusMode', 'focusAuto', e.ENUM_MAN_AUTO],
+		['gain', 'gain', (cap) => cap.dropdown],
+		['installMode', 'install', e.ENUM_INSTALL_POSITION],
+		['irisMode', 'irisAuto', e.ENUM_MAN_AUTO],
+		['nightMode', 'night', e.ENUM_OFF_ON],
+		['ois', 'ois', (cap) => cap.dropdown],
+		['power', 'power', e.ENUM_OFF_ON],
+		['presetScope', 'preset', e.ENUM_PRESET_SCOPE],
+		['presetSpeed', 'presetSpeed', e.ENUM_PRESET_SPEED_TIME],
+		['presetSpeedTable', 'presetSpeed', (cap) => cap.dropdown],
+		['presetSpeedUnit', 'presetTime', e.ENUM_PRESET_SPEED_UNIT],
+		['recording', 'recordSD', e.ENUM_OFF_ON],
+		['shootingMode', 'shootingMode', (cap) => cap.dropdown],
+		['shutter', 'shutter', (cap) => cap.dropdown],
+		['streamingRTMP', 'streamRTMP', e.ENUM_OFF_ON, 'rtmp'],
+		['streamingSRT', 'streamSRT', e.ENUM_OFF_ON, 'srt'],
+		['streamingTS', 'streamTS', e.ENUM_OFF_ON, 'ts'],
+		['tally', 'tally', e.ENUM_OFF_ON],
+		['tally2', 'tally2', e.ENUM_OFF_ON],
+		['tally3', 'tally3', e.ENUM_OFF_ON],
+		['videoFormat', 'videoFormat', e.ENUM_VIDEO_FORMAT],
+		['whiteBalance', 'whiteBalance', (cap) => cap.dropdown],
+	]
 
-	const autotrackingMode = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_OFF_ON, self.data.autotrackingMode) : null
-
-	const autotrackingStatus = SERIES.capabilities.trackingAuto ? getLabel(e.ENUM_AUTOTRACKING_STATUS, self.data.autotrackingStatus) : null
-
-	const chromaLevel = SERIES.capabilities.chromaLevel ? getLabel(SERIES.capabilities.chromaLevel.dropdown, self.data.chromaLevel) : null
-
-	const colorbar = SERIES.capabilities.colorbar ? getLabel(e.ENUM_OFF_ON, self.data.colorbar) : null
-
-	const dnr = SERIES.capabilities.dnr ? getLabel(SERIES.capabilities.dnr.dropdown, self.data.dnr) : null
-
-	const drs = SERIES.capabilities.drs ? getLabel(SERIES.capabilities.drs.dropdown, self.data.drs) : null
-
-	const videoFormat = SERIES.capabilities.videoFormat ? getLabel(e.ENUM_VIDEO_FORMAT, self.data.videoFormat) : null
-
-	const colorTemperature = SERIES.capabilities.colorTemperature.index ? getLabel(SERIES.capabilities.colorTemperature.index.dropdown, self.data.colorTemperature) : null
-
-	const error = SERIES.capabilities.error ? getLabel(e.ENUM_ERROR, self.data.error) : null
-
-	const filter = SERIES.capabilities.filter ? getLabel(SERIES.capabilities.filter.dropdown, self.data.filter) : null
-
-	const focusMode = SERIES.capabilities.focusAuto ? getLabel(e.ENUM_MAN_AUTO, self.data.focusMode) : null
-
-	const gain = SERIES.capabilities.gain ? getLabel(SERIES.capabilities.gain.dropdown, self.data.gain) : null
-
-	const installMode = SERIES.capabilities.install ? getLabel(e.ENUM_INSTALL_POSITION, self.data.installMode) : null
-
-	const irisMode = SERIES.capabilities.irisAuto ? getLabel(e.ENUM_MAN_AUTO, self.data.irisMode) : null
-
-	const nightMode = SERIES.capabilities.night ? getLabel(e.ENUM_OFF_ON, self.data.nightMode) : null
-
-	const ois = SERIES.capabilities.ois ? getLabel(SERIES.capabilities.ois.dropdown, self.data.ois) : null
-
-	const power = SERIES.capabilities.power ? getLabel(e.ENUM_OFF_ON, self.data.power) : null
-
-	const presetScope = SERIES.capabilities.preset ? getLabel(e.ENUM_PRESET_SCOPE, self.data.presetScope) : null
+	const labelled = {}
+	for (const [variable, capability, choices, dataKey = variable] of LABELLED) {
+		const cap = SERIES.capabilities[capability]
+		const dropdown = typeof choices === 'function' ? (cap ? choices(cap) : undefined) : choices
+		labelled[variable] = cap && dropdown ? getLabel(dropdown, self.data[dataKey]) : null
+	}
 
 	const presetMemory = SERIES.capabilities.preset
 		? self.data.presetEntries
@@ -221,32 +173,6 @@ export function checkVariables(self) {
 				.filter((n) => n !== null)
 				.join(',')
 		: null
-
-	const presetSpeed = SERIES.capabilities.presetSpeed ? getLabel(e.ENUM_PRESET_SPEED_TIME, self.data.presetSpeed) : null
-
-	const presetSpeedTable = SERIES.capabilities.presetSpeed ? getLabel(SERIES.capabilities.presetSpeed.dropdown, self.data.presetSpeedTable) : null
-
-	const presetSpeedUnit = SERIES.capabilities.presetTime ? getLabel(e.ENUM_PRESET_SPEED_UNIT, self.data.presetSpeedUnit) : null
-
-	const recording = SERIES.capabilities.recordSD ? getLabel(e.ENUM_OFF_ON, self.data.recording) : null
-
-	const rtmp = SERIES.capabilities.streamRTMP ? getLabel(e.ENUM_OFF_ON, self.data.rtmp) : null
-
-	const shootingMode = SERIES.capabilities.shootingMode ? getLabel(SERIES.capabilities.shootingMode.dropdown, self.data.shootingMode) : null
-
-	const shutter = SERIES.capabilities.shutter ? getLabel(SERIES.capabilities.shutter.dropdown, self.data.shutter) : null
-
-	const srt = SERIES.capabilities.streamSRT ? getLabel(e.ENUM_OFF_ON, self.data.srt) : null
-
-	const tally = SERIES.capabilities.tally ? getLabel(e.ENUM_OFF_ON, self.data.tally) : null
-
-	const tally2 = SERIES.capabilities.tally2 ? getLabel(e.ENUM_OFF_ON, self.data.tally2) : null
-
-	const tally3 = SERIES.capabilities.tally3 ? getLabel(e.ENUM_OFF_ON, self.data.tally3) : null
-
-	const ts = SERIES.capabilities.streamTS ? getLabel(e.ENUM_OFF_ON, self.data.ts) : null
-
-	const whiteBalance = SERIES.capabilities.whiteBalance && SERIES.capabilities.whiteBalance.dropdown ? getLabel(SERIES.capabilities.whiteBalance.dropdown, self.data.whiteBalance) : null
 
 	const progressBar = (pct, width = 20, start = '', end = '') => {
 		if (pct && pct >= 0 && pct <= 100) {
@@ -301,39 +227,10 @@ export function checkVariables(self) {
 		irisF: self.data.irisLabel,
 		shutterStep: self.data.shutterStepLabel,
 
-		colorTemperature: self.data.colorTempLabel ? self.data.colorTempLabel : colorTemperature,
+		...labelled,
 
-		autotrackingAngle: autotrackingAngle,
-		autotrackingMode: autotrackingMode,
-		autotrackingStatus: autotrackingStatus,
-		chromaLevel: chromaLevel,
-		colorbar: colorbar,
-		dnr: dnr,
-		drs: drs,
-		error: error,
-		filter: filter,
-		focusMode: focusMode,
-		gain: gain,
-		installMode: installMode,
-		irisMode: irisMode,
-		nightMode: nightMode,
-		ois: ois,
-		power: power,
-		presetScope: presetScope,
-		presetSpeed: presetSpeed,
-		presetSpeedTable: presetSpeedTable,
-		presetSpeedUnit: presetSpeedUnit,
-		shootingMode: shootingMode,
-		shutter: shutter,
-		streamingSRT: srt,
-		streamingTS: ts,
-		streamingRTMP: rtmp,
-		tally: tally,
-		tally2: tally2,
-		tally3: tally3,
-		recording: recording,
-		videoFormat: videoFormat,
-		whiteBalance: whiteBalance,
+		// Direct temperature reading takes precedence over the indexed dropdown.
+		colorTemperature: self.data.colorTempLabel ? self.data.colorTempLabel : labelled.colorTemperature,
 
 		ptSpeed: self.ptSpeed,
 		pSpeed: self.pSpeed,
@@ -342,11 +239,11 @@ export function checkVariables(self) {
 		fSpeed: self.fSpeed,
 	})
 
-	// Set Audio Volume Level variables
 	if (SERIES.capabilities.audioVolumeLevel && self.data.audioVolumeLevels) {
 		const audioVars = {}
 		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {
-			audioVars[`audioVolumeLevel${ch + 1}`] = self.data.audioVolumeLevels[ch] !== undefined ? `${self.data.audioVolumeLevels[ch]}dB` : null
+			audioVars[`audioVolumeLevel${ch + 1}`] =
+				self.data.audioVolumeLevels[ch] !== undefined ? `${self.data.audioVolumeLevels[ch]}dB` : null
 		}
 		self.setVariableValues(audioVars)
 	}
