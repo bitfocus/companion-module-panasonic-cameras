@@ -1,16 +1,11 @@
 import { constrainRange, getAndUpdateSeries, getLabel } from './common.js'
 import { e } from './enum.js'
 
-// ##########################
-// #### Define Variables ####
-// ##########################
 export function setVariables(self) {
 	const SERIES = getAndUpdateSeries(self)
 	const caps = SERIES.capabilities
 
-	// Which variables a camera exposes follows directly from what it can do. Each row is
-	// [what the camera must support, the variables that unlocks]. The guard is a capability key,
-	// or a predicate where the condition is more than "the camera has this at all".
+	// [capability guard, variables it unlocks]. Guard is a capability key or a predicate.
 	const VARIABLES = [
 		[null, { model: 'Model of camera', title: 'Title of camera' }],
 		['version', { version: 'Firmware Version' }],
@@ -117,7 +112,6 @@ export function setVariables(self) {
 		for (const [id, name] of Object.entries(names)) variables[id] = { name }
 	}
 
-	// One per audio channel the camera actually has.
 	if (caps.audioVolumeLevel) {
 		for (let ch = 1; ch <= caps.audioVolumeLevel.maxch; ch++) {
 			variables[`audioVolumeLevel${ch}`] = { name: `Audio Volume Level Channel ${ch} (dB)` }
@@ -127,16 +121,10 @@ export function setVariables(self) {
 	return variables
 }
 
-// #########################
-// #### Check Variables ####
-// #########################
 export function checkVariables(self) {
 	const SERIES = getAndUpdateSeries(self)
 
-	// Each of these is the same rule: if the camera has the feature, turn its raw value into the
-	// human-readable label from the matching dropdown. The dropdown is either a fixed enum or one
-	// that the capability itself carries.
-	// [variable, capability, choices (or how to get them from the capability), data key if it differs]
+	// [variable, capability, choices or fn(capability), data key if it differs]
 	const LABELLED = [
 		['autotrackingAngle', 'trackingAuto', e.ENUM_AUTOTRACKING_ANGLE],
 		['autotrackingMode', 'trackingAuto', e.ENUM_OFF_ON],
@@ -241,7 +229,7 @@ export function checkVariables(self) {
 
 		...labelled,
 
-		// Cameras that report a temperature directly take precedence over the indexed dropdown.
+		// Direct temperature reading takes precedence over the indexed dropdown.
 		colorTemperature: self.data.colorTempLabel ? self.data.colorTempLabel : labelled.colorTemperature,
 
 		ptSpeed: self.ptSpeed,
@@ -251,7 +239,6 @@ export function checkVariables(self) {
 		fSpeed: self.fSpeed,
 	})
 
-	// Set Audio Volume Level variables
 	if (SERIES.capabilities.audioVolumeLevel && self.data.audioVolumeLevels) {
 		const audioVars = {}
 		for (let ch = 0; ch < SERIES.capabilities.audioVolumeLevel.maxch; ch++) {

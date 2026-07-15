@@ -10,8 +10,7 @@ describe('fitting a camera frame onto a square button', () => {
 	it('letterboxes by default, leaving the frame whole', () => {
 		const img = fitImage(frame(), 'letterbox')
 
-		// Scaled down until it fits and no further: 16:9 is preserved, and the button's own background
-		// shows above and below rather than a black bar baked into the image.
+		// 16:9 preserved; the button's own background shows above and below, no baked-in black bar.
 		expect([img.width, img.height]).toEqual([IMAGE_SIZE, 162])
 	})
 
@@ -28,25 +27,22 @@ describe('fitting a camera frame onto a square button', () => {
 	})
 
 	it('letterboxes a config saved before the setting existed', () => {
-		// An old connection has no imageScaling at all, and must keep behaving as it did.
+		// An old connection has no imageScaling and must keep its old behaviour.
 		expect([fitImage(frame(), undefined).width, fitImage(frame(), undefined).height]).toEqual([IMAGE_SIZE, 162])
 	})
 
 	it('offers exactly the modes the scaling knows how to carry out', () => {
-		// The dropdown and the switch are two lists of the same ids; this is what stops them drifting.
+		// The dropdown and the switch are two lists of the same ids; this stops them drifting.
 		expect(IMAGE_SCALING.map((m) => m.id)).toEqual(['letterbox', 'crop', 'squeeze'])
 	})
 })
 
-// The live image is the one thing this module fetches on a clock of its own rather than in reply to
-// a camera event, and — because module API 2.0 has no feedback subscribe callback — the only thing
-// whose lifetime is decided by a registry the feedback writes into from its own callback. That
-// registry, and the loop it drives, is what is pinned here.
+// The live image is fetched on its own clock, not in reply to a camera event, and (2.0 has no
+// feedback subscribe callback) its lifetime is decided by a registry the feedback writes into.
 
-// Stands in for the instance. `placed` is the set of feedback instances Companion would still be
-// drawing: getImage() ends in checkFeedbacks(), which re-runs their callbacks, which is what
-// re-registers them. Dropping an id from `placed` is therefore a button that went away without
-// unsubscribe() ever firing — the case the pruning exists for.
+// Stands in for the instance. `placed` is the set of feedbacks Companion still draws: getImage()
+// ends in checkFeedbacks(), which re-runs their callbacks and re-registers them. Dropping an id
+// from `placed` is a button that went away without unsubscribe() firing — the pruning case.
 function fakeSelf(config = {}) {
 	const self = {
 		SERIES: { capabilities: { imageTransmission: true } },
@@ -66,7 +62,7 @@ function fakeSelf(config = {}) {
 	return self
 }
 
-// Put a button on screen: it is placed, and its first evaluation has registered it.
+// Put a button on screen: placed, and its first evaluation has registered it.
 function show(self, id) {
 	self.placed.add(id)
 	self.imageSubscribers.set(id, Date.now())
@@ -128,7 +124,6 @@ describe('the live image loop', () => {
 		show(self, 'a')
 		show(self, 'b')
 
-		// Every evaluation calls in, and there are many of them per second.
 		startLiveImagePoll(self)
 		startLiveImagePoll(self)
 		startLiveImagePoll(self)
@@ -146,7 +141,7 @@ describe('the live image loop', () => {
 		startLiveImagePoll(self)
 		await vi.advanceTimersByTimeAsync(1000)
 
-		// What unsubscribe() does when the feedback is removed from the button.
+		// What unsubscribe() does when the feedback is removed.
 		self.placed.delete('a')
 		self.imageSubscribers.delete('a')
 
@@ -166,8 +161,7 @@ describe('the live image loop', () => {
 		await vi.advanceTimersByTimeAsync(1000)
 		expect(self.pollImage).toBe(true)
 
-		// The button is gone but unsubscribe never fired, so the registry still holds its id: it just
-		// stops being re-registered, because it is no longer evaluated.
+		// Button gone but unsubscribe never fired: the registry still holds its id, it just stops being re-registered.
 		self.placed.delete('a')
 
 		await vi.advanceTimersByTimeAsync(30000)
@@ -201,8 +195,8 @@ describe('the live image loop', () => {
 		startLiveImagePoll(self)
 		await vi.advanceTimersByTimeAsync(0)
 
-		// What reInitAll() does: stop the loop, then re-evaluate the feedbacks, which starts it again —
-		// while the old loop is still parked inside its sleep.
+		// What reInitAll() does: stop the loop, then re-evaluate the feedbacks to start it again, while
+		// the old loop is still parked inside its sleep.
 		self.pollImage = false
 		startLiveImagePoll(self)
 

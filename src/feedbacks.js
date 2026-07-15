@@ -17,8 +17,7 @@ const STYLE_ORANGE = { color: colorWhite, bgcolor: colorOrange }
 const STYLE_BLUE = { color: colorWhite, bgcolor: colorBlue }
 const STYLE_GREY = { color: colorWhite, bgcolor: colorGrey }
 
-// A feedback that reports a camera state which is simply on or off.
-// `isActive` is called on every evaluation, so it must read self.data rather than close over a value.
+// isActive is re-read every evaluation, so it must read self.data, not close over a value.
 const stateFeedback = (name, description, isActive, style = STYLE_RED) => ({
 	type: 'boolean',
 	name,
@@ -28,10 +27,8 @@ const stateFeedback = (name, description, isActive, style = STYLE_RED) => ({
 	callback: () => isActive(),
 })
 
-// A feedback that lights up while the camera's current setting equals the one picked in the dropdown.
-// `current` is likewise re-read on every evaluation, and is handed the feedback for the settings that
-// are read per channel rather than per camera. `options` are extra fields shown ahead of the dropdown,
-// such as the audio channel to look at.
+// current is re-read every evaluation (handed the feedback for per-channel settings). options are extra
+// fields shown ahead of the dropdown, e.g. the audio channel.
 const selectionFeedback = (
 	name,
 	description,
@@ -61,7 +58,7 @@ function optPreset(max) {
 	return [optPresetNumber('option', max)]
 }
 
-// Resolve the selected preset to its 0-based index, or null when the value is unreadable
+// 0-based preset index, or null if unreadable
 function parsePresetIdx(feedback, max) {
 	return parsePresetNumber(feedback.options.option, max)
 }
@@ -430,7 +427,7 @@ export function getFeedbackDefinitions(self) {
 
 	if (caps.audioVolumeLevel) {
 		const audio = caps.audioVolumeLevel
-		// The levels the camera will actually take, which are the model's own range and step size.
+		// model's own range and step size
 		const levels = Array.from({ length: (audio.max - audio.min) / audio.step + 1 }, (_, i) => {
 			const dB = audio.min + i * audio.step
 			return { id: dB, label: `${dB} dB` }
@@ -443,7 +440,7 @@ export function getFeedbackDefinitions(self) {
 			levels,
 			(feedback) => self.data.audioVolumeLevels?.[feedback.options.channel],
 			{
-				// Every model's range straddles 0 dB on its own grid, so nominal is always a level it has.
+				// every model's range straddles 0 dB, so 0 is always present
 				defaultIndex: levels.findIndex((level) => level.id === 0),
 				options: [
 					{

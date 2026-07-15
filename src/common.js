@@ -2,7 +2,6 @@ import { MODELS, SERIES_SPECS } from './models.js'
 import { e } from './enum.js'
 
 export function getAndUpdateSeries(self) {
-	// Set the model and series selected, if in auto, detect what model is connected
 	if (self.config.model === 'Auto') {
 		self.data.model = self.data.modelAuto
 	} else {
@@ -10,14 +9,10 @@ export function getAndUpdateSeries(self) {
 	}
 
 	if (self.data.model !== null) {
-		// A camera is free to report a model this table has never heard of, and the auto-detected id is
-		// taken from its answer unvalidated (parser.js). Falling back to the generic feature set gives
-		// that camera basic operation; reading `.series` off the undefined this used to find took the
-		// whole re-initialisation down with a TypeError instead.
+		// Unknown auto-detected model falls back to the generic set; avoids a TypeError on undefined.
 		self.data.series = MODELS.find((m) => m.id === self.data.model)?.series ?? 'Other'
 	}
 
-	// Find the specific commands for a given series
 	let SERIES =
 		self.data.series !== 'Auto' && self.data.series !== 'Other'
 			? SERIES_SPECS.find((SERIES_SPECS) => SERIES_SPECS.id === self.data.series)
@@ -61,9 +56,8 @@ export function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-// Waits for `promise`, but no longer than `ms`. Leaves no timer behind either way — a bare
-// Promise.race against sleep() keeps the loser's timer pending, which is enough to make a torn-down
-// connection look like it still has work outstanding.
+// Waits for `promise` up to `ms`, clearing the loser's timer so a torn-down connection has no
+// pending work left behind.
 export function raceTimeout(promise, ms) {
 	let timer
 
@@ -88,19 +82,14 @@ export function fitImage(img, scaling) {
 		case 'squeeze':
 			return img.resize({ w: IMAGE_SIZE, h: IMAGE_SIZE })
 		default:
-			// Letterbox scales down until the whole frame fits, and stops there — the result is 288x162
-			// rather than a padded square, so the button's own background shows through above and below
-			// instead of a baked-in black bar.
+			// Letterbox: scale to fit without padding, so the button background shows through, not a black bar.
 			return img.scaleToFit({ w: IMAGE_SIZE, h: IMAGE_SIZE })
 	}
 }
 
-// The preset dropdown's choice ids are the camera's own preset numbers — 0-based and zero-padded
-// ("00".."99") — while the labels count from 1. Any field can hold an expression in 2.0, and an
-// expression yields a plain number rather than one of those padded strings: a value the choices do
-// not list. So the field has to accept it (`allowInvalidValues`, without which Companion would drop
-// every expression-driven preset button) and the reader below has to make sense of both forms.
-// Action and feedbacks share them, so the two cannot drift apart.
+// Choice ids are 0-based zero-padded preset numbers ("00".."99"); labels count from 1. Expressions
+// yield an unpadded number not in the choice list, so allowInvalidValues is required or Companion
+// drops expression-driven preset buttons. Shared by actions and feedbacks so they cannot drift.
 export function optPresetNumber(id, max) {
 	return {
 		type: 'dropdown',
@@ -115,16 +104,14 @@ export function optPresetNumber(id, max) {
 	}
 }
 
-// The selected preset as a 0-based index — parseInt reads both the dropdown's '07' and an
-// expression's 7 — or null when the value does not read as a number at all.
+// Selected preset as a 0-based index (parseInt reads both '07' and 7), or null if not a number.
 export function parsePresetNumber(value, max) {
 	const idx = constrainRange(parseInt(value, 10), 0, max - 1)
 	return isNaN(idx) ? null : idx
 }
 
-// The option ids an entity definition declares, plus the default for each. Both the presets we hand
-// out and the buttons already on disk are reconciled against this, so they are repaired by the same
-// rule. Static text carries no value, and a field without an id is not an option at all.
+// The option ids an entity definition declares, plus each default. Excludes static-text and id-less
+// fields, which are not options.
 export function optionSpecs(definitions) {
 	return Object.fromEntries(
 		Object.entries(definitions).map(([id, definition]) => {

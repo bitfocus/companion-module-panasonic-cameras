@@ -3,13 +3,8 @@ import { readFileSync } from 'fs'
 import { InstanceBase } from '@companion-module/base'
 import PanasonicCameraInstance from '../index.js'
 
-// The module talks to Companion through methods on InstanceBase. If it calls one that the API does
-// not have, nothing fails until Companion actually runs the module and it crashes at that line —
-// lint cannot see it, and definition tests never execute it.
-//
-// This is not hypothetical: the 2.0 migration left behind a call to subscribeFeedbacks(), which 2.0
-// removed along with the feedback subscribe callbacks it used to drive. The module built, linted and
-// passed its tests, then died on connect.
+// A call to a method InstanceBase lacks fails only when Companion runs the module — lint and
+// definition tests never catch it. The 2.0 migration left a subscribeFeedbacks() call that died on connect.
 
 const baseMethods = new Set()
 for (let proto = InstanceBase.prototype; proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) {
@@ -25,7 +20,7 @@ for (
 	for (const name of Object.getOwnPropertyNames(proto)) ownMethods.add(name)
 }
 
-// Properties the instance assigns to itself at runtime rather than declaring as methods.
+// Fields assigned at runtime, not declared as methods.
 const ownFields = [
 	'config',
 	'data',

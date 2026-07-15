@@ -3,15 +3,13 @@ import PanasonicCameraInstance, { REACHABILITY_ERRORS, describeError } from '../
 import { pollCameraStatus } from '../polling.js'
 import { initialData } from '../data.js'
 
-// Changing the connection config used to leave the old camera running alongside the new one: it was
-// never unsubscribed (the goodbye was addressed with the *new* config, so it went to the wrong
-// camera), the socket it already had open survived server.close() and kept pushing its state into the
-// new connection, and the requests already in flight to it landed afterwards and wrote their answers
-// into the new camera's state. This pins the teardown that fixes it — and the two failures that came
-// out of the same root: a deleted connection resurrecting itself, and poll loops multiplying.
+// Changing config used to leave the old camera running alongside the new one: it was never
+// unsubscribed (the goodbye went to the new config's host), its open socket survived server.close(),
+// and in-flight requests landed afterwards into the new camera's state. This pins the teardown that
+// fixes it, plus two failures from the same root: a deleted connection resurrecting, and poll loops multiplying.
 
-// Real prototype methods on a hand-built instance: the InstanceBase constructor cannot run outside
-// Companion, but every method under test is on the prototype and reads only fields we can supply.
+// Real prototype methods on a hand-built instance: InstanceBase's constructor cannot run outside
+// Companion, but every method under test is on the prototype and reads only fields we supply.
 function makeInstance(config = {}, { series = 'UE80', capabilities } = {}) {
 	const self = Object.create(PanasonicCameraInstance.prototype)
 
@@ -53,7 +51,7 @@ function makeInstance(config = {}, { series = 'UE80', capabilities } = {}) {
 	self.setFeedbackDefinitions = vi.fn()
 	self.setPresetDefinitions = vi.fn()
 
-	// Every request goes through httpGet, so stubbing it is stubbing the whole HTTP surface.
+	// Every request goes through httpGet, so stubbing it stubs the whole HTTP surface.
 	self.requests = []
 	self.httpGet = vi.fn(async (url) => {
 		self.requests.push(url)
@@ -95,8 +93,8 @@ describe('describeError', () => {
 
 describe('teardown', () => {
 	it('says goodbye to the camera it is leaving, not the one it is going to', async () => {
-		// The headline bug: unsubscribeTCPEvents built its URL from this.config, which configUpdated had
-		// already replaced. The stop went to the new camera, and the old one kept its subscription.
+		// The headline bug: unsubscribeTCPEvents built its URL from this.config, already replaced by
+		// configUpdated, so the stop went to the new camera and the old one kept its subscription.
 		const self = makeInstance({ host: '10.0.0.1' })
 		self.server = fakeServer()
 
@@ -108,8 +106,7 @@ describe('teardown', () => {
 	})
 
 	it('destroys every socket the camera still holds open, then closes the server', async () => {
-		// server.close() only stops the server accepting new connections. The socket already open goes
-		// on delivering the old camera's state until it is destroyed by hand.
+		// server.close() only stops accepting new connections; an open socket keeps delivering until destroyed.
 		const self = makeInstance()
 		const server = fakeServer()
 		const [a, b] = [fakeSocket(), fakeSocket()]
@@ -127,7 +124,7 @@ describe('teardown', () => {
 	})
 
 	it('does not greet a camera it never subscribed to', async () => {
-		const self = makeInstance() // no server: we never said hello
+		const self = makeInstance() // no server: never subscribed
 
 		await self.teardown()
 
@@ -141,7 +138,7 @@ describe('teardown', () => {
 		await self.teardown()
 
 		expect(signal.aborted).toBe(true)
-		expect(self.aborter.signal.aborted).toBe(false) // and hands the next connection a live one
+		expect(self.aborter.signal.aborted).toBe(false) // the next connection gets a live one
 	})
 
 	it('invalidates everything the previous connection had running', async () => {
@@ -162,7 +159,7 @@ describe('an answer that arrives after the connection has moved on', () => {
 	it('is not parsed into the new camera state', async () => {
 		const self = makeInstance()
 
-		// The old camera answers with a red tally — slowly, and after the config has already changed.
+		// The old camera answers slowly, after the config has already changed.
 		let release
 		self.httpGet = vi.fn(() => new Promise((resolve) => (release = () => resolve({ body: 'OTD:1\r\n' }))))
 
@@ -187,34 +184,31 @@ describe('an answer that arrives after the connection has moved on', () => {
 		reject(Object.assign(new Error('gone'), { code: 'ETIMEDOUT' }))
 		await inFlight
 
-		// A failure of the camera we walked away from is not a reason to reconnect to the one we are on.
+		// A failure of the camera we left is not a reason to reconnect to the one we are on.
 		expect(vi.getTimerCount()).toBe(0)
 		vi.useRealTimers()
 	})
 })
 
-// The status a fault is reported under is a promise about what the module will do next: a
-// ConnectionFailure keeps trying, an UnknownError does not, and Disconnected is what the user
-// themselves brought about. Each of the three is pinned here against the codes that produce it.
+// The reported status promises what the module does next: ConnectionFailure keeps trying,
+// UnknownError does not, Disconnected is user-initiated. Each is pinned against the codes that produce it.
 describe('handleConnectionError', () => {
 	beforeEach(() => vi.useFakeTimers())
 	afterEach(() => vi.useRealTimers())
 
-	// Driven off the module's own list rather than a copy of it: a code added there without the promise
-	// of a reconnect behind it is exactly the drift this would otherwise miss.
+	// Driven off the module's own list, so a code added there without a reconnect behind it is caught.
 	it.each([...REACHABILITY_ERRORS])('reports %s as a connection failure, and keeps trying', (code) => {
 		const self = makeInstance()
 
 		expect(self.handleConnectionError({ code })).toBe(true)
 
 		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
-		expect(vi.getTimerCount()).toBe(1) // a reconnect is on its way
+		expect(vi.getTimerCount()).toBe(1) // a reconnect is scheduled
 	})
 
 	it('treats a camera entered by hostname the same as one entered by IP', () => {
-		// A DNS failure is as temporary as an unplugged cable, and got surfaces it as ENOTFOUND rather
-		// than one of the TCP codes. Left off the list, the very same camera recovered on its own when
-		// entered as 10.0.0.1 and stayed dead until Apply when entered as camera-1.local.
+		// A DNS failure is as temporary as an unplugged cable, but got surfaces it as ENOTFOUND, not a
+		// TCP code. Left off the list, a hostname camera stayed dead until Apply while an IP one recovered.
 		expect(REACHABILITY_ERRORS.has('ENOTFOUND')).toBe(true)
 		expect(REACHABILITY_ERRORS.has('EAI_AGAIN')).toBe(true)
 	})
@@ -222,8 +216,7 @@ describe('handleConnectionError', () => {
 	it('gives up on a fault it does not recognise, rather than retrying blind', () => {
 		const self = makeInstance()
 
-		// Retrying something we have not diagnosed is how a bug turns into a request storm. The user is
-		// told, and the module stops.
+		// Retrying an undiagnosed fault turns a bug into a request storm; the user is told and the module stops.
 		expect(self.handleConnectionError({ code: 'ERR_BODY_PARSE_FAILURE' })).toBe(true)
 
 		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['unknown_error'])
@@ -235,8 +228,8 @@ describe('handleConnectionError', () => {
 
 		self.handleConnectionError(Object.assign(new Error('Unexpected token'), { code: 'ERR_BODY_PARSE_FAILURE' }))
 
-		// The detail is what the user reads beside the connection, and what they would paste into a bug
-		// report. Without the code it says only that something went wrong, not what.
+		// The detail is what the user reads beside the connection; without the code it says only that
+		// something went wrong, not what.
 		const [, detail] = self.updateStatus.mock.calls[0]
 		expect(detail).toBe('ERR_BODY_PARSE_FAILURE: Unexpected token')
 	})
@@ -244,8 +237,8 @@ describe('handleConnectionError', () => {
 	it('does not mistake our own cancellation for a camera failure', () => {
 		const self = makeInstance()
 
-		// teardown() aborts in-flight requests; got surfaces that as an AbortError with this code. Read
-		// as a camera failure it would report a healthy camera as broken and schedule a pointless retry.
+		// teardown() aborts in-flight requests; got surfaces that as ERR_ABORTED. Read as a camera
+		// failure it would report a healthy camera as broken and schedule a pointless retry.
 		expect(self.handleConnectionError({ code: 'ERR_ABORTED' })).toBe(false)
 
 		expect(self.updateStatus).not.toHaveBeenCalled()
@@ -255,8 +248,7 @@ describe('handleConnectionError', () => {
 	it('lets a burst of failures share one reconnect', () => {
 		const self = makeInstance()
 
-		// A dead camera fails one request per poll command. Each scheduling its own retry would give the
-		// camera a stampede to come back to.
+		// A dead camera fails one request per poll command; a retry each would stampede it on recovery.
 		self.handleConnectionError({ code: 'ETIMEDOUT' })
 		self.handleConnectionError({ code: 'ECONNREFUSED' })
 		self.handleConnectionError({ code: 'EHOSTUNREACH' })
@@ -277,8 +269,7 @@ describe('handleConnectionError', () => {
 describe('destroy', () => {
 	it('leaves nothing behind, even when the camera is already gone', async () => {
 		// Deleting a connection to an offline camera used to make the failed goodbye look like a lost
-		// connection, which scheduled a re-initialisation — and the instance Companion had just thrown
-		// away rebuilt its server, its subscription and its polling a couple of seconds later.
+		// connection, scheduling a re-init that rebuilt a thrown-away instance seconds later.
 		vi.useFakeTimers()
 		const self = makeInstance()
 		const socket = fakeSocket()
@@ -307,8 +298,8 @@ describe('the status poll loop', () => {
 	}
 
 	it('dies on a teardown, even though the next connection turns polling back on', async () => {
-		// The assertion the flag alone cannot give: `poll` is false during teardown and true again a
-		// moment later, so a loop parked in an await wakes to a flag that says "keep going".
+		// The flag alone cannot prove this: `poll` is false during teardown and true again a moment later,
+		// so a loop parked in an await wakes to a flag that says "keep going".
 		const self = pollable()
 		self.poll = true
 		pollCameraStatus(self)
@@ -337,7 +328,7 @@ describe('the status poll loop', () => {
 		await vi.advanceTimersByTimeAsync(1000)
 		const oneLoop = self.getCam.mock.calls.length
 
-		// A second loop would double the command rate — and every reconnect used to add another.
+		// A second loop would double the command rate, and every reconnect used to add another.
 		expect(oneLoop).toBeLessThanOrEqual(11)
 		expect(oneLoop).toBeGreaterThan(0)
 	})
@@ -346,7 +337,7 @@ describe('the status poll loop', () => {
 describe('configUpdated', () => {
 	it('wipes the old camera state before the new camera speaks', async () => {
 		const self = makeInstance({ host: '10.0.0.1' })
-		self.reInitAll = vi.fn() // the rebuild is covered elsewhere; this is about the handover
+		self.reInitAll = vi.fn() // rebuild covered elsewhere; this is about the handover
 
 		self.data.tally = '1'
 		self.data.title = 'Camera A'

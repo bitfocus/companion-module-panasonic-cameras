@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { ConfigFields, applyConfigDefaults, describeDetectedModel } from '../config.js'
 
-// A connection stores only the fields it was saved with, so every field this module gains after a
-// user last hit Save is absent from their config and reads `undefined` — which is how a poll delay
-// turns into NaN and a dropdown lands on a value it does not list. applyConfigDefaults closes that
-// gap from the field definitions themselves, which is the only place a default is written down.
+// A config stores only the fields it was saved with, so a field added later reads `undefined`.
+// applyConfigDefaults fills the gap from the field definitions, the one place defaults are written down.
 
 const VALUE_FIELDS = ConfigFields.filter((f) => f.type !== 'static-text')
 
@@ -31,18 +29,16 @@ describe('config fields', () => {
 		}
 	})
 
-	// Companion's config layout ignores `width`, so a setting can no longer be explained by parking a
-	// static-text next to it — the two just stack, and the checkbox is left saying "Enable" with
-	// nothing to say what it enables. Each field explains itself instead.
+	// Companion's config layout ignores `width`, so a static-text can no longer sit beside a setting to
+	// explain it — the two just stack. Each field must explain itself instead.
 	it('explains every setting on the field itself', () => {
 		for (const field of VALUE_FIELDS) {
 			expect(field.description, field.id).toBeTruthy()
 		}
 	})
 
-	// The config is a flat list — unlike presets, it has no `structure` of sections — so a static-text
-	// divider is the only way to group related settings. That is the one job they are allowed to have
-	// now; the old file also used them as sibling help text, which the layout no longer lines up.
+	// The config is a flat list with no `structure`, so a static-text divider is the only way to group
+	// settings. That is now their only allowed job.
 	it('uses static text only to divide the sections, or for the one field filled in at runtime', () => {
 		const staticText = ConfigFields.filter((f) => f.type === 'static-text').map((f) => f.id)
 
@@ -56,15 +52,14 @@ describe('config fields', () => {
 	})
 
 	it('rules off each section with nothing but a full-width divider', () => {
-		// A run of '─' would be a fixed length and could not span the panel, whatever width it has.
+		// A run of '─' is a fixed length and could not span a panel of any width.
 		for (const field of ConfigFields.filter((f) => f.id.startsWith('section'))) {
 			expect(field.value, field.id).toBe('<hr>')
 		}
 	})
 
 	it('keeps each subject together, in the order the dividers set out', () => {
-		// Reading the panel top to bottom must not jump back and forth between subjects. The first group
-		// needs no divider — there is nothing above it to be divided from.
+		// Fields must not jump back and forth between subjects. The first group needs no divider.
 		const grouped = { connection: [] }
 		let current = 'connection'
 
@@ -77,23 +72,20 @@ describe('config fields', () => {
 			connection: ['host', 'httpPort', 'timeout'],
 			sectionModel: ['model', 'modelDetected'],
 			sectionUpdates: ['subscriptionEnable', 'portManual', 'tcpPort', 'pollAllow', 'pollDelay'],
-			// Scaling comes first and is not conditional: it governs the preset thumbnails too, which
-			// have nothing to do with the live image below it.
+			// Scaling comes first and is unconditional: it governs the preset thumbnails too, not just the live image.
 			sectionImage: ['imageScaling', 'imageEnable', 'imageInterval'],
 			sectionDiagnostics: ['debug'],
 		})
 	})
 
 	it('labels each field by what the setting is, not by what the widget does', () => {
-		// The old grid left these as the visible name of a setting, which said nothing on its own.
 		for (const field of VALUE_FIELDS) {
 			expect(['Enable', 'Allow', 'Manual'], field.id).not.toContain(field.label)
 		}
 	})
 
-	// The rule from CompanionInputFieldBase.isVisibleExpression: "you can only reference fields which
-	// are set to disableAutoExpression". Break it and the field does not merely fail to hide — the
-	// expression does not resolve, and a setting the user needs can vanish from the panel entirely.
+	// CompanionInputFieldBase.isVisibleExpression may only reference fields with disableAutoExpression;
+	// break it and the expression fails to resolve, so the field can vanish from the panel entirely.
 	it('only lets a visibility expression depend on a field that opted out of expressions', () => {
 		const byId = new Map(ConfigFields.map((f) => [f.id, f]))
 
@@ -140,8 +132,7 @@ describe('applyConfigDefaults', () => {
 	})
 
 	it('keeps a deliberate false or 0 rather than reading it as missing', () => {
-		// The trap `||` would fall into: pollAllow defaults to true, so a user who turned it off must
-		// not have it turned back on for them.
+		// pollAllow defaults to true, so `||` would wrongly turn a user's `false` back on.
 		const filled = applyConfigDefaults({ pollAllow: false, subscriptionEnable: false })
 
 		expect(filled.pollAllow).toBe(false)
@@ -157,8 +148,8 @@ describe('applyConfigDefaults', () => {
 	})
 
 	it('still defines the fields the panel currently hides', () => {
-		// Visibility is a UI concern: the module reads pollDelay whether or not polling is on (it sizes
-		// the reconnect timer), so a hidden field must still hold a usable value.
+		// Visibility is a UI concern: the module reads pollDelay even when polling is off (it sizes the
+		// reconnect timer), so a hidden field must still hold a usable value.
 		const filled = applyConfigDefaults({ pollAllow: false, imageEnable: false, subscriptionEnable: false })
 
 		expect(filled.pollDelay).toBe(100)
@@ -167,9 +158,8 @@ describe('applyConfigDefaults', () => {
 	})
 })
 
-// The one state the user has to act on is a hand-picked model the camera disagrees with, so that is
-// the only one marked as a warning. Everything else reads as information. Companion strips style
-// attributes out of config static text, so the mark has to be in the text itself.
+// Only a hand-picked model the camera disagrees with is marked a warning; everything else is
+// information. Companion strips style attributes from static text, so the mark lives in the text itself.
 const isWarning = (text) => text.startsWith('⚠')
 
 describe('describeDetectedModel', () => {
@@ -206,8 +196,7 @@ describe('describeDetectedModel', () => {
 	})
 
 	it('never warns on Auto or Other, which cannot disagree with the camera', () => {
-		// Auto follows whatever the camera says; Other is a deliberate fallback to the generic feature
-		// set. Neither is the user having picked the wrong model, so neither is a warning.
+		// Auto follows the camera; Other is a deliberate generic fallback. Neither is a wrong pick.
 		for (const model of ['Auto', 'Other']) {
 			expect(isWarning(describeDetectedModel({ model }, { modelAuto: 'AW-UE80' })), model).toBe(false)
 		}
@@ -222,7 +211,7 @@ describe('describeDetectedModel', () => {
 
 	it('still flags the mismatch when the camera it found is also unknown', () => {
 		// The unknown-model notice must not swallow the warning: a pinned model is still being driven
-		// against a camera that is demonstrably not it.
+		// against a camera that is not it.
 		const text = describeDetectedModel({ model: 'AW-UE150' }, { modelAuto: 'AW-XX999' })
 
 		expect(text).toContain('AW-XX999')

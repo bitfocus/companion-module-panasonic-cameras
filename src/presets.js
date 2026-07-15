@@ -5,14 +5,12 @@ import { getAndUpdateSeries, optionSpecs } from './common.js'
 import ICONS from './icons.js'
 import { e } from './enum.js'
 
-// Templated presets drive the preset number from a local variable rather than baking it in. The
-// preset option is 0-based (its choice ids are the camera's own preset numbers) while the local
-// variable counts from 1, so the expression takes the offset off.
+// Preset option is 0-based, local variable is 1-based; subtract the offset.
 const LOCAL_PRESET_0 = { isExpression: true, value: '$(local:preset) - 1' }
 const presetMemOptions = (op) => ({ op, val: LOCAL_PRESET_0 })
 const presetFeedbackOptions = () => ({ option: LOCAL_PRESET_0 })
 
-// Same for audio: the channel option is 0-based while labels and variables are 1-based.
+// Audio channel option 0-based, labels/variables 1-based.
 const LOCAL_CHANNEL_0 = { isExpression: true, value: '$(local:channel) - 1' }
 
 const colorWhite = combineRgb(255, 255, 255)
@@ -32,8 +30,7 @@ const colorBlack = combineRgb(0, 0, 0)
 // #### Preset builders ####
 // #########################
 
-// A button that drives the camera while held: one action on press, the counterpart on release.
-// The pan/tilt and lens jog buttons are all this shape, differing only in icon and direction.
+// Held button: action on press, counterpart on release.
 const jogPreset = (category, name, icon, actionId, downOptions, upOptions) => ({
 	type: 'simple',
 	category,
@@ -55,7 +52,7 @@ const jogPreset = (category, name, icon, actionId, downOptions, upOptions) => ({
 	feedbacks: [],
 })
 
-// A rotary knob showing a value: press sets it, turning steps it. `set` is what a press applies.
+// Rotary knob: press sets value (`set`), turn steps it.
 const knobPreset = (category, name, text, actionId, set, { bgcolor = colorBlack, step = 1, extra = {} } = {}) => ({
 	type: 'simple',
 	category,
@@ -72,7 +69,7 @@ const knobPreset = (category, name, text, actionId, set, { bgcolor = colorBlack,
 	feedbacks: [],
 })
 
-// A knob over a speed: press returns it to the middle of the range, turning nudges it.
+// Speed knob: press centres the range, turn nudges it.
 const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
 	type: 'simple',
 	category,
@@ -89,7 +86,7 @@ const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
 	feedbacks: [],
 })
 
-// A knob over a list of modes: press toggles, turning steps through the list.
+// Mode knob: press toggles, turn steps through the list.
 const enumKnobPreset = (category, name, text, actionId) => ({
 	type: 'simple',
 	category,
@@ -106,7 +103,7 @@ const enumKnobPreset = (category, name, text, actionId) => ({
 	feedbacks: [],
 })
 
-// A button that toggles a setting, and lights up while it is active if a feedback is given.
+// Toggle button; lights up while active if a feedback is given.
 const togglePreset = (
 	category,
 	name,
@@ -133,7 +130,7 @@ const togglePreset = (
 		: [],
 })
 
-// A button that fires one action on press and does nothing on release.
+// Fires one action on press.
 const momentaryPreset = (
 	category,
 	name,
@@ -150,8 +147,7 @@ const momentaryPreset = (
 	feedbacks: [],
 })
 
-// Like jogPreset, but labelled with text rather than an icon: drive in a direction while held,
-// stop on release.
+// Text-labelled jog: drive while held, stop on release.
 const textJogPreset = (category, name, text, actionId, dir) => ({
 	type: 'simple',
 	category,
@@ -166,7 +162,7 @@ const textJogPreset = (category, name, text, actionId, dir) => ({
 	feedbacks: [],
 })
 
-// A button that applies one fixed value and lights up while the camera is on that value.
+// Applies a fixed value; lights up while on that value.
 const valuePreset = (category, name, text, actionId, feedbackId, value, style) => ({
 	type: 'simple',
 	category,
@@ -186,8 +182,7 @@ export function getPresetDefinitions(self) {
 	// ##########################
 
 	if (SERIES.capabilities.panTilt) {
-		// The eight jog directions differ only in icon and the two-digit pan/tilt direction code.
-		// '11' is the stop code that every one of them releases to.
+		// Icon + two-digit direction code; '11' is the stop code released to.
 		const PAN_TILT_JOG = [
 			['pan-tilt-up', 'UP', ICONS.UP, '12'],
 			['pan-tilt-down', 'DOWN', ICONS.DOWN, '10'],
@@ -733,8 +728,7 @@ export function getPresetDefinitions(self) {
 		})
 	}
 
-	// Red/blue/green gain and pedestal are the same knob on six channels. Green is gated
-	// separately because only some cameras drive it.
+	// Same knob for R/B/G gain and pedestal; green gated per-model.
 	const COLOR_KNOBS = [
 		[
 			'colorGain',
@@ -831,9 +825,7 @@ export function getPresetDefinitions(self) {
 			}
 		}
 
-		// The knob only turns, so it works the same whether the camera can be given a colour
-		// temperature outright or only stepped towards one. Options the model's action does not
-		// have (a UB300 has no step size) are dropped when the preset is built.
+		// Knob only turns; unsupported options (e.g. UB300 step size) dropped at build.
 		if (SERIES.capabilities.colorTemperature) {
 			presets['image-colortemp'] = {
 				type: 'simple',
@@ -922,12 +914,7 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.imageTransmission) {
-		// The tallies colour the button behind the picture. Under the default Letterbox scaling that
-		// reads as a coloured band above and below the image; Crop and Squeeze fill the button edge to
-		// edge, so there the colour is covered and only the title is left to carry it.
-		//
-		// Companion applies feedbacks in order and the last one to set a property wins, so red is listed
-		// last: a camera that is on air says so, even while a green or yellow tally is also lit.
+		// Feedbacks apply in order, last wins; red listed last so on-air always shows.
 		const tally = (capability, feedbackId, bgcolor) =>
 			SERIES.capabilities[capability] ? [{ feedbackId, style: { color: colorWhite, bgcolor } }] : []
 
@@ -940,7 +927,7 @@ export function getPresetDefinitions(self) {
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
-				alignment: 'center:bottom', // keep the title clear of the picture
+				alignment: 'center:bottom', // keep title clear of picture
 				show_topbar: false,
 			},
 			steps: [],
@@ -1009,7 +996,7 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.colorbar) {
-		// The only toggle whose lit state also swaps in an image.
+		// Only toggle whose lit state also swaps in an image.
 		presets['system-colorbar'] = togglePreset(
 			'System',
 			'Color Bar',
@@ -1287,9 +1274,7 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		// One templated definition instead of a preset per memory slot. The template group in
-		// buildPresetDefinitions() fans `preset` out over the slots this model actually has —
-		// the old loop hardcoded 100, so a 9-preset camera was offered 91 dead buttons.
+		// Templated over the model's actual preset slots (not a hardcoded 100).
 		presets['preset-memory'] = {
 			type: 'simple',
 			category: 'Preset Memory',
@@ -1530,16 +1515,8 @@ export function getPresetDefinitions(self) {
 	return buildPresetDefinitions(presets, self)
 }
 
-// Companion validates every option an entity carries against the definition, and a stored option
-// it never got is as invalid as a wrong one — for a dropdown, undefined is simply "not in the list
-// of choices", which takes the whole action down. A preset that spells out only the options it
-// cares about (`{ op: 't' }`, the rest hidden behind an isVisibleExpression) therefore produces a
-// button that cannot run. In 1.x the omission was harmless, which is how the presets above came to
-// be written that way; rather than restating every option on every preset, reconcile each one
-// against the very definitions Companion validates it against: fill in what the preset left out,
-// and drop what this model's action does not have (an Increase/Decrease-only camera has no step
-// size, but the preset it shares with the others still names one). Buttons already on disk get the
-// same treatment from the upgrade script in upgrades.js.
+// Companion validates every option, so fill in ones a preset omits and drop ones this model's
+// action lacks (e.g. no step size on an Inc/Dec-only camera). upgrades.js does the same on disk.
 const reconcileOptions = (entities, idKey, specs) =>
 	(entities ?? []).map((entity) => {
 		const spec = specs[entity[idKey]]
@@ -1552,14 +1529,9 @@ const reconcileOptions = (entities, idKey, specs) =>
 		return { ...entity, options }
 	})
 
-// API 2.0 splits presets into a `structure` of UI sections plus the flat preset definitions.
-// Categories stay declared inline on each preset above and are lifted out here, so a section
-// only ever lists the presets the connected model actually supports.
-//
-// A preset carrying a `template` is fanned out by Companion into one button per value, rather
-// than us emitting near-identical copies. A section's `definitions` may be either a plain list
-// of preset ids or a list of groups, but not a mix — so as soon as one preset in a section is
-// templated, the section's plain presets are wrapped in a simple group alongside it.
+// API 2.0 splits presets into a `structure` of sections plus flat definitions; categories are
+// lifted from each preset. A section's `definitions` must be all plain ids or all groups, not a
+// mix, so once one preset is templated the plain ones are wrapped in a group alongside it.
 function buildPresetDefinitions(presets, self) {
 	const structure = []
 	const sections = new Map()
@@ -1571,8 +1543,7 @@ function buildPresetDefinitions(presets, self) {
 	for (const [id, preset] of Object.entries(presets)) {
 		const { category, template, ...definition } = preset
 
-		// A step maps each action-set name (down, up, rotate_left, …) to its actions, and may carry
-		// non-action keys such as `options` alongside them.
+		// A step maps action-set names to actions, plus non-action keys like `options`.
 		definition.steps = definition.steps.map((step) =>
 			Object.fromEntries(
 				Object.entries(step).map(([set, actions]) => [

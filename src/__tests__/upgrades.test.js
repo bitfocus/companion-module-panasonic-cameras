@@ -3,26 +3,23 @@ import { EmptyUpgradeScript } from '@companion-module/base'
 import { upgradeScripts } from '../upgrades.js'
 import { getActionDefinitions } from '../actions.js'
 
-// Companion validates every option an entity's definition declares, so a button that was built from
-// a preset which named only the options it cared about cannot run: the ones it never got read back
-// as undefined, and for a dropdown that is "not in the list of choices". New buttons are reconciled
-// when the presets are handed out; these tests cover the repair of the buttons already on disk.
+// Companion validates every declared option, so a preset-built button whose omitted options read
+// back as undefined cannot run. These tests cover the repair of buttons already on disk.
 
-// Pinned by index, not by `.at(-1)`: Companion identifies a script by its position, so appending one
-// must not quietly repoint these tests at the new arrival.
+// Pinned by index, not `.at(-1)`: Companion identifies a script by position, so appending one must
+// not repoint these tests at the new arrival.
 const fillOmittedOptions = upgradeScripts[2]
 const dropUseVarToggles = upgradeScripts[3]
 
-// The button from the bug report: System - Power, dropped in from the preset, which stored only the
-// operation and left the (hidden) value behind it unset.
+// A preset-built button that stored only the operation, leaving the hidden value unset.
 const brokenPowerButton = () => ({ actionId: 'power', options: { op: 't' } })
 
 const run = (props) => fillOmittedOptions({}, { config: { model: 'AW-UE100' }, feedbacks: [], ...props })
 const migrate = (props) =>
 	dropUseVarToggles({}, { config: { model: 'AW-UE100' }, actions: [], feedbacks: [], ...props })
 
-// Companion identifies an upgrade script by its index, so one may only ever be appended — a removed
-// or reordered script silently re-runs the wrong migration on every existing connection.
+// Scripts are identified by index, so one may only ever be appended — a removed or reordered script
+// re-runs the wrong migration on every existing connection.
 describe('upgradeScripts', () => {
 	it('only ever grows, and blanks a retired script in place', () => {
 		expect(upgradeScripts).toHaveLength(4)
@@ -75,8 +72,7 @@ describe('fillOmittedOptions', () => {
 		expect(result.updatedActions).toEqual([])
 	})
 
-	// An upgrade script that throws takes the whole connection down, so it has to survive whatever
-	// the stored config happens to be.
+	// A script that throws takes the whole connection down, so it must survive any stored config.
 	it.each([
 		['no config at all', null],
 		['a model that is only resolved once a camera answers', { model: 'Auto' }],
@@ -88,9 +84,8 @@ describe('fillOmittedOptions', () => {
 	})
 })
 
-// The "Use Variable" checkbox and its parallel textinputs are gone: every field is expression-capable
-// in 2.0, so the user flips the field itself. Where the checkbox was on, the textinput held the value
-// the button actually used, and it has to survive as an expression on the plain field.
+// The "Use Variable" checkbox and its parallel textinputs are gone (every field is expression-capable
+// in 2.0). Where the checkbox was on, the textinput's value must survive as an expression on the plain field.
 describe('dropUseVarToggles', () => {
 	// An upgrade script sees the 2.0 wrapper, so that is the shape these fixtures use.
 	const val = (value) => ({ isExpression: false, value })
@@ -115,7 +110,7 @@ describe('dropUseVarToggles', () => {
 		})
 
 		it('keeps the old value-mode reading of a concatenation rather than evaluating it', () => {
-			// In value mode '$(a)+$(b)' interpolated to '3+4' and the callback's parseInt read 3 — not 7.
+			// In value mode '$(a)+$(b)' interpolated to '3+4' and parseInt read 3, not 7.
 			const actions = [{ actionId: 'iris', options: { useVar: val(true), setVar: val('$(a)+$(b)') } }]
 			migrate({ actions })
 
@@ -133,7 +128,7 @@ describe('dropUseVarToggles', () => {
 		})
 
 		it('overwrites a plain field fillOmittedOptions had already defaulted', () => {
-			// fillOmittedOptions runs first and may have written the definition's default into `set`.
+			// fillOmittedOptions runs first and may have written the default into `set`.
 			const actions = [{ actionId: 'iris', options: { useVar: val(true), setVar: val('$(x)') } }]
 			run({ actions: [actions[0]] })
 			migrate({ actions })

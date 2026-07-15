@@ -155,13 +155,8 @@ export const ConfigFields = [
 	},
 ]
 
-// The config panel renders static text as HTML but strips style attributes, so the one case the user
-// has to act on cannot be coloured. A leading symbol is what survives, and the wording carries the
-// warning regardless.
+// Config panel strips style attributes from static text, so a leading symbol is the only visible cue.
 const warn = (text) => `⚠ ${text}`
-
-// Companion asks the module for the fields each time the config panel is opened, so the text is
-// current as of that moment — it does not tick over while the panel sits open.
 
 export function describeDetectedModel(config, data) {
 	const detected = data?.modelAuto
@@ -189,14 +184,9 @@ export function describeDetectedModel(config, data) {
 	return `Detected <b>${label}</b>.`
 }
 
-// A connection only carries the fields it was saved with: one added to this module after the user
-// last hit Save is simply absent from their config, and reads `undefined`. That is how a poll delay
-// becomes NaN and a dropdown lands on a value it does not list.
-//
-// The fields above already state every default, so they are the only place one is written down —
-// each reader inventing its own fallback is how two copies of a default drift apart. Filling the
-// gaps here, once, lets the rest of the module treat this.config as complete. Static text carries no
-// value, and a field with no default has nothing to fall back on.
+// Fields added after a config's last Save are absent from it and read `undefined` (NaN poll delay,
+// invalid dropdown). Fill from each field's declared default so the rest of the module can treat
+// this.config as complete.
 export function applyConfigDefaults(config) {
 	const filled = { ...config }
 

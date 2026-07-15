@@ -470,7 +470,7 @@ export const SERIES_SPECS = [
 			trackingAuto: false,
 			version: false,
 			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZP:xxx', 'LZS:x'
-		}, // ToDo: poll/pull lists need a camdata dump from a real UB50/UB10
+		},
 	},
 	{
 		// Specific for the AW-UE4 Camera

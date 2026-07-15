@@ -20,17 +20,11 @@ import { pollCameraStatus, getCameraStatusOnce } from './polling.js'
 // ########################
 export const UpgradeScripts = upgradeScripts
 
-// How long a camera gets to acknowledge the goodbye before the connection is torn down regardless. A
-// camera that is gone never answers, and a config change must not sit out the full request timeout
-// waiting for one that is.
+// Max wait for a goodbye ack before tearing down anyway; a gone camera never answers.
 const UNSUBSCRIBE_GRACE = 1000
 
-// Every way the world between here and the camera can be broken — and every one of them is temporary,
-// so each is worth waiting out. A camera entered by hostname fails DNS rather than TCP when the
-// network drops, which is why the last two belong here: without them the same camera would recover on
-// its own when entered by IP, and stay dead until someone pressed Apply when entered by name.
-//
-// Anything not on this list is not a reachability problem, and is deliberately not retried.
+// Temporary reachability faults worth retrying; the DNS codes cover cameras entered by hostname.
+// Anything not listed is not retried.
 export const REACHABILITY_ERRORS = new Set([
 	'ETIMEDOUT',
 	'ECONNABORTED',
@@ -43,38 +37,27 @@ export const REACHABILITY_ERRORS = new Set([
 	'EAI_AGAIN', // DNS is temporarily unreachable
 ])
 
-// The one line the user reads beside the connection — and, for a fault we did not anticipate, the one
-// they would put in a bug report. So it leads with the code, which is precisely what we failed to
-// recognise and the only part that identifies the fault: got carries it in `code`, and does not always
-// repeat it in the message. Falling back through message to String() keeps a thrown non-Error — a bug
-// in our own parsing, say — from reading as "[object Object]".
+// Lead with the code: got carries it in `code` and does not always repeat it in the message. The
+// String() fallback keeps a thrown non-Error from reading as "[object Object]".
 export function describeError(err) {
 	const message = err?.message || String(err)
 
 	return err?.code ? `${err.code}: ${message}` : message
 }
 
-// Enough of a frame to see its shape — the 28-byte header and the start of the command — without
-// putting a whole runaway buffer in the log. This is what makes an out-of-sync notification stream
-// something that can be diagnosed rather than merely reported.
+// First 40 bytes (28-byte header + start of command) for diagnosing desync without dumping a runaway buffer.
 const hexdump = (buffer) => buffer.subarray(0, 40).toString('hex').replace(/(..)/g, '$1 ').trim()
 
 export default class PanasonicCameraInstance extends InstanceBase {
 	constructor(internal) {
 		super(internal)
 
-		// These have to exist before init() runs: destroy() can be handed an instance whose init()
-		// never completed, and it still has to be able to tear down cleanly.
+		// Must exist before init(): destroy() may run on an instance whose init() never completed.
 
-		// The identity of the connection currently being run. teardown() bumps it, and everything that
-		// was started under the old one — an answer still in flight, a poll loop parked in a sleep, a
-		// retry waiting on a timer — recognises itself as stale and discards its own effect. Without
-		// this, an answer from the camera the user just navigated away from lands in the state of the
-		// camera they navigated to.
+		// Identity of the current connection; teardown() bumps it so stale in-flight work discards itself.
 		this.generation = 0
 
-		// Signs every request this instance makes, so teardown() has one handle that cancels all of
-		// them at once. A fresh controller per generation: an aborted one stays aborted.
+		// One handle for teardown() to cancel every request at once; fresh controller per generation.
 		this.aborter = new AbortController()
 
 		this.clients = []
@@ -84,56 +67,43 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.pollImageGen = 0
 	}
 
-	// True while the connection this call was made under is still the one the instance is running.
-	// Every continuation after an await asks this before it touches anything.
+	// True while `generation` is still the running connection.
 	current(generation) {
 		return generation === this.generation
 	}
 
-	// Every request the module makes goes out through here. One place to sign them all with the
-	// generation's abort signal means teardown() cannot miss one, and a call site added later cannot
-	// forget to be cancellable.
+	// All requests go through here so teardown()'s abort signal is never missed.
 	httpGet(url, options = {}) {
 		return got.get(url, {
 			timeout: { request: this.config.timeout },
 			...options,
-			signal: this.aborter.signal, // last, so it is never a per-call decision
+			signal: this.aborter.signal, // last, so callers cannot override
 		})
 	}
 
-	// Everything that can still reach the camera, undone in the order that makes each step final.
-	//
-	// Takes the config it should undo rather than reading this.config, because the caller may already
-	// know it is about to replace it: the goodbye has to go to the camera that was told to say hello.
+	// Undo everything that can reach the camera. Takes config because the caller may be replacing this.config.
 	async teardown(config = this.config) {
-		// 1. Nothing new starts. Bumping the loop tokens is what stops a loop that is parked inside a
-		//    sleep and cannot see a flag until it wakes — and would wake to find the flag set again.
+		// 1. Stop new work; bumping loop tokens wakes loops parked in a sleep.
 		this.poll = false
 		this.pollImage = false
 		this.pollGen++
 		this.pollImageGen++
 		this.timeoutID = clearTimeout(this.timeoutID) // a retry owed to the old connection is not the new one's
 
-		// 2. Everything already in flight now belongs to a connection that no longer exists: its answer
-		//    is discarded on arrival (see current()), and the request itself is cancelled so it does not
-		//    hold a socket to the old camera open while it dies.
+		// 2. Invalidate in-flight work (see current()) and cancel it so it drops the old camera's socket.
 		this.generation++
 		this.aborter.abort()
-		this.aborter = new AbortController() // the goodbye below needs a live one — this order matters
+		this.aborter = new AbortController() // the goodbye below needs a live one
 
-		// 3. Tell the old camera to stop pushing. Only if we ever asked it to; this.server is that proof.
-		//    Awaited, but bounded: when the address has not changed — the user only toggled polling, say
-		//    — the stop has to land before the next start, or it unsubscribes the connection we are
-		//    about to make. When the camera is simply gone, the bound is what keeps that ordering
-		//    guarantee from costing the user a stalled config panel.
+		// 3. Tell the old camera to stop pushing (only if subscribed; this.server proves it). Awaited but
+		//    bounded: the stop must land before the next start, yet a gone camera must not stall the panel.
 		if (this.server) {
 			const goodbye = this.unsubscribeTCPEvents(this.tcpPortSelected, config)
 			await raceTimeout(goodbye, Math.min(config.timeout, UNSUBSCRIBE_GRACE))
 		}
 
-		// 4. close() only stops the server accepting *new* connections. The socket the camera already
-		//    holds open survives it, and goes on pushing that camera's state into an instance now
-		//    pointed at a different one. It has to be destroyed by hand.
+		// 4. close() only stops accepting new connections; existing camera sockets survive it and must be
+		//    destroyed by hand.
 		for (const socket of this.clients) socket.destroy()
 		this.clients = []
 
@@ -143,13 +113,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	// When module gets deleted
 	async destroy() {
 		await this.teardown()
 	}
 
-	// Takes the config explicitly: this is the one request deliberately sent to the connection being
-	// left behind, so it must not read this.config, which the caller may already have replaced.
+	// Takes config explicitly: this goodbye targets the connection being left behind, not this.config.
 	async unsubscribeTCPEvents(port, config = this.config) {
 		const url = `http://${config.host}:${config.httpPort}/cgi-bin/event?connect=stop&my_port=${port}&uid=0`
 
@@ -162,11 +130,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 			this.log('info', 'un-subscribed: ' + url)
 		} catch (err) {
-			// Deliberately not handleConnectionError(): this is a goodbye to a connection already being
-			// dismantled, and a goodbye that fails is what an absent camera looks like — not a connection
-			// worth reconnecting. Treating it as one is what made deleting a connection to an offline
-			// camera schedule a re-initialisation of the instance Companion had just thrown away, which
-			// then rebuilt the server, the subscription and the polling seconds after it was deleted.
+			// Not handleConnectionError(): a failed goodbye to a dismantled connection looks like an absent
+			// camera, and treating it as reconnectable would re-init an instance already being deleted.
 			this.log('debug', 'TCP unsubscribe failed (the camera may already be gone): ' + String(err))
 		}
 	}
@@ -181,7 +146,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 		try {
 			await this.httpGet(url)
-			if (!this.current(generation)) return // the old camera's hello must not mark the new one Ok
+			if (!this.current(generation)) return // old camera's hello must not mark the new one Ok
 
 			this.log('info', 'subscribed: ' + url)
 
@@ -194,26 +159,21 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	// Only ever reached with no server running: reInitAll() tears the previous connection down before
-	// it builds the next one, so the cleanup this used to do itself now belongs to teardown() — the one
-	// place that knows which camera is being left behind, and can therefore say goodbye to the right one.
+	// Only ever reached with no server running: reInitAll() tears the previous connection down first.
 	init_tcp() {
-		const generation = this.generation // a socket accepted for a connection that is gone is not ours
+		const generation = this.generation // a socket accepted for a gone connection is not ours
 
 		var tcpPortSelected = this.tcpPortSelected || 31004
 
 		if (this.config.host) {
-			// Create a new TCP server.
 			this.server = net.createServer((socket) => {
 				socket.name = socket.remoteAddress + ':' + socket.remotePort
-				socket.buffer = Buffer.alloc(0) // what has arrived but does not yet make a whole notification
+				socket.buffer = Buffer.alloc(0) // bytes received but not yet a whole notification
 				this.clients.push(socket)
 
-				// 'close' is the one event that always fires — 'end' does not, on a socket we destroy
-				// ourselves, which is exactly what teardown() does to every one of these.
+				// 'close' always fires; 'end' does not on a socket we destroy ourselves (as teardown() does).
 				socket.on('close', () => {
-					// indexOf can be -1 for a stale socket teardown() has already dropped from the list;
-					// splice(-1, 1) would then remove an unrelated, current socket, so guard against it.
+					// Guard indexOf === -1: splice(-1, 1) would drop an unrelated current socket.
 					const index = this.clients.indexOf(socket)
 					if (index !== -1) this.clients.splice(index, 1)
 				})
@@ -222,24 +182,18 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					this.log('error', 'Update notification channel errored/died: ' + socket.name)
 				})
 
-				// Receive data from the client.
 				socket.on('data', (data) => {
-					// A push that arrives for a connection that has been torn down comes from the old camera:
-					// it must not be parsed into the new one's state, and the socket carrying it has no
-					// business still being open.
+					// A push for a torn-down connection is the old camera's; discard it and close the socket.
 					if (!this.current(generation)) return socket.destroy()
 
-					// A chunk is not a message: the camera's notifications are cut out of the accumulated
-					// bytes, so a burst that arrives coalesced yields every one of them, and one that arrives
-					// split waits for its other half instead of being parsed in pieces (see framing.js).
+					// A chunk is not a message: accumulate and frame notifications out of it (see framing.js).
 					socket.buffer = Buffer.concat([socket.buffer, data])
 
 					const raw = socket.buffer
 					const { updates, rest, desync } = extractUpdates(raw)
 					socket.buffer = rest
 
-					// The bytes do not frame as the notifications this knows how to read. Keeping them would
-					// only mean reading the next chunk against a stream we have already lost our place in.
+					// Lost the framing: drop the buffer rather than read the next chunk against a lost stream.
 					if (desync || socket.buffer.length > MAX_BUFFER) {
 						this.log(
 							'error',
@@ -250,16 +204,14 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 					for (const { command, source } of updates) {
 						if (this.config.debug) {
-							// `source` is what the frame's header says about the camera that sent it — its address
-							// and its own clock. Nothing acts on it; it is here because a notification that turns
-							// up where it should not is otherwise very hard to place.
+							// `source` (sender address + clock) is logged only to help place a stray notification.
 							this.log('info', `Received Update: ${command}  (${source})`)
 						}
 
 						parseUpdate(this, command.split(':'))
 					}
 
-					// Once for the whole batch: a coalesced burst is one redraw, not one per notification.
+					// Once for the whole batch: a coalesced burst is one redraw.
 					if (updates.length) {
 						this.checkVariables()
 						this.checkAllFeedbacks()
@@ -267,23 +219,19 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				})
 			})
 
-			// common error handler
 			this.server.on('error', (err) => {
-				// Catch uncaught Exception "EADDRINUSE" error that occurs if the port is already in use
 				if (err.code === 'EADDRINUSE') {
 					this.log('error', 'TCP error: Please use another TCP port, ' + tcpPortSelected + ' is already in use')
 					this.log('error', 'TCP error: The TCP port must be unique between instances')
 					this.log('error', 'TCP error: Please change it and click apply in ALL camera instances')
 					this.updateStatus(InstanceStatus.UnknownError, 'TCP Port in use')
 
-					// Cancel the subscription of info from the camera
 					this.unsubscribeTCPEvents(tcpPortSelected).catch(() => null)
 				} else {
 					this.log('error', 'TCP server error: ' + String(err))
 				}
 			})
 
-			// Listens for a client to make a connection request.
 			try {
 				this.log('debug', 'Trying to listen to TCP from camera')
 
@@ -297,7 +245,6 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 				this.log('info', 'Listening for camera updates on localhost:' + tcpPortSelected)
 
-				// Subscibe to updates from camera
 				this.subscribeTCPEvents(tcpPortSelected)
 			} catch (err) {
 				this.log('error', "Couldn't bind to TCP port " + tcpPortSelected + ' on localhost: ' + String(err))
@@ -319,7 +266,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 			try {
 				const response = await this.httpGet(url)
-				// The camera that answered may no longer be the camera this instance is connected to.
+				// The camera that answered may no longer be the one we are connected to.
 				if (!this.current(generation)) return
 
 				if (response.body) {
@@ -341,8 +288,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					this.updateStatus(InstanceStatus.Ok)
 				}
 			} catch (err) {
-				// A failure of the old camera is not a failure of the one we are connected to now, and must
-				// not be allowed to schedule a reconnect on its behalf.
+				// The old camera's failure must not schedule a reconnect for the current one.
 				if (!this.current(generation)) return
 				if (this.handleConnectionError(err)) this.log('error', 'camdata request  ' + url + ' failed: ' + String(err))
 			}
@@ -412,7 +358,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	// Currently only for web commands that don't require admin rights
+	// Only for web commands that don't require admin rights.
 	async getWeb(cmd, username = '', password = '') {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${cmd}`
@@ -468,13 +414,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			try {
 				const response = await this.httpGet(url)
 
-				// got returns rawBody as a plain Uint8Array, which Jimp would mistake for a URL
+				// rawBody is a plain Uint8Array, which Jimp would mistake for a URL
 				const img = await Jimp.read(Buffer.from(response.rawBody))
 				const png64 = await fitImage(img, this.config.imageScaling).getBase64(JimpMime.png)
 
-				// Checked after the decode as well as the request: Jimp is slow enough that a config change
-				// can land while it works, and this would otherwise paint the old camera's preset onto a
-				// button belonging to the new one.
+				// Re-checked after the slow decode: a config change may have landed while Jimp worked.
 				if (!this.current(generation)) return
 
 				this.data.presetThumbnails[id] = png64
@@ -489,9 +433,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	// One image for the whole instance: every button showing it shows the same camera, so there is one
-	// picture to fetch. The snapshot takes no parameters — the frame size is whatever the camera is
-	// configured to deliver (aw_ptz #RZL), and it needs no login.
+	// One image per instance; needs no login, frame size set by the camera (aw_ptz #RZL).
 	async getImage() {
 		if (!this.SERIES?.capabilities.imageTransmission || !this.config.imageEnable) return
 
@@ -503,8 +445,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 
 		try {
-			// A full frame legitimately takes longer than a control command, and the refresh interval is
-			// the real budget for it — but never less than the timeout the user configured.
+			// A full frame is budgeted by the refresh interval, but never below the configured timeout.
 			const response = await this.httpGet(url, {
 				timeout: { request: Math.max(this.config.timeout, this.config.imageInterval) },
 			})
@@ -512,25 +453,21 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			// got returns rawBody as a plain Uint8Array, which Jimp would mistake for a URL
 			const img = await Jimp.read(Buffer.from(response.rawBody))
 
-			// Checked after the decode too: a frame of the old camera must not be painted onto a button
-			// that now belongs to the new one, and imageErrors below is instance-wide state.
+			// Re-checked after the decode: old camera's frame must not paint the new one's buttons.
 			if (!this.current(generation)) return
 
 			this.data.image = await fitImage(img, this.config.imageScaling).getBase64(JimpMime.png)
 			this.imageErrors = 0
 
-			this.checkFeedbacks('liveImage') // push the new frame to the buttons showing it
+			this.checkFeedbacks('liveImage')
 		} catch (err) {
 			if (!this.current(generation)) return
 
-			// Deliberately not handleConnectionError(): a slow or rejected image is no evidence that the
-			// control connection is gone, and tearing that down — re-initialising the whole instance —
-			// over a dropped frame would be a far worse failure than a stale thumbnail. One line per
-			// failed frame would also flood the log at a frame a second, so only the first of a streak
-			// is logged.
+			// Not handleConnectionError(): a dropped frame is no evidence the control connection is gone.
+			// Log only the first of a streak, else a frame/second failure floods the log.
 			if (this.imageErrors++ === 0) this.log('error', 'Image request ' + url + ' failed: ' + String(err))
 
-			// Stop presenting a frozen frame as if it were live once the failure is more than a blip.
+			// Drop the frozen frame once the failure is more than a blip.
 			if (this.imageErrors === 3) {
 				this.data.image = null
 				this.checkFeedbacks('liveImage')
@@ -540,15 +477,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 	// Initalize module
 	async init(config) {
-		// Fields added after the user last saved are absent from their stored config, so they are
-		// filled from the defaults the config panel declares. Everything downstream can then read
-		// this.config without a fallback of its own.
+		// Fill fields absent from stored config with panel defaults, so downstream needs no fallback.
 		this.config = applyConfigDefaults(config)
 
 		this.data = initialData()
 
-		// The live image loop. init() runs before setFeedbackDefinitions(), so the registry the feedback
-		// writes into exists before the first evaluation can reach it.
+		// Must exist before setFeedbackDefinitions() so the first evaluation can reach it.
 		this.imageSubscribers = new Map() // feedback instance id -> when it last asked for the image
 		this.imageErrors = 0
 
@@ -566,62 +500,42 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		await this.reInitAll()
 	}
 
-	// Update module after a config change
 	async configUpdated(config) {
 		const updated = applyConfigDefaults(config)
 
 		this.updateStatus(InstanceStatus.Disconnected, 'Config changed')
 
-		// The OLD config, not the new one: the camera being left behind has to be told to stop pushing,
-		// and it is only reachable at the address it was reached at. Handing teardown the new config is
-		// what used to send the goodbye to the camera the user had just switched TO, while the one they
-		// switched away from kept its subscription and kept pushing its state into this instance.
+		// The OLD config: the camera being left behind must be told to stop pushing, at its own address.
 		await this.teardown(this.config)
 
-		// Nothing the old camera said is true of the new one. A tally, a lens position, a preset name —
-		// each outlives the connection it came from unless it is wiped here, and a value the new model
-		// never reports would keep the old camera's reading forever.
+		// Nothing the old camera reported is true of the new one; wipe it or its readings would persist.
 		this.data = initialData()
 		this.config = updated
 
-		// No waiting around: teardown() is a real barrier now — every request is cancelled and every
-		// continuation that could still write anything has been invalidated — so there is nothing left to
-		// wait out. The delay this replaces was a hand-rolled one that did not work anyway (a request that
-		// fails at the timeout schedules its retry *after* it) and cost every config change two seconds.
+		// No delay needed: teardown() is a real barrier, so nothing is left to wait out.
 		await this.reInitAll()
 	}
 
 	// Handle timeouts and hide HTTP errors. Returns whether the caller should log the error.
-	//
-	// The three outcomes are the three things the user can do about them. A camera that cannot be
-	// reached is a ConnectionFailure and the module keeps trying, because that is a fault of the world
-	// and the world tends to right itself. Anything we did not anticipate is an UnknownError and the
-	// module stops, because retrying something we do not understand is how a bug becomes a request
-	// storm. Disconnected is reserved for the one case the user caused deliberately — a config change.
 	handleConnectionError(err) {
-		// A request cancelled by teardown() is this module hanging up, not the camera failing to answer.
-		// got raises it as an AbortError carrying this code; without this case it would fall through to
-		// the bottom and report a perfectly healthy camera as broken.
+		// Cancelled by teardown(), not a camera failure; got raises it as ERR_ABORTED.
 		if (err.code === 'ERR_ABORTED') return false
 
-		// The camera cannot be reached: keep re-initialising until it comes back, so its state and its
-		// update subscription are restored the moment it does.
+		// Unreachable: keep re-initialising until it comes back.
 		if (REACHABILITY_ERRORS.has(err.code)) {
 			this.scheduleReInit(String(err.code))
 			return true // print error
 		}
 
-		// The camera answered, it just did not like the request. Not a connection problem at all.
+		// Camera answered but rejected the request; not a connection problem.
 		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') return this.config.debug // hide error
 
-		// Not a fault we know how to wait out. Say so, and stop: a retry loop around something we have
-		// not diagnosed would hammer the camera without ever getting anywhere.
+		// Undiagnosed fault: stop rather than retry-loop against it.
 		this.updateStatus(InstanceStatus.UnknownError, describeError(err))
 		return true // print error
 	}
 
-	// The one retry timer the instance has. An unreachable camera fails one request per poll command, so
-	// a burst of failures has to schedule a single re-initialisation rather than one each.
+	// The instance's one retry timer: a burst of failures must schedule a single re-init, not one each.
 	scheduleReInit(reason) {
 		this.poll = false
 		this.pollImage = false // an unreachable camera must not keep being asked for JPEGs
@@ -633,14 +547,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}, this.config.timeout + this.config.pollDelay)
 	}
 
-	// Bring the connection up from nothing. Every path that wants a working connection comes through
-	// here, and every one of them starts by destroying whatever the previous one left behind — the
-	// reconnect included, whose whole premise is that the old connection is dead.
-	//
-	// That teardown is what makes the rest safe: init_tcp() is only ever reached with no server running,
-	// so turning subscription off (or moving to a model that has none) closes the old server as a matter
-	// of course; and the generation it bumps invalidates the poll loop of the run before, so a camera
-	// that never answers can no longer accumulate one more polling loop per retry.
+	// Bring the connection up from nothing; starts by tearing down whatever the previous run left behind,
+	// which is what lets init_tcp() assume no server is running and invalidates the prior poll loop.
 	async reInitAll() {
 		if (!this.config.host) return this.updateStatus(InstanceStatus.BadConfig)
 
@@ -651,7 +559,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.updateStatus(InstanceStatus.Connecting, this.config.host + ':' + this.config.httpPort)
 
 		await this.getCam('QID') // pull model
-		if (!this.current(generation)) return // a teardown while we waited: this run is not the live one
+		if (!this.current(generation)) return // torn down while we waited
 
 		this.SERIES = getAndUpdateSeries(this)
 
@@ -662,9 +570,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		if (!this.current(generation)) return
 
 		if (this.SERIES.capabilities.subscription) {
-			this.getCameraStatus() // initial bulk retrieve of "all" data (camdata.html)
+			this.getCameraStatus() // initial bulk retrieve (camdata.html)
 			if (this.config.subscriptionEnable) {
-				this.init_tcp() // setup tcp push updates
+				this.init_tcp()
 			}
 		}
 
@@ -681,10 +589,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.checkAllFeedbacks()
 	}
 
-	// Return config fields for web config
 	getConfigFields() {
-		// Companion calls this every time the config panel is opened, which is what lets a static field
-		// report something the module only learns at runtime.
+		// Called each time the panel opens, so a static field can report a runtime-learned value.
 		return ConfigFields.map((field) =>
 			field.id === 'modelDetected' ? { ...field, value: describeDetectedModel(this.config, this.data) } : field,
 		)
@@ -705,7 +611,6 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.setVariableDefinitions(setVariables(this))
 	}
 
-	// Update Values
 	checkVariables() {
 		checkVariables(this)
 	}

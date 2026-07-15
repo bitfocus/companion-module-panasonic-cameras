@@ -1,20 +1,16 @@
 import { sleep } from './common.js'
 
-// Maps each transport group of a model's pull/poll capabilities to the instance method that queries it.
+// Transport group -> instance method that queries it.
 const transports = { ptz: 'getPTZ', cam: 'getCam', web: 'getWeb' }
 
-// The `poll` flag alone cannot say whether this loop is still the wanted one, and never could: a
-// teardown clears it, the re-initialisation that follows sets it again, and a loop parked in an await
-// across those two wakes up to a flag that reads true. It then runs alongside the loop the
-// re-initialisation started — one more camera-hammering loop per reconnect, forever. The token is what
-// distinguishes "still running" from "running again".
+// A teardown clears `poll` and the reinit sets it again, so a loop awaiting across that wakes to a
+// true flag and runs a duplicate. The generation token distinguishes "still running" from "running again".
 export async function pollCameraStatus(self) {
 	const generation = ++self.pollGen
 	const alive = () => self.poll && self.pollGen === generation
 
 	while (alive()) {
-		// When subscription is disabled, also poll the data it would otherwise push (pull).
-		// The additional data (poll) is always queried, regardless of subscription.
+		// Subscription off: also query the pull data it would otherwise push. Poll data always runs.
 		const groups = self.config.subscriptionEnable
 			? [self.SERIES.capabilities.poll]
 			: [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]
@@ -33,11 +29,9 @@ export async function pollCameraStatus(self) {
 	}
 }
 
-// A feedback that is still on a button re-registers itself every time it is evaluated, and getImage()
-// evaluates every placed instance after each frame — so a live subscriber refreshes its timestamp
-// each cycle and only a departed one goes quiet. unsubscribe() covers the normal removal; this
-// catches the paths it never fires on (page import, a moved control), so a lost subscriber costs a
-// few wasted frames rather than polling the camera forever.
+// Live subscribers refresh their timestamp on every getImage() evaluation; departed ones go quiet.
+// unsubscribe() covers normal removal; this catches the paths it misses (page import, moved control)
+// so a lost subscriber stops the poll instead of hammering the camera forever.
 function pruneImageSubscribers(self) {
 	const deadline = Date.now() - 3 * self.config.imageInterval - self.config.timeout
 
@@ -46,13 +40,9 @@ function pruneImageSubscribers(self) {
 	}
 }
 
-// The live image runs on its own loop rather than inside pollCameraStatus: it is fetched every second
-// or so where status commands go out every few hundred milliseconds, and a full-size frame takes long
-// enough that interleaving the two would stall every status command queued behind it.
-//
-// Module API 2.0 removed the feedback subscribe hook, so there is nothing to hook: the loop runs
-// while — and only while — a button is asking for the image, which the feedback's own callback says
-// by registering itself on every evaluation (see feedbacks.js).
+// Separate loop from pollCameraStatus: a full-size frame every ~second would stall the sub-second
+// status commands queued behind it. Module API 2.0 has no feedback subscribe hook, so the loop runs
+// only while a button's feedback re-registers itself on each evaluation (see feedbacks.js).
 export async function pollLiveImage(self) {
 	const generation = ++self.pollImageGen // a loop from before a re-init must not outlive it
 
@@ -63,15 +53,14 @@ export async function pollLiveImage(self) {
 		await self.getImage()
 		if (!self.pollImage || self.pollImageGen !== generation) return
 
-		// Back off while the camera is not answering rather than hammering it once a second.
+		// Back off while the camera is not answering.
 		await sleep(self.config.imageInterval * (self.imageErrors ? 5 : 1))
 	}
 
 	if (self.pollImageGen === generation) self.pollImage = false
 }
 
-// Started from the feedback's callback: the first button to show the image starts the loop, and the
-// re-entrancy guard is why the many evaluations that follow do not each start another.
+// Called from the feedback callback; the guard stops the following evaluations from each starting a loop.
 export function startLiveImagePoll(self) {
 	if (self.pollImage) return
 	if (!self.SERIES?.capabilities.imageTransmission || !self.config.imageEnable) return
@@ -84,8 +73,7 @@ export function startLiveImagePoll(self) {
 	})
 }
 
-// One-shot query of all data defined by the model's pull and poll capabilities.
-// Functional, capability-driven alternative to getAllCameraStatus for use at initialisation.
+// One-shot query of the model's pull+poll capabilities, run at initialisation.
 export async function getCameraStatusOnce(self) {
 	for (const caps of [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]) {
 		if (!caps) continue
@@ -95,10 +83,8 @@ export async function getCameraStatusOnce(self) {
 	}
 }
 
-// Exhaustive, hand-written query of every command this protocol knows, kept deliberately even
-// though nothing calls it: it is the reference used when bringing up a new camera model, to see
-// what the device answers before the capability tables in models.js are filled in.
-// Do not delete as "dead code" — getCameraStatusOnce above is the runtime path.
+// Reference used when bringing up a new model, to see what the device answers before models.js is
+// filled in. Deliberately unused — do not delete as dead code; getCameraStatusOnce is the runtime path.
 export async function getAllCameraStatus(self) {
 	const cmds = {
 		ptz: [

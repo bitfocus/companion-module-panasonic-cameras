@@ -1,10 +1,5 @@
-// Everything the camera tells us about itself, and the value each field holds before it has told us
-// anything. The parser writes here; the variables and feedbacks read from here.
-//
-// A factory rather than a shared constant, for two reasons. A connection pointed at a different
-// camera needs a *new* object — the previous camera's tally, lens positions and preset thumbnails are
-// not true of the new one, and a value the new model never reports would otherwise keep the old
-// camera's reading forever. And a shared literal would hand every instance the same arrays.
+// Factory, not a shared constant: each connection needs its own object (a new camera's readings must
+// not inherit the old one's) and its own arrays (a shared literal would alias them across instances).
 export function initialData() {
 	return {
 		debug: false,

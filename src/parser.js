@@ -202,7 +202,7 @@ export function parseUpdate(self, str) {
 			break
 		case 'OID':
 			self.data.modelAuto = str[1]
-			// if another model is detected or selected, re-initialise all actions, variables and feedbacks
+			// re-init all if model changed
 			if (self.data.modelAuto !== self.data.model) {
 				logger.info('Detected Camera Model: ' + self.data.modelAuto)
 				//self.reInitAll()
@@ -449,7 +449,7 @@ export function parseWeb(self, str, cmd) {
 					break
 				case 'NAME':
 					self.data.modelAuto = str[1]
-					// if a new model is detected or selected, re-initialise all actions, variables and feedbacks
+					// re-init all if model changed
 					if (self.data.modelAuto !== self.data.model) {
 						logger.info('Detected Camera Model: ' + self.data.modelAuto)
 						//self.reInitAll()
@@ -462,7 +462,6 @@ export function parseWeb(self, str, cmd) {
 
 export function parseWebCode(self, code, cmd) {
 	if (code === 204 || code === 503) {
-		// no content
 		switch (cmd) {
 			case 'srt_ctrl?cmd=start':
 				self.data.srt = '1'

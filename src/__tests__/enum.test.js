@@ -2,10 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { e } from '../enum.js'
 import { MODELS, SERIES_SPECS } from '../models.js'
 
-// The tables in enum.js are generated from a rule rather than written out entry by entry. These
-// tests pin the shape of what the generators produce, so a change to a rule cannot silently alter
-// values the camera protocol depends on. Ids are what get persisted in a user's button config;
-// labels are display only.
+// enum.js tables are generated from rules; these pin the produced values. Ids are persisted in
+// button configs, labels are display only.
 
 describe('generated enums', () => {
 	it('spaces gain in hex steps from 0 dB = 0x08, with 0x80/0x81 for the auto/manual modes', () => {
@@ -52,9 +50,7 @@ describe('generated enums', () => {
 		expect(e.ENUM_PRESET_SPEED.at(2)).toEqual({ id: '975', label: 'Speed 29' })
 		expect(e.ENUM_PRESET_SPEED.at(-1)).toEqual({ id: '275', label: 'Speed  1' })
 
-		// The hand-written table used to label id 550 "Speed 13", duplicating the entry above it and
-		// omitting Speed 12 entirely. Regenerating from the rule fixes it; the id is unchanged, so
-		// existing button configs still resolve.
+		// Regenerating fixes a duplicate label (id 550 was "Speed 13"); id unchanged, so existing configs resolve.
 		expect(e.ENUM_PRESET_SPEED.find((x) => x.id === '550')).toEqual({ id: '550', label: 'Speed 12' })
 		const labels = e.ENUM_PRESET_SPEED.map((x) => x.label)
 		expect(new Set(labels).size, 'speed labels must be unique').toBe(labels.length)

@@ -97,9 +97,7 @@ function optMove(label_inc = '⬆', label_dec = '⬇') {
 	]
 }
 
-// A 'Set' plus some way of moving relative to the current value. The relative choices carry the
-// same ids (+1 / -1) whatever they are called, so the wording is all that varies between the
-// wrappers below.
+// 'Set' plus relative choices sharing ids (+1/-1); only the wording varies per wrapper.
 function optSetChoice(relativeChoices, choices, label, def) {
 	return [
 		{
@@ -138,11 +136,7 @@ function optSetToggleNextPrev(choices, label = 'Setting', def = 0) {
 	)
 }
 
-// A numeric value that can be set outright or stepped. Either input can be driven by a variable
-// without any help from us: every field is expression-capable in 2.0 unless it opts out, so the user
-// just flips the field itself into expression mode. `allowInvalidValues` keeps an out-of-range
-// expression result from silently taking the whole action down — resolveSetStep constrains it below.
-// The two wrappers differ only in what the relative choices are called.
+// allowInvalidValues lets an out-of-range expression result through; resolveSetStep constrains it below.
 function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
 	const outOfRange = 'Values outside this range are constrained to it; an unreadable value takes no action.'
 
@@ -192,9 +186,7 @@ function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
 	return optSetStepped('Increase', 'Decrease', label, def, min, max, step)
 }
 
-// Some cameras can only nudge a value up and down, never write one outright. Offering them a 'Set'
-// that quietly does nothing would be worse than not offering it at all, so they get the relative
-// half of the options only.
+// Cameras that can only step (no absolute Set) get the relative options only.
 function optIncDec() {
 	return [
 		{
@@ -219,11 +211,7 @@ function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 // #### Command formatting ####
 // ############################
 
-// Constrains the value the user's input produced, so the command builders below only ever see a
-// number the camera will accept. Any of these fields may hold an expression, and `allowInvalidValues`
-// hands us whatever that expression evaluated to rather than dropping the action — so the range check
-// that used to guard only the variable inputs now guards every input. Returns false when the value
-// does not read as a number, which aborts the action rather than sending garbage to the camera.
+// Constrains set/step into range; returns false on a non-numeric value to abort the action.
 function resolveSetStep(action, min, max, step) {
 	if (action.options.op === ACTION_SET) {
 		const set = constrainRange(parseInt(action.options.set, 10), min, max)
@@ -266,10 +254,7 @@ export function getActionDefinitions(self) {
 	const web = (cmd) => self.getWeb(cmd)
 
 	// ----- Action factories -----
-	// `read` is a getter rather than a value: toggling and stepping are relative to whatever the
-	// camera reports right now, which is not known when the definition is built.
-
-	// A setting the camera exposes as a fixed list of values.
+	// read is a getter: toggle/step are relative to the camera's current value, unknown at build time.
 	const enumAction = (name, send, command, choices, read, { nextPrev = false, label } = {}) => ({
 		name,
 		options: nextPrev ? optSetToggleNextPrev(choices, label) : optSetToggle(choices, label),
@@ -278,7 +263,7 @@ export function getActionDefinitions(self) {
 		},
 	})
 
-	// A bipolar level (pedestal, colour gain, chroma phase) centred on zero.
+	// Bipolar level centred on zero.
 	const levelAction = (name, label, level, command, read) => ({
 		name,
 		options: optSetIncDecStep(label, 0, -level.limit, +level.limit, level.step),
@@ -289,7 +274,6 @@ export function getActionDefinitions(self) {
 		},
 	})
 
-	// A one-shot command with nothing to configure.
 	const simpleAction = (name, send, command) => ({
 		name,
 		options: [],
@@ -298,7 +282,7 @@ export function getActionDefinitions(self) {
 		},
 	})
 
-	// Recording and streaming are driven over HTTP with a word rather than a value.
+	// Recording/streaming go over HTTP with a word, not a value.
 	const webToggleAction = (name, url, read, { on = 'start', off = 'stop' } = {}) => ({
 		name,
 		options: optSetToggle(e.ENUM_OFF_ON),
@@ -308,8 +292,7 @@ export function getActionDefinitions(self) {
 		},
 	})
 
-	// Zoom and focus are the same three controls on different axes: a momentary move at the stored
-	// speed, a direct speed command, and the stored speed itself.
+	// Zoom and focus share three controls per axis: momentary move, direct speed, stored speed.
 	const lensAxis = (axis, command, speedProp, speedDataKey, incLabel, decLabel) => {
 		const move = (dir) => ptz(command + cmdSpeed(dir * self[speedProp] + SPEED_OFFSET))
 		return {
@@ -385,7 +368,6 @@ export function getActionDefinitions(self) {
 			],
 			callback: async (action) => {
 				if (action.options.dir === '11') {
-					// Stop
 					await self.getPTZ('PTS' + cmdSpeed(SPEED_OFFSET) + cmdSpeed(SPEED_OFFSET))
 					if (self.speedChangeEmitter.listenerCount('ptSpeed')) self.speedChangeEmitter.removeAllListeners('ptSpeed')
 				} else {
@@ -507,7 +489,7 @@ export function getActionDefinitions(self) {
 	// ##########################
 
 	if (caps.iris) {
-		// Box cameras have no pan/tilt head and drive the lens iris directly (ORV, 0x0 - 0x3FF).
+		// Box cameras drive the lens iris directly (ORV, 0x0-0x3FF).
 		actions.iris =
 			caps.iris.cmd === 'ORV'
 				? {
@@ -616,7 +598,7 @@ export function getActionDefinitions(self) {
 		)
 	}
 
-	// Red, blue and green pedestal and gain are the same control on six different channels.
+	// Same pedestal/gain control across the colour channels.
 	const COLOR_CHANNELS = [
 		{ suffix: 'Red', channel: 'red' },
 		{ suffix: 'Blue', channel: 'blue' },
@@ -672,8 +654,7 @@ export function getActionDefinitions(self) {
 		)
 	}
 
-	// The UB300 steps its colour temperature but cannot be given one, so it gets Increase/Decrease
-	// without the Set it could not carry out.
+	// UB300 can only step colour temperature, not set it.
 	if (caps.colorTemperature && caps.colorTemperature.advanced) {
 		const advanced = caps.colorTemperature.advanced
 		actions.colorTemperature = {
@@ -940,7 +921,7 @@ export function getActionDefinitions(self) {
 				actions.tally3 = enumAction('System - Yellow Tally', cam, 'TLY:', e.ENUM_OFF_ON, () => self.data.tally3)
 			}
 		} else {
-			// Use legacy PTZ Tally
+			// Legacy PTZ tally.
 			actions.tally = enumAction('System - Tally', ptz, 'DA', e.ENUM_OFF_ON, () => self.data.tally)
 		}
 	}

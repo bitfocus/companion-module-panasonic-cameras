@@ -1,6 +1,4 @@
-// Several of these tables are pure arithmetic and used to be written out entry by entry. They are
-// generated here instead, so the rule is stated once and cannot drift from the values it produces.
-// src/__tests__/enum.test.js pins the generated output.
+// Arithmetic tables are generated, not enumerated; src/__tests__/enum.test.js pins the output.
 
 const hex = (n, width) => n.toString(16).toUpperCase().padStart(width, '0')
 
@@ -12,23 +10,23 @@ const range = (from, to, step = 1) => {
 
 const signed = (n) => (n > 0 ? `+${n}` : `${n}`)
 
-// Gain is sent as a hex step where 0 dB is 0x08, with 0x80/0x81 reserved for the auto/manual modes.
+// hex step: 0 dB = 0x08; 0x80/0x81 = auto/manual
 const gain = (lowDb, highDb, stepDb = 1, { auto = true, manual = false } = {}) => [
 	...(auto ? [{ id: '80', label: 'Auto' }] : []),
 	...range(lowDb, highDb, stepDb).map((db) => ({ id: hex(db + 8, 2), label: `${db} dB` })),
 	...(manual ? [{ id: '81', label: 'Manual' }] : []),
 ]
 
-// Chroma level as a percentage, centred on 0x80, with an explicit OFF entry.
+// percentage centred on 0x80, plus OFF
 const chromaPercent = (lowPct, highPct) => [
 	{ id: '00', label: 'OFF' },
 	...range(lowPct, highPct).map((pct) => ({ id: hex(pct + 0x80, 2), label: `${signed(pct)}%` })),
 ]
 
-// Chroma level as discrete steps, centred on 0x03.
+// discrete steps centred on 0x03
 const chromaSteps = (low, high) => range(low, high).map((v) => ({ id: hex(v + 3, 2), label: signed(v) }))
 
-// Preset recall speed: speed n maps to 250 + 25n, capped at the 999 the protocol allows.
+// speed n -> 250 + 25n, capped at 999
 const presetSpeeds = () => [
 	{ id: '000', label: 'Speed Max' },
 	...range(30, 1, -1).map((s) => ({
@@ -37,11 +35,10 @@ const presetSpeeds = () => [
 	})),
 ]
 
-// Preset recall time in whole seconds, sent as hex.
+// whole seconds, sent as hex
 const presetTimes = () => range(99, 1, -1).map((t) => ({ id: hex(t, 3), label: `Time ${String(t).padStart(2, ' ')}s` }))
 
-// The HE130 colour temperatures are not on a regular grid, so the values stay as data; only the
-// sequential ids they are addressed by are generated.
+// HE130 colour temps: irregular grid, kept as data; ids generated.
 // prettier-ignore
 const COLOR_TEMPERATURE_NL = [
 	2000, 2010, 2020, 2040, 2050, 2070, 2080, 2090, 2110, 2120, 2140, 2150, 2170, 2180, 2200, 2210, 2230, 2240, 2260, 2280,
@@ -85,7 +82,7 @@ export const e = {
 	ENUM_GAIN_UE150: gain(-3, 42),
 	ENUM_GAIN_CX350: gain(-6, 42, 1, { manual: true }),
 	ENUM_GAIN_UE160: gain(-4, 12),
-	ENUM_GAIN_UB50: gain(-6, 62, 1, { auto: false }), // OSL:25 has no auto step; AGC is a separate switch (OSL:26)
+	ENUM_GAIN_UB50: gain(-6, 62, 1, { auto: false }), // OSL:25 has no auto step; AGC separate (OSL:26)
 	ENUM_GAIN_UB300: [
 		{ id: '01', label: 'LOW' },
 		{ id: '04', label: 'MID' },
@@ -331,7 +328,7 @@ export const e = {
 		{ id: '50', label: '1080/59.94p CROP' },
 		{ id: '51', label: '1080/50p CROP' },
 		{ id: '80', label: 'Auto' },
-		// The 90h and above formats are reported by the AK-UB50/UB10 box cameras only.
+		// 90h+ reported by UB50/UB10 box cameras only
 		{ id: '90', label: '3328x2496/59.94p' },
 		{ id: '91', label: '3328x2496/50p' },
 		{ id: '92', label: '3328x2496/48p' },

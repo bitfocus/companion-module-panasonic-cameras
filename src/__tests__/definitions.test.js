@@ -19,20 +19,15 @@ const FIELD_TYPES = [
 	'secret-text',
 ]
 
-// Properties that existed in module-base 1.x and were removed in 2.0. Each of these shipped in
-// this module at some point, so they are worth pinning rather than trusting a one-off grep.
+// Properties removed in 2.0, each shipped in this module at some point.
 const REMOVED_FIELD_PROPS = ['isVisible', 'required']
 const REMOVED_PRESET_OPTIONS = ['relativeDelay', 'rotaryActions']
 
-// The module used to hand-build a "Use Variable" checkbox that swapped a field for a parallel
-// textinput. In 2.0 every field can be toggled into expression mode on its own, so the construct is
-// gone; these are the option ids it left behind (see dropUseVarToggles in upgrades.js).
+// The option ids the removed "Use Variable" checkbox left behind (see dropUseVarToggles in upgrades.js).
 const REMOVED_OPTION_IDS = ['useVar', 'setVar', 'stepVar', 'valVar', 'optionVar']
 
-// The fields whose value a callback parses and constrains itself: the stepped number inputs (marked
-// by `asInteger`, which only that builder sets) and the preset dropdown. Other number fields are
-// deliberately not in here — nothing constrains them, so Companion rejecting an out-of-range
-// expression is exactly what should happen.
+// Fields whose value a callback parses and constrains itself: stepped number inputs (marked by
+// `asInteger`) and the preset dropdown. Other number fields are left for Companion to reject.
 const isConstrained = (field) =>
 	(field.type === 'number' && field.asInteger) ||
 	(field.type === 'dropdown' && field.choices?.[0]?.label?.startsWith('Preset '))
@@ -95,11 +90,9 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 	})
 
 	describe('preset entities', () => {
-		// Companion parses every option a stored entity carries against its field definition, and it
-		// does not fall back to the default for one that was never set: for a dropdown, undefined is
-		// simply not in the list of choices, and the action fails to run. So a preset button is only
-		// as valid as the weakest option on it — an omitted option, a step below the model's own step
-		// size, or an action the model does not have at all each take the whole button down.
+		// Companion parses every stored option against its definition with no default fallback, so a
+		// preset button is only as valid as its weakest option: an omitted option, an out-of-step value,
+		// or an action the model lacks each takes the whole button down.
 		const presetEntities = Object.entries(presets).flatMap(([presetId, preset]) => [
 			...(preset.steps ?? []).flatMap((step) =>
 				Object.values(step)
@@ -116,8 +109,7 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 		})
 
 		it('carries no option the model does not have', () => {
-			// A preset is written once for every model, so it can name an option — a step size, say —
-			// that a given model's action does not offer at all.
+			// A preset is written once for every model, so it can name an option a given model's action lacks.
 			for (const [presetId, kind, entityId, options, definitions] of presetEntities) {
 				const known = (definitions[entityId]?.options ?? []).map((field) => field.id)
 				for (const id of Object.keys(options ?? {})) {
@@ -196,11 +188,9 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 		})
 
 		it('lets every field the callbacks constrain hold what an expression produced', () => {
-			// resolveSetStep and parsePresetNumber parse and clamp these values themselves. Without
-			// `allowInvalidValues` Companion drops the whole entity before the callback ever sees one it
-			// considers invalid — and on the preset dropdown that is not an edge case but the normal
-			// path: the templated preset buttons drive it from an expression, which yields the number 4
-			// where the choice ids are the strings '00'..'99'.
+			// resolveSetStep and parsePresetNumber clamp these themselves; without `allowInvalidValues`
+			// Companion drops the entity first. The preset dropdown hits this normally: templated buttons
+			// drive it from an expression yielding the number 4, where the choice ids are '00'..'99'.
 			const constrained = allFields.filter(([, field]) => isConstrained(field))
 			expect(constrained.length).toBeGreaterThan(0)
 
@@ -210,14 +200,10 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 		})
 
 		it('lets every conditionally-visible field hold an empty value', () => {
-			// Companion validates a stored option whether or not the field is currently shown. A field
-			// behind an isVisibleExpression is legitimately empty while its condition is off — the user
-			// never filled it in — so any rule that rejects "" makes the whole entity fail to parse and
-			// the button stops working.
-			//
-			// In 1.x both `required` and `regex` were advisory. In 2.0 `minLength` and `regex` are
-			// enforced, so mechanically carrying them over broke every saved button that drove its
-			// option from the dropdown rather than a variable.
+			// Companion validates a stored option whether or not the field is shown. A field behind an
+			// isVisibleExpression is legitimately empty while its condition is off, so any rule rejecting
+			// "" makes the whole entity fail to parse. In 2.0 `minLength` and `regex` are enforced (they
+			// were advisory in 1.x), so carrying them over broke saved buttons driven from the dropdown.
 			for (const [defId, field] of allFields) {
 				if (!field.isVisibleExpression) continue
 				const where = `${defId}.${field.id} is only shown when ${field.isVisibleExpression}`
@@ -237,8 +223,8 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 					if (typeof field.isVisibleExpression !== 'string') continue
 					const referenced = [...field.isVisibleExpression.matchAll(/\$\(options:(\w+)\)/g)].map((m) => m[1])
 					for (const name of referenced) {
-						// A field that can itself hold an expression cannot be read back reliably,
-						// so anything an isVisibleExpression depends on must set disableAutoExpression.
+						// A field that can hold an expression cannot be read back reliably, so anything an
+						// isVisibleExpression depends on must set disableAutoExpression.
 						const target = def.options.find((o) => o.id === name)
 						expect(target, `${defId}.${field.id} -> ${name}`).toBeDefined()
 						expect(target.disableAutoExpression, `${defId}.${field.id} -> ${name}`).toBe(true)
