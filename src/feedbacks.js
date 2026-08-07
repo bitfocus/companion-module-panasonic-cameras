@@ -185,7 +185,7 @@ export function getFeedbackDefinitions(self) {
 		feedbacks.zoomControl = stateFeedback(
 			'Lens - Zoom Control',
 			'Indicates if Zoom is currently in operation',
-			() => self.data.zoomSpeedValue != 0,
+			() => Number(self.data.zoomSpeedValue) !== 0,
 		)
 	}
 

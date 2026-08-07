@@ -139,12 +139,17 @@ export function parseUpdate(self, str) {
 		self.data.presetSpeed = str[0].substring(4)
 	}
 
+	// A short or non-numeric notification would otherwise store NaN, which publishes as a NaN
+	// variable, satisfies the "is the lens moving" feedback (NaN != 0) so the button latches lit, and
+	// feeds back out as a literal "#ZNaN" on the wire. Keep the last known speed instead.
 	if (str[0].substring(0, 2) === 'fS') {
-		self.data.focusSpeedValue = parseInt(str[0].substring(2, 4)) - 50
+		const speed = parseInt(str[0].substring(2, 4), 10)
+		if (Number.isFinite(speed)) self.data.focusSpeedValue = speed - 50
 	}
 
 	if (str[0].substring(0, 2) === 'zS') {
-		self.data.zoomSpeedValue = parseInt(str[0].substring(2, 4)) - 50
+		const speed = parseInt(str[0].substring(2, 4), 10)
+		if (Number.isFinite(speed)) self.data.zoomSpeedValue = speed - 50
 	}
 
 	switch (str[0]) {

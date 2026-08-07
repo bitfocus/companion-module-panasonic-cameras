@@ -64,6 +64,27 @@ describe('parseUpdate', () => {
 		expect(parse('zS50').zoomSpeedValue).toBe(0)
 		expect(parse('fS99').focusSpeedValue).toBe(49)
 	})
+
+	// NaN publishes as a NaN variable, satisfies the zoomControl feedback (NaN != 0) so the button
+	// latches lit, and comes back out of lensAxis as a literal "#ZNaN" on the wire.
+	it.each(['zS', 'zSx', 'zS-', 'fS', 'fSab'])('keeps the last known speed rather than storing NaN for %s', (cmd) => {
+		const self = {
+			data: {
+				zoomSpeedValue: 7,
+				focusSpeedValue: 7,
+				presetThumbnails: [],
+				presetEntries: [],
+				presetEntries0: [],
+				presetEntries1: [],
+				presetEntries2: [],
+			},
+			getThumbnail: () => {},
+		}
+		parseUpdate(self, [cmd])
+
+		expect(self.data.zoomSpeedValue).toBe(7)
+		expect(self.data.focusSpeedValue).toBe(7)
+	})
 })
 
 describe('common helpers', () => {
