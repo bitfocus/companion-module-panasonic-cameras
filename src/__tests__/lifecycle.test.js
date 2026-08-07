@@ -38,6 +38,7 @@ function makeInstance(config = {}, { series = 'UE80', capabilities } = {}) {
 	self.pollImage = false
 	self.pollImageGen = 0
 	self.imageErrors = 0
+	self.failures = 0
 	self.imageSubscribers = new Map()
 	self.tcpPortSelected = 31004
 
@@ -200,6 +201,9 @@ describe('handleConnectionError', () => {
 	it.each([...REACHABILITY_ERRORS])('reports %s as a connection failure, and keeps trying', (code) => {
 		const self = makeInstance()
 
+		// One of these is a blip; a streak of them is a lost camera (see FAILURE_THRESHOLD).
+		self.handleConnectionError({ code })
+		self.handleConnectionError({ code })
 		expect(self.handleConnectionError({ code })).toBe(true)
 
 		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
@@ -254,6 +258,48 @@ describe('handleConnectionError', () => {
 		self.handleConnectionError({ code: 'EHOSTUNREACH' })
 
 		expect(vi.getTimerCount()).toBe(1)
+	})
+
+	it('rides out a single dropped connection instead of rebuilding the whole instance', async () => {
+		// ECONNRESET on a keep-alive is routine with these cameras. Read as a lost connection it stopped
+		// polling, flipped the status and re-published ~200 presets — a full panel redraw for a blip.
+		const self = makeInstance()
+		self.poll = true
+
+		expect(self.handleConnectionError({ code: 'ECONNRESET' })).toBe(false) // not worth logging yet
+
+		expect(self.updateStatus).not.toHaveBeenCalled()
+		expect(self.poll).toBe(true) // polling is what recovers it
+	})
+
+	it('withdraws the pending retry as soon as a request gets through again', async () => {
+		const self = makeInstance()
+		self.reInitAll = vi.fn()
+		self.httpGet = vi.fn(async () => ({ body: 'OID:AW-UE100\r\n', statusCode: 200 }))
+
+		self.handleConnectionError({ code: 'ECONNRESET' })
+		expect(vi.getTimerCount()).toBe(1) // armed in case nothing else drives a retry
+
+		await self.getCam('QID') // the very next poll succeeds
+
+		expect(vi.getTimerCount()).toBe(0)
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['ok'])
+
+		// Nothing must resurrect the reconnect once the connection has proven itself.
+		await vi.advanceTimersByTimeAsync(60_000)
+		expect(self.reInitAll).not.toHaveBeenCalled()
+	})
+
+	it('still gives up on a camera that goes quiet without another request to notice', async () => {
+		// A subscription-only camera makes no further requests, so the streak can never grow past one.
+		// The fallback timer is what keeps that connection from sitting in Ok forever.
+		const self = makeInstance()
+		self.reInitAll = vi.fn()
+
+		self.handleConnectionError({ code: 'EHOSTUNREACH' })
+		await vi.advanceTimersByTimeAsync(self.config.timeout + self.config.pollDelay)
+
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
 	})
 
 	it('keeps Disconnected for the one thing the user did on purpose', async () => {
