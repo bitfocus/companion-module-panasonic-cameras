@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseUpdate } from '../parser.js'
-import { constrainRange, getNext, getNextValue, getLabel, toHexString } from '../common.js'
+import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
 
 // parseUpdate mutates self.data in place from the camera's notification strings.
 function parse(...args) {
@@ -84,6 +84,26 @@ describe('parseUpdate', () => {
 
 		expect(self.data.zoomSpeedValue).toBe(7)
 		expect(self.data.focusSpeedValue).toBe(7)
+	})
+})
+
+// checkVariables() runs after every HTTP response and every TCP batch. Resolving the series there
+// meant two Array.find scans over the model tables, plus a write to self.data, on that hot path.
+describe('seriesOf', () => {
+	const bare = (model) => ({ config: { model }, data: { model: null, modelAuto: null, series: null } })
+
+	it('hands back what the connection already resolved instead of scanning again', () => {
+		const resolved = { id: 'UE160', capabilities: {} }
+		const self = { ...bare('AW-HE2'), SERIES: resolved }
+
+		expect(seriesOf(self)).toBe(resolved)
+		expect(self.data.model).toBeNull() // the hot path writes nothing
+	})
+
+	it('still resolves for a caller with no connection behind it', () => {
+		// The upgrade scripts and the definition tests build a bare self; so does reInitAll() until the
+		// camera has answered QID.
+		expect(seriesOf(bare('AW-HE2')).capabilities.preset).toBe(9)
 	})
 })
 

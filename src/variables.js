@@ -1,8 +1,8 @@
-import { constrainRange, getAndUpdateSeries, getLabel } from './common.js'
+import { constrainRange, seriesOf, getLabel } from './common.js'
 import { e } from './enum.js'
 
 export function setVariables(self) {
-	const SERIES = getAndUpdateSeries(self)
+	const SERIES = seriesOf(self)
 	const caps = SERIES.capabilities
 
 	// [capability guard, variables it unlocks]. Guard is a capability key or a predicate.
@@ -122,7 +122,7 @@ export function setVariables(self) {
 }
 
 export function checkVariables(self) {
-	const SERIES = getAndUpdateSeries(self)
+	const SERIES = seriesOf(self)
 
 	// [variable, capability, choices or fn(capability), data key if it differs]
 	const LABELLED = [

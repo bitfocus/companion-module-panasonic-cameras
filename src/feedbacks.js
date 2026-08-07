@@ -1,5 +1,5 @@
 import { combineRgb } from '@companion-module/base'
-import { getAndUpdateSeries, optPresetNumber, parsePresetNumber } from './common.js'
+import { seriesOf, optPresetNumber, parsePresetNumber } from './common.js'
 import { startLiveImagePoll } from './polling.js'
 import { e } from './enum.js'
 import ICONS from './icons.js'
@@ -69,7 +69,7 @@ function parsePresetIdx(feedback, max) {
 export function getFeedbackDefinitions(self) {
 	const feedbacks = {}
 
-	const SERIES = getAndUpdateSeries(self)
+	const SERIES = seriesOf(self)
 	const caps = SERIES.capabilities
 
 	// ---- System ----

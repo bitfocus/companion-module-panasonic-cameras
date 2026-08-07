@@ -1,7 +1,7 @@
 import { combineRgb } from '@companion-module/base'
 import { getActionDefinitions } from './actions.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
-import { getAndUpdateSeries, optionSpecs } from './common.js'
+import { seriesOf, optionSpecs } from './common.js'
 import ICONS from './icons.js'
 import { e } from './enum.js'
 
@@ -175,7 +175,7 @@ const valuePreset = (category, name, text, actionId, feedbackId, value, style) =
 export function getPresetDefinitions(self) {
 	const presets = {}
 
-	const SERIES = getAndUpdateSeries(self)
+	const SERIES = seriesOf(self)
 
 	// ##########################
 	// #### Pan/Tilt Presets ####

@@ -617,6 +617,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		await this.teardown()
 		const generation = this.generation
 
+		// The one place the series is resolved. Cleared first so the QID round-trip below — which
+		// publishes variables on its way through — cannot read the previous camera's capabilities.
+		this.SERIES = undefined
+
 		this.imageErrors = 0
 		this.failures = 0 // the streak belonged to the connection just torn down
 		this.updateStatus(InstanceStatus.Connecting, this.config.host + ':' + this.config.httpPort)

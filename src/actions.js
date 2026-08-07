@@ -1,6 +1,6 @@
 import { e } from './enum.js'
 import {
-	getAndUpdateSeries,
+	seriesOf,
 	getNext,
 	getNextValue,
 	constrainRange,
@@ -257,7 +257,7 @@ function cmdSpeed(speed) {
 export function getActionDefinitions(self) {
 	const actions = {}
 
-	const SERIES = getAndUpdateSeries(self)
+	const SERIES = seriesOf(self)
 	const caps = SERIES.capabilities
 
 	const cam = (cmd) => self.getCam(cmd)
