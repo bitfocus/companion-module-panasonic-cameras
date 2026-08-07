@@ -329,6 +329,58 @@ describe('handleConnectionError', () => {
 	})
 })
 
+// A line the parser chokes on is a module bug. Inside the request's try it arrived at
+// handleConnectionError as a TypeError with no `err.code`, which reported it as a camera fault and
+// left the connection deadened with no retry — while poisoning every line behind it in the dump.
+describe('a response line the parser cannot read', () => {
+	const dump = ['p1', 'MALFORMED', 'OSD:B0:20'].join('\r\n')
+
+	it('costs that one line, not the rest of the bulk dump', async () => {
+		const self = makeInstance()
+		self.httpGet = vi.fn(async () => ({ body: dump, statusCode: 200 }))
+
+		// Stand in for a parser that throws on the middle line of a 400-line camdata dump.
+		const seen = []
+		self.parseSafely = vi.fn((line, parse) => {
+			seen.push(line)
+			if (line !== 'MALFORMED') parse()
+		})
+
+		await self.getCameraStatus()
+
+		expect(seen).toEqual(['p1', 'MALFORMED', 'OSD:B0:20'])
+		expect(self.data.power).toBe('1') // the line before it landed
+	})
+
+	it('is named as a module error if one ever does reach the connection handler', () => {
+		const self = makeInstance()
+
+		// got labels everything it raises, so an error with no `code` cannot have come from the camera.
+		self.handleConnectionError(new TypeError("Cannot read properties of undefined (reading 'replace')"))
+
+		const [status, detail] = self.updateStatus.mock.calls.at(-1)
+		expect(status).toBe('unknown_error')
+		expect(detail).toBe("Module error: Cannot read properties of undefined (reading 'replace')")
+	})
+
+	it('gets logged with the line that produced it', async () => {
+		const self = makeInstance()
+		self.httpGet = vi.fn(async () => ({ body: dump, statusCode: 200 }))
+
+		self.parseSafely = (line, parse) =>
+			PanasonicCameraInstance.prototype.parseSafely.call(self, line, () => {
+				if (line === 'MALFORMED') throw new TypeError('nope')
+				parse()
+			})
+
+		await self.getCameraStatus()
+
+		const logged = self.log.mock.calls.map(([, message]) => message)
+		expect(logged.some((m) => m.includes('Failed to parse camera response "MALFORMED"'))).toBe(true)
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['ok']) // still a healthy camera
+	})
+})
+
 describe('a TCP port that is already taken', () => {
 	beforeEach(() => net.createServer.mockClear())
 

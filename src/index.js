@@ -81,6 +81,18 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		return generation === this.generation
 	}
 
+	// One camera line is one parse. Contained here, a line the parser chokes on costs that line and
+	// not the 390 behind it in a bulk dump — and, more importantly, never leaves the parse inside the
+	// request's try, where a TypeError carrying no `err.code` reached handleConnectionError and was
+	// reported to the operator as a camera fault, with the connection deadened and no retry armed.
+	parseSafely(line, parse) {
+		try {
+			parse()
+		} catch (err) {
+			this.log('error', `Failed to parse camera response "${line}": ${describeError(err)}`)
+		}
+	}
+
 	// All requests go through here so teardown()'s abort signal is never missed.
 	httpGet(url, options = {}) {
 		return got.get(url, {
@@ -217,7 +229,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 							this.log('info', `Received Update: ${command}  (${source})`)
 						}
 
-						parseUpdate(this, command.split(':'))
+						this.parseSafely(command, () => parseUpdate(this, command.split(':')))
 					}
 
 					// Once for the whole batch: a coalesced burst is one redraw.
@@ -292,7 +304,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 							this.log('info', 'camdata response: ' + str)
 						}
 
-						parseUpdate(this, str.split(':'))
+						this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 					}
 
 					this.checkVariables()
@@ -326,7 +338,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					this.log('info', 'PTZ response: ' + str)
 				}
 
-				parseUpdate(this, str.split(':'))
+				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
 				this.checkVariables()
 				this.checkAllFeedbacks()
@@ -358,7 +370,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					this.log('info', 'Cam response: ' + str)
 				}
 
-				parseUpdate(this, str.split(':'))
+				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
 				this.checkVariables()
 				this.checkAllFeedbacks()
@@ -394,14 +406,14 @@ export default class PanasonicCameraInstance extends InstanceBase {
 						this.log('info', 'Web response [' + cmd + ']: ' + str)
 					}
 
-					parseWeb(this, str.split('='), cmd)
+					this.parseSafely(str, () => parseWeb(this, str.split('='), cmd))
 				}
 			} else {
 				if (this.config.debug) {
 					this.log('info', 'Web response [' + cmd + ']: Response code ' + response.statusCode.toString())
 				}
 
-				parseWebCode(this, response.statusCode, cmd)
+				this.parseSafely(response.statusCode, () => parseWebCode(this, response.statusCode, cmd))
 			}
 
 			this.checkVariables()
@@ -561,6 +573,13 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 		// Camera answered but rejected the request; not a connection problem.
 		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') return this.config.debug // hide error
+
+		// No code at all is one of ours, not the camera's: got labels everything it raises. Saying so
+		// is the difference between the operator chasing a network fault and reporting a module bug.
+		if (err?.code === undefined) {
+			this.updateStatus(InstanceStatus.UnknownError, 'Module error: ' + describeError(err))
+			return true // print error
+		}
 
 		// Undiagnosed fault: stop rather than retry-loop against it.
 		this.updateStatus(InstanceStatus.UnknownError, describeError(err))
