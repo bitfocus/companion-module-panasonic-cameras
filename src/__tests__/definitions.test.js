@@ -246,13 +246,35 @@ describe('web capability coverage', () => {
 		expect(web.has(query)).toBe(false)
 	})
 
-	// Both are documented for the HE130/HR140 in a shape this module cannot use: there is no
-	// view.cgi (MJPEG lives on /cgi-bin/jpeg), and /cgi-bin/initial is POST-only without a Randomnum.
-	it.each(['HE130', 'HR140'])('%s offers neither the live image nor a restart', (id) => {
-		const caps = SERIES_SPECS.find((s) => s.id === id).capabilities
+	// The HE130/HR140 restart is documented in a shape this module cannot send: /cgi-bin/initial is
+	// POST-only there and takes no Randomnum, while getWeb only ever does GET.
+	it.each(['HE130', 'HR140'])('%s offers no restart it could not carry out', (id) => {
+		expect(SERIES_SPECS.find((s) => s.id === id).capabilities.restart).toBe(false)
+	})
 
-		expect(caps.imageTransmission).toBe(false)
-		expect(caps.restart).toBe(false)
+	// Those two have no view.cgi either, but they do have a one-shot — on /cgi-bin/camera. getImage()
+	// builds its URL straight out of this, so a missing `cmd` would put the string "undefined" in the
+	// request and only show up against a real camera.
+	const IMAGING = SERIES_SPECS.filter((s) => s.capabilities.imageTransmission).map((s) => ({
+		series: s.id,
+		image: s.capabilities.imageTransmission,
+	}))
+
+	it('is a set worth checking', () => {
+		expect(IMAGING.length).toBeGreaterThan(10)
+	})
+
+	it.each(IMAGING)('$series names the endpoint its one-shot lives on', ({ image }) => {
+		expect(image.cmd).toBeTypeOf('string')
+		expect(image.cmd).not.toBe('')
+		expect(image.cmd.startsWith('/')).toBe(false) // joined onto /cgi-bin/ by getImage()
+	})
+
+	it.each(['HE130', 'HR140'])('%s fetches its one-shot from /cgi-bin/camera, not view.cgi', (id) => {
+		const image = SERIES_SPECS.find((s) => s.id === id).capabilities.imageTransmission
+
+		// Its spec shows no call with the parameters left off, so the resolution has to be named.
+		expect(image.cmd).toMatch(/^camera\?resolution=\d+$/)
 	})
 })
 

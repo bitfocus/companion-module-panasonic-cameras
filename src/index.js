@@ -467,12 +467,14 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	// One image per instance; needs no login, frame size set by the camera (aw_ptz #RZL).
+	// One image per instance; needs no login, frame size set by the camera (aw_ptz #RZL, or the WEB
+	// menu on the models whose one-shot lives on /cgi-bin/camera).
 	async getImage() {
-		if (!this.SERIES?.capabilities.imageTransmission || !this.config.imageEnable) return
+		const image = this.SERIES?.capabilities.imageTransmission
+		if (!image || !this.config.imageEnable) return
 
 		const generation = this.generation
-		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/view.cgi?action=snapshot`
+		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${image.cmd}`
 
 		if (this.config.debug) {
 			this.log('info', 'Image request: ' + url)

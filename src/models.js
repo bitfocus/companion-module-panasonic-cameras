@@ -75,7 +75,7 @@ const BASE_CAPABILITIES = {
 	focusAuto: true, // Has (switchable) Auto Focus (OAF)
 	focusPushAuto: true, // Has Push Auto Focus feature (OSE:69:1)
 	gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_CX350 }, // Has Gain (OGS/OGU)
-	imageTransmission: true, // Has JPEG one-shot image request (view.cgi?action=snapshot)
+	imageTransmission: { cmd: 'view.cgi?action=snapshot' }, // Has a JPEG one-shot image request (view.cgi)
 	install: true, // Has support for Desktop or Hanging Install Position (iNSx)
 	iris: true, // Has Iris control and position (AXIxxx)
 	irisAuto: true, // Has (switchable) Auto Iris (ORS)
@@ -383,7 +383,15 @@ export const SERIES_SPECS = [
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE130 },
-			imageTransmission: false,
+			// No view.cgi on this generation: /cgi-bin/jpeg and /cgi-bin/mjpeg are continuous MJPEG
+			// pushes, and the one on /cgi-bin/jpeg wants a getuid handshake first. /cgi-bin/camera is the
+			// one-shot. Unlike mjpeg, its spec shows no call with the parameters left off, so resolution
+			// is given. 320x180 is the smallest step that still covers the button: fitImage letterboxes
+			// onto IMAGE_SIZE 288, so 320 is scaled slightly down while the 160x90 step below it would
+			// have to be blown up almost twofold. The WEB menu (Video over IP / JPEG) wins over the
+			// argument and has to have JPEG transmission switched on at all, so this asks rather than
+			// dictates; an unexpected size just gets scaled like any other.
+			imageTransmission: { cmd: 'camera?resolution=320' },
 			pedestal: { cmd: 'OTP', offset: 0x96, limit: 150, step: 1, hexlen: 3 },
 			presetTime: false,
 			pull: {
@@ -434,7 +442,7 @@ export const SERIES_SPECS = [
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HR140 },
-			imageTransmission: false,
+			imageTransmission: { cmd: 'camera?resolution=320' }, // no view.cgi, see HE130
 			ois: { dropdown: e.ENUM_OIS_HR140 },
 			pedestal: { cmd: 'OTP', offset: 0x96, limit: 150, step: 1, hexlen: 3 },
 			presetTime: false,

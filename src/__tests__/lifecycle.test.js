@@ -593,6 +593,54 @@ describe('starting the status poll loop', () => {
 	})
 })
 
+// Not every camera serves its still image from view.cgi: the AW-HE130 and AW-HR140 have no view.cgi
+// at all and put their one-shot on /cgi-bin/camera. getImage() therefore builds the URL from the
+// capability rather than from a constant. The stubbed httpGet answers with an empty body, so the Jimp
+// decode fails and the error path runs - by then the URL is already recorded.
+describe('the live image URL', () => {
+	const imaging = (capabilities) => {
+		const self = makeInstance({ imageEnable: true }, { capabilities })
+		self.checkFeedbacks = vi.fn()
+		return self
+	}
+
+	const images = (self) => self.requests.filter((u) => u.includes('/cgi-bin/'))
+
+	it('leaves the endpoint that has always worked exactly as it was', async () => {
+		const self = imaging({ imageTransmission: { cmd: 'view.cgi?action=snapshot' } })
+		await self.getImage()
+
+		expect(images(self)).toEqual(['http://10.0.0.1:80/cgi-bin/view.cgi?action=snapshot'])
+	})
+
+	it('asks the models without view.cgi for their one-shot instead', async () => {
+		const self = imaging({ imageTransmission: { cmd: 'camera?resolution=320' } })
+		await self.getImage()
+
+		expect(images(self)).toEqual(['http://10.0.0.1:80/cgi-bin/camera?resolution=320'])
+	})
+
+	// The specs offer a "Dummy for disabling cache" parameter on both endpoints, but that is a browser
+	// concern: got is given no cache store, so nothing between here and the camera holds a response.
+	it('sends the same URL every time, carrying no cache-buster', async () => {
+		const self = imaging({ imageTransmission: { cmd: 'camera?resolution=320' } })
+
+		await self.getImage()
+		await self.getImage()
+
+		const [first, second] = images(self)
+		expect(first).toBe(second)
+		expect(first).not.toContain('page=')
+	})
+
+	it('asks for nothing at all where the camera has no still image', async () => {
+		const self = imaging({ imageTransmission: false })
+		await self.getImage()
+
+		expect(images(self)).toEqual([])
+	})
+})
+
 describe('configUpdated', () => {
 	it('wipes the old camera state before the new camera speaks', async () => {
 		const self = makeInstance({ host: '10.0.0.1' })
