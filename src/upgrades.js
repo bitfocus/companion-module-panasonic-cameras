@@ -130,6 +130,83 @@ function dropUseVarToggles(context, props) {
 	return result
 }
 
+// The value the current model's definition would accept in place of a stored one it would not.
+// Companion drops the whole entity over a single dropdown value outside `choices`, so putting the
+// model's own default back is strictly better than leaving the button dead — which is also why a
+// value stranded by the operator switching models afterwards is repaired here rather than left.
+function reconcileValue(option, field) {
+	if (field.type !== 'dropdown') return option // number fields are clamped by the callback
+
+	const ids = field.choices.map((choice) => choice.id)
+	if (ids.includes(option.value)) return option
+
+	// The preset dropdown is the one that takes any index (allowInvalidValues) and constrains it, so
+	// its stored number only needs bringing back into the range this model actually has.
+	if (field.allowInvalidValues) {
+		const idx = parseInt(option.value, 10)
+		if (!Number.isFinite(idx)) return option
+		return wrap(
+			constrainRange(idx, 0, ids.length - 1)
+				.toString(10)
+				.padStart(2, '0'),
+		)
+	}
+
+	return field.default === undefined ? option : wrap(field.default)
+}
+
+// v2.0.0 shipped the two scripts above writing bare values, and resolving the model from a
+// props.config that is null whenever buttons rather than the connection are being upgraded. Companion
+// tracks upgrade progress by index, so neither slot ever runs again for a connection that already
+// passed through 2.0.0 — appending is the only way to reach those buttons. For a connection coming
+// straight from 1.x this is a no-op: the repaired slots already wrote the right shape, from the right
+// model.
+function repairPre201Writes(context, props) {
+	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
+
+	let actionSpecs, feedbackSpecs
+	try {
+		const self = {
+			config: configOf(context, props),
+			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+		}
+		actionSpecs = optionSpecs(getActionDefinitions(self))
+		feedbackSpecs = optionSpecs(getFeedbackDefinitions(self))
+	} catch {
+		return result // unresolvable model: nothing to reconcile against
+	}
+
+	const repair = (entities, idKey, specs, updated) => {
+		for (const entity of entities ?? []) {
+			const spec = specs[entity[idKey]]
+			if (!spec || !entity.options) continue
+
+			let changed = false
+			for (const [id, stored] of Object.entries(entity.options)) {
+				const field = spec.fields[id]
+				if (!field) continue
+
+				// unwrap() returns the stored object itself when it is already a wrapper, so an identity
+				// check is what separates "was written bare" from "was already fine".
+				const option = unwrap(stored)
+				const fixed = option.isExpression ? option : reconcileValue(option, field)
+
+				if (fixed !== stored) {
+					entity.options[id] = fixed
+					changed = true
+				}
+			}
+
+			if (changed) updated.push(entity)
+		}
+	}
+
+	repair(props.actions, 'actionId', actionSpecs, result.updatedActions)
+	repair(props.feedbacks, 'feedbackId', feedbackSpecs, result.updatedFeedbacks)
+
+	return result
+}
+
 export const upgradeScripts = [
 	// Was addSetIncDecVariables. Blanked, not deleted: upgrade progress is tracked by index.
 	EmptyUpgradeScript,
@@ -155,4 +232,5 @@ export const upgradeScripts = [
 	// Upgrade progress is tracked by index, so new scripts go last.
 	fillOmittedOptions,
 	dropUseVarToggles,
+	repairPre201Writes,
 ]

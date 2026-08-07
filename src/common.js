@@ -128,6 +128,7 @@ export function optionSpecs(definitions) {
 				id,
 				{
 					ids: fields.map((field) => field.id),
+					fields: Object.fromEntries(fields.map((field) => [field.id, field])),
 					defaults: Object.fromEntries(
 						fields.filter((field) => field.default !== undefined).map((field) => [field.id, field.default]),
 					),

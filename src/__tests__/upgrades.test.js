@@ -11,6 +11,7 @@ import { getActionDefinitions } from '../actions.js'
 const addSetStepSize = upgradeScripts[1]
 const fillOmittedOptions = upgradeScripts[2]
 const dropUseVarToggles = upgradeScripts[3]
+const repairPre201Writes = upgradeScripts[4]
 
 // An upgrade script both reads and writes CompanionMigrationOptionValues, so every option in these
 // fixtures — and every option a script writes — is an ExpressionOrValue wrapper, never a bare value.
@@ -29,8 +30,84 @@ const migrate = (props, context = {}) =>
 // re-runs the wrong migration on every existing connection.
 describe('upgradeScripts', () => {
 	it('only ever grows, and blanks a retired script in place', () => {
-		expect(upgradeScripts).toHaveLength(4)
+		expect(upgradeScripts).toHaveLength(5)
 		expect(upgradeScripts[0]).toBe(EmptyUpgradeScript)
+	})
+})
+
+// v2.0.0 published slots 1 and 2 writing bare values, from a model resolved off a null props.config.
+// Companion never re-runs a completed index, so repairing those slots in place reaches only
+// connections coming straight from 1.x; everyone who ran 2.0.0 needs this appended slot.
+describe('repairPre201Writes', () => {
+	const repair = (props, context = {}) =>
+		repairPre201Writes(context, { config: { model: 'AW-UE100' }, actions: [], feedbacks: [], ...props })
+
+	it('wraps the bare value the published slot 2 wrote', () => {
+		// Bare, Companion reads it as `.value === undefined` and drops the whole action.
+		const actions = [{ actionId: 'power', options: { op: val('t'), set: '0' } }]
+		const result = repair({ actions })
+
+		expect(actions[0].options.set).toEqual(val('0'))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	it('wraps the bare step the published slot 1 wrote', () => {
+		const actions = [{ actionId: 'zoomSpeed', options: { op: val('i'), step: 1 } }]
+		repair({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
+	})
+
+	it('puts this model back behind a default filled from the wrong one', () => {
+		// Slot 2 built its definitions against `Other`, so the value it filled in can be one the real
+		// model's choices do not contain — and Companion drops the entity over exactly that.
+		const actions = [{ actionId: 'gain', options: { op: val('s'), set: val('not-a-choice') } }]
+		const result = repair({ actions }, { currentConfig: { model: 'AK-UB300' } })
+
+		const field = getActionDefinitions({
+			config: { model: 'AK-UB300' },
+			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+		}).gain.options.find((o) => o.id === 'set')
+
+		expect(field.choices.map((c) => c.id)).toContain(actions[0].options.set.value)
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	it('brings a preset index back into the range this model has', () => {
+		// Slot 3 clamped against 100 when props.config was null, so an AW-HE2 kept '99'.
+		const actions = [{ actionId: 'presetMem', options: { op: val('R'), val: val('99') } }]
+		repair({ actions }, { currentConfig: { model: 'AW-HE2' } })
+
+		expect(actions[0].options.val).toEqual(val('08'))
+	})
+
+	it('leaves a connection that came straight from 1.x untouched', () => {
+		// The repaired slots above already wrote the right shape from the right model, so there is
+		// nothing here to change and nothing to report as updated.
+		const actions = [brokenPowerButton()]
+		run({ actions })
+		const result = repair({ actions })
+
+		expect(actions[0].options).toEqual({ op: val('t'), set: val('0') })
+		expect(result.updatedActions).toEqual([])
+	})
+
+	it('never rewrites an expression the user wrote', () => {
+		const actions = [{ actionId: 'presetMem', options: { op: val('R'), val: expr('$(local:preset)') } }]
+		const result = repair({ actions }, { currentConfig: { model: 'AW-HE2' } })
+
+		expect(actions[0].options.val).toEqual(expr('$(local:preset)'))
+		expect(result.updatedActions).toEqual([])
+	})
+
+	it.each([
+		['no config at all', null],
+		['a model that is only resolved once a camera answers', { model: 'Auto' }],
+		['a model this module does not know', { model: 'AW-NOT-A-CAMERA' }],
+	])('survives %s', (_name, config) => {
+		const actions = [{ actionId: 'power', options: { set: '0' } }, { actionId: 'power' }]
+
+		expect(() => repair({ config, actions })).not.toThrow()
 	})
 })
 
