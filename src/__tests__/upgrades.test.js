@@ -8,22 +8,133 @@ import { getActionDefinitions } from '../actions.js'
 
 // Pinned by index, not `.at(-1)`: Companion identifies a script by position, so appending one must
 // not repoint these tests at the new arrival.
+const addSetStepSize = upgradeScripts[1]
 const fillOmittedOptions = upgradeScripts[2]
 const dropUseVarToggles = upgradeScripts[3]
+const repairPre201Writes = upgradeScripts[4]
+
+// An upgrade script both reads and writes CompanionMigrationOptionValues, so every option in these
+// fixtures — and every option a script writes — is an ExpressionOrValue wrapper, never a bare value.
+const val = (value) => ({ isExpression: false, value })
+const expr = (value) => ({ isExpression: true, value })
 
 // A preset-built button that stored only the operation, leaving the hidden value unset.
-const brokenPowerButton = () => ({ actionId: 'power', options: { op: 't' } })
+const brokenPowerButton = () => ({ actionId: 'power', options: { op: val('t') } })
 
-const run = (props) => fillOmittedOptions({}, { config: { model: 'AW-UE100' }, feedbacks: [], ...props })
-const migrate = (props) =>
-	dropUseVarToggles({}, { config: { model: 'AW-UE100' }, actions: [], feedbacks: [], ...props })
+const run = (props, context = {}) =>
+	fillOmittedOptions(context, { config: { model: 'AW-UE100' }, feedbacks: [], ...props })
+const migrate = (props, context = {}) =>
+	dropUseVarToggles(context, { config: { model: 'AW-UE100' }, actions: [], feedbacks: [], ...props })
 
 // Scripts are identified by index, so one may only ever be appended — a removed or reordered script
 // re-runs the wrong migration on every existing connection.
 describe('upgradeScripts', () => {
 	it('only ever grows, and blanks a retired script in place', () => {
-		expect(upgradeScripts).toHaveLength(4)
+		expect(upgradeScripts).toHaveLength(5)
 		expect(upgradeScripts[0]).toBe(EmptyUpgradeScript)
+	})
+})
+
+// v2.0.0 published slots 1 and 2 writing bare values, from a model resolved off a null props.config.
+// Companion never re-runs a completed index, so repairing those slots in place reaches only
+// connections coming straight from 1.x; everyone who ran 2.0.0 needs this appended slot.
+describe('repairPre201Writes', () => {
+	const repair = (props, context = {}) =>
+		repairPre201Writes(context, { config: { model: 'AW-UE100' }, actions: [], feedbacks: [], ...props })
+
+	it('wraps the bare value the published slot 2 wrote', () => {
+		// Bare, Companion reads it as `.value === undefined` and drops the whole action.
+		const actions = [{ actionId: 'power', options: { op: val('t'), set: '0' } }]
+		const result = repair({ actions })
+
+		expect(actions[0].options.set).toEqual(val('0'))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	it('wraps the bare step the published slot 1 wrote', () => {
+		const actions = [{ actionId: 'zoomSpeed', options: { op: val('i'), step: 1 } }]
+		repair({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
+	})
+
+	it('puts this model back behind a default filled from the wrong one', () => {
+		// Slot 2 built its definitions against `Other`, so the value it filled in can be one the real
+		// model's choices do not contain — and Companion drops the entity over exactly that.
+		const actions = [{ actionId: 'gain', options: { op: val('s'), set: val('not-a-choice') } }]
+		const result = repair({ actions }, { currentConfig: { model: 'AK-UB300' } })
+
+		const field = getActionDefinitions({
+			config: { model: 'AK-UB300' },
+			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+		}).gain.options.find((o) => o.id === 'set')
+
+		expect(field.choices.map((c) => c.id)).toContain(actions[0].options.set.value)
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	it('brings a preset index back into the range this model has', () => {
+		// Slot 3 clamped against 100 when props.config was null, so an AW-HE2 kept '99'.
+		const actions = [{ actionId: 'presetMem', options: { op: val('R'), val: val('99') } }]
+		repair({ actions }, { currentConfig: { model: 'AW-HE2' } })
+
+		expect(actions[0].options.val).toEqual(val('08'))
+	})
+
+	it('leaves a connection that came straight from 1.x untouched', () => {
+		// The repaired slots above already wrote the right shape from the right model, so there is
+		// nothing here to change and nothing to report as updated.
+		const actions = [brokenPowerButton()]
+		run({ actions })
+		const result = repair({ actions })
+
+		expect(actions[0].options).toEqual({ op: val('t'), set: val('0') })
+		expect(result.updatedActions).toEqual([])
+	})
+
+	it('never rewrites an expression the user wrote', () => {
+		const actions = [{ actionId: 'presetMem', options: { op: val('R'), val: expr('$(local:preset)') } }]
+		const result = repair({ actions }, { currentConfig: { model: 'AW-HE2' } })
+
+		expect(actions[0].options.val).toEqual(expr('$(local:preset)'))
+		expect(result.updatedActions).toEqual([])
+	})
+
+	it.each([
+		['no config at all', null],
+		['a model that is only resolved once a camera answers', { model: 'Auto' }],
+		['a model this module does not know', { model: 'AW-NOT-A-CAMERA' }],
+	])('survives %s', (_name, config) => {
+		const actions = [{ actionId: 'power', options: { set: '0' } }, { actionId: 'power' }]
+
+		expect(() => repair({ config, actions })).not.toThrow()
+	})
+})
+
+describe('addSetStepSize', () => {
+	const step = (props) => addSetStepSize({}, { config: { model: 'AW-UE100' }, feedbacks: [], ...props })
+
+	it('gives the speed actions a step size, in the value wrapper 2.0 requires', () => {
+		const actions = [{ actionId: 'zoomSpeed', options: { op: val('i') } }]
+		const result = step({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	it('leaves a step size the button already carries alone', () => {
+		const actions = [{ actionId: 'ptSpeed', options: { op: val('i'), step: val(5) } }]
+		step({ actions })
+
+		expect(actions[0].options.step).toEqual(val(5))
+	})
+
+	it('does not touch an action that has no step size', () => {
+		const actions = [{ actionId: 'power', options: { op: val('t') } }]
+		const result = step({ actions })
+
+		expect(actions[0].options).toEqual({ op: val('t') })
+		expect(result.updatedActions).toEqual([])
 	})
 })
 
@@ -32,8 +143,17 @@ describe('fillOmittedOptions', () => {
 		const actions = [brokenPowerButton()]
 		const result = run({ actions })
 
-		expect(actions[0].options).toEqual({ op: 't', set: '0' })
+		expect(actions[0].options).toEqual({ op: val('t'), set: val('0') })
 		expect(result.updatedActions).toEqual(actions)
+	})
+
+	// A bare default reads back as `.value === undefined`, which is the very state — an option
+	// Companion cannot parse, taking the whole action down — that this script exists to repair.
+	it('writes the value wrapper 2.0 requires, not the bare default', () => {
+		const actions = [brokenPowerButton()]
+		run({ actions })
+
+		expect(actions[0].options.set).toEqual({ isExpression: false, value: '0' })
 	})
 
 	it('fills only from the action definition, so the value it writes is one Companion accepts', () => {
@@ -45,14 +165,14 @@ describe('fillOmittedOptions', () => {
 			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
 		}).power.options.find((o) => o.id === 'set')
 
-		expect(field.choices.map((c) => c.id)).toContain(actions[0].options.set)
+		expect(field.choices.map((c) => c.id)).toContain(actions[0].options.set.value)
 	})
 
 	it('leaves a value the user picked alone', () => {
-		const actions = [{ actionId: 'gain', options: { op: 's', set: '20' } }]
+		const actions = [{ actionId: 'gain', options: { op: val('s'), set: val('20') } }]
 		const result = run({ actions })
 
-		expect(actions[0].options.set).toBe('20')
+		expect(actions[0].options.set).toEqual(val('20'))
 		expect(result.updatedActions).toEqual([])
 	})
 
@@ -60,7 +180,7 @@ describe('fillOmittedOptions', () => {
 		const feedbacks = [{ feedbackId: 'shootingMode', options: {} }]
 		const result = run({ actions: [], feedbacks })
 
-		expect(feedbacks[0].options).toEqual({ option: '0' })
+		expect(feedbacks[0].options).toEqual({ option: val('0') })
 		expect(result.updatedFeedbacks).toEqual(feedbacks)
 	})
 
@@ -82,15 +202,26 @@ describe('fillOmittedOptions', () => {
 
 		expect(() => run({ config, actions })).not.toThrow()
 	})
+
+	// props.config is only filled when the connection itself is upgraded; upgrading buttons hands it
+	// over as null. Reading the model off it reconciled a UE160's buttons against the generic `Other`
+	// action set, so a filled default could be a value the real model's choices do not contain.
+	it('takes the model from the context when props.config is null', () => {
+		const actions = [{ actionId: 'gain', options: { op: val('s') } }]
+		run({ config: null, actions }, { currentConfig: { model: 'AK-UB300' } })
+
+		const field = getActionDefinitions({
+			config: { model: 'AK-UB300' },
+			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+		}).gain.options.find((o) => o.id === 'set')
+
+		expect(field.choices.map((c) => c.id)).toContain(actions[0].options.set.value)
+	})
 })
 
 // The "Use Variable" checkbox and its parallel textinputs are gone (every field is expression-capable
 // in 2.0). Where the checkbox was on, the textinput's value must survive as an expression on the plain field.
 describe('dropUseVarToggles', () => {
-	// An upgrade script sees the 2.0 wrapper, so that is the shape these fixtures use.
-	const val = (value) => ({ isExpression: false, value })
-	const expr = (value) => ({ isExpression: true, value })
-
 	describe('with the checkbox on', () => {
 		it('lifts a variable onto the plain field as an expression', () => {
 			const actions = [
@@ -157,6 +288,15 @@ describe('dropUseVarToggles', () => {
 		it('clamps a literal to a slot this model actually has', () => {
 			const actions = [{ actionId: 'presetMem', options: { useVar: val(true), valVar: val('150') } }]
 			migrate({ config: { model: 'AW-HE2' }, actions }) // the one camera with only nine slots
+
+			expect(actions[0].options.val).toEqual(val('08'))
+		})
+
+		it('clamps against the context model when props.config is null', () => {
+			// Off props.config alone the count fell back to 100, so an AW-HE2 clamped to '99' — a slot
+			// the camera does not have — instead of '08'.
+			const actions = [{ actionId: 'presetMem', options: { useVar: val(true), valVar: val('150') } }]
+			migrate({ config: null, actions }, { currentConfig: { model: 'AW-HE2' } })
 
 			expect(actions[0].options.val).toEqual(val('08'))
 		})

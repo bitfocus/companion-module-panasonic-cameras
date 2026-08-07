@@ -5,7 +5,7 @@
 	"name": "panasonic-cameras",
 	"shortname": "Cameras",
 	"description": "Companion module for Panasonic's IP remote controllable cameras. It supports all AW series PTZ cameras as well as other box camera and camcorder models which use the same remote control protocol.",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-panasonic-cameras.git",
 	"bugs": "https://github.com/bitfocus/companion-module-panasonic-cameras/issues",
@@ -73,5 +73,5 @@
 		"AJ-CX4000",
 		"AJ-UPX900"
 	],
-	"keywords": ["Camera", "PTZ", "AW", "AJ", "AG", "AK", "CX", "UPX", "UB", "UE", "UN", "UR", "HE", "HN", "HR", "Panasonic"]
+	"keywords": ["Camera", "PTZ", "AW", "AJ", "AG", "AK", "CX", "UPX", "UB", "UE", "UN", "UR", "HE", "HN", "HR"]
 }

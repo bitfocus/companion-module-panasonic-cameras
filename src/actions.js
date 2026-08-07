@@ -1,6 +1,6 @@
 import { e } from './enum.js'
 import {
-	getAndUpdateSeries,
+	seriesOf,
 	getNext,
 	getNextValue,
 	constrainRange,
@@ -211,15 +211,26 @@ function optSetLowerRaise(label = 'Speed', def, min, max, step = 1) {
 // #### Command formatting ####
 // ############################
 
+// Aborting sends no command. Silently, that is indistinguishable from a dead button — which is how
+// the AK-UB300's Master Pedestal shipped: its capability carried no `step`, so the field's default
+// and min were undefined and every Increase/Decrease returned here without a trace.
+function abortSetStep(self, action, field) {
+	self.log(
+		'warn',
+		`${action.actionId}: no command sent, "${field}" did not resolve to a number (${action.options[field]})`,
+	)
+	return false
+}
+
 // Constrains set/step into range; returns false on a non-numeric value to abort the action.
-function resolveSetStep(action, min, max, step) {
+function resolveSetStep(self, action, min, max, step) {
 	if (action.options.op === ACTION_SET) {
 		const set = constrainRange(parseInt(action.options.set, 10), min, max)
-		if (isNaN(set)) return false
+		if (isNaN(set)) return abortSetStep(self, action, 'set')
 		action.options.set = set
 	} else {
 		const size = constrainRange(parseInt(action.options.step, 10), step, max - min)
-		if (isNaN(size)) return false
+		if (isNaN(size)) return abortSetStep(self, action, 'step')
 		action.options.step = size
 	}
 	return true
@@ -246,7 +257,7 @@ function cmdSpeed(speed) {
 export function getActionDefinitions(self) {
 	const actions = {}
 
-	const SERIES = getAndUpdateSeries(self)
+	const SERIES = seriesOf(self)
 	const caps = SERIES.capabilities
 
 	const cam = (cmd) => self.getCam(cmd)
@@ -268,7 +279,7 @@ export function getActionDefinitions(self) {
 		name,
 		options: optSetIncDecStep(label, 0, -level.limit, +level.limit, level.step),
 		callback: async (action) => {
-			if (!resolveSetStep(action, -level.limit, level.limit, level.step)) return
+			if (!resolveSetStep(self, action, -level.limit, level.limit, level.step)) return
 			const value = cmdValue(action, level.offset, -level.limit, level.limit, action.options.step, level.hexlen, read())
 			await cam(`${command}:${value}`)
 		},
@@ -409,7 +420,7 @@ export function getActionDefinitions(self) {
 				...optSetLowerRaise('Speed', SPEED_DEFAULT, SPEED_MIN, SPEED_MAX, 1),
 			],
 			callback: async (action) => {
-				if (!resolveSetStep(action, SPEED_MIN, SPEED_MAX, 1)) return
+				if (!resolveSetStep(self, action, SPEED_MIN, SPEED_MAX, 1)) return
 				switch (action.options.scope) {
 					case 'pt':
 						self.ptSpeed =
@@ -464,7 +475,7 @@ export function getActionDefinitions(self) {
 			name: 'Lens - Follow Focus',
 			options: optSetIncDecStep('Focus setting', 0x555, 0x0, 0xaaa, 10),
 			callback: async (action) => {
-				if (!resolveSetStep(action, 0x0, 0xaaa, 10)) return
+				if (!resolveSetStep(self, action, 0x0, 0xaaa, 10)) return
 				await ptz('AXF' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.focusPosition))
 			},
 		}
@@ -496,7 +507,7 @@ export function getActionDefinitions(self) {
 						name: 'Exposure - Iris',
 						options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
 						callback: async (action) => {
-							if (!resolveSetStep(action, 0x0, 0x3ff, 0xa)) return
+							if (!resolveSetStep(self, action, 0x0, 0x3ff, 0xa)) return
 							await cam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
 						},
 					}
@@ -504,7 +515,7 @@ export function getActionDefinitions(self) {
 						name: 'Exposure - Iris',
 						options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
 						callback: async (action) => {
-							if (!resolveSetStep(action, 0x0, 0xaaa, 0x1e)) return
+							if (!resolveSetStep(self, action, 0x0, 0xaaa, 0x1e)) return
 							await ptz('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
 						},
 					}
@@ -663,7 +674,7 @@ export function getActionDefinitions(self) {
 				? optSetIncDecStep('Color Temperature [K]', 3200, advanced.min, advanced.max, 20)
 				: optIncDec(),
 			callback: async (action) => {
-				if (advanced.set && !resolveSetStep(action, advanced.min, advanced.max, 20)) return
+				if (advanced.set && !resolveSetStep(self, action, advanced.min, advanced.max, 20)) return
 				switch (action.options.op) {
 					case ACTION_SET:
 						await cam(advanced.set + ':' + toHexString(action.options.set, 5) + ':0')
@@ -862,7 +873,7 @@ export function getActionDefinitions(self) {
 				...optSetIncDecStep('Volume Level (dB)', 0, audio.min, audio.max, audio.step),
 			],
 			callback: async (action) => {
-				if (!resolveSetStep(action, audio.min, audio.max, audio.step)) return
+				if (!resolveSetStep(self, action, audio.min, audio.max, audio.step)) return
 				const value = cmdValue(
 					action,
 					0x80,

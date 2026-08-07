@@ -411,7 +411,7 @@ export const SERIES_SPECS = [
 			night: false,
 			ois: false,
 			panTilt: false,
-			pedestal: { cmd: 'OSG:4A', offset: 0x80, limit: 99 },
+			pedestal: { cmd: 'OSG:4A', offset: 0x80, limit: 99, step: 1, hexlen: 2 },
 			preset: false,
 			presetSpeed: false,
 			presetTime: false,

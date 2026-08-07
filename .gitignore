@@ -1,9 +1,10 @@
-.vscode/
-.yarn/
 node_modules/
+package-lock.json
 /pkg
 /pkg.tgz
-.vscode/
+/*.tgz
 DEBUG-*
+/.yarn
+
+.vscode/
 *.log
-*.tgz

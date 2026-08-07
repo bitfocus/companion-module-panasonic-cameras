@@ -6,10 +6,22 @@ import { constrainRange, getAndUpdateSeries, optionSpecs } from './common.js'
 // Leftovers from the "Use Variable" construct, dropped from every button that carries them.
 const DEAD_OPTIONS = ['useVar', 'setVar', 'stepVar', 'valVar', 'optionVar']
 
+// An upgrade script's options are CompanionMigrationOptionValues: every entry is an
+// ExpressionOrValue wrapper, with none of the "raw value also accepted" leniency preset options get.
+// A bare write reads back as `.value === undefined`, which is exactly the invalid option these
+// scripts exist to repair. Everything written to an entity's options goes through here.
+const wrap = (value) => ({ isExpression: false, value })
+
+// Which camera these buttons belong to. props.config is only filled when the *connection* itself is
+// being upgraded; upgrading buttons hands it over as null, and reconciling a UE160's buttons against
+// the generic `Other` action set reintroduces exactly the invalid option this file exists to repair.
+// The context is the field documented as "current configuration of the module", so it comes first.
+const configOf = (context, props) => context?.currentConfig ?? props.config ?? { model: 'Other' }
+
 // 2.0 validates every declared option; an option a stored button never got is invalid (undefined is
 // "not in the dropdown choices") and takes the whole action down, even when hidden. Reconciles
 // on-disk buttons against the definitions, as presets.js already does for presets we hand out.
-function fillOmittedOptions(_context, props) {
+function fillOmittedOptions(context, props) {
 	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
 
 	// Options and defaults are model-dependent, so build definitions as the running instance does.
@@ -18,7 +30,7 @@ function fillOmittedOptions(_context, props) {
 	let actionSpecs, feedbackSpecs
 	try {
 		const self = {
-			config: props.config ?? { model: 'Other' },
+			config: configOf(context, props),
 			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
 		}
 		actionSpecs = optionSpecs(getActionDefinitions(self))
@@ -37,7 +49,7 @@ function fillOmittedOptions(_context, props) {
 			if (omitted.length === 0) continue
 
 			entity.options = { ...entity.options }
-			for (const id of omitted) entity.options[id] = spec.defaults[id]
+			for (const id of omitted) entity.options[id] = wrap(spec.defaults[id])
 			updated.push(entity)
 		}
 	}
@@ -79,7 +91,7 @@ function toPresetIndex(stored, max) {
 function presetCount(config) {
 	try {
 		const self = {
-			config: config ?? { model: 'Other' },
+			config,
 			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
 		}
 		return getAndUpdateSeries(self).capabilities.preset || 100
@@ -88,9 +100,9 @@ function presetCount(config) {
 	}
 }
 
-function dropUseVarToggles(_context, props) {
+function dropUseVarToggles(context, props) {
 	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
-	const max = presetCount(props.config)
+	const max = presetCount(configOf(context, props))
 
 	// Keyed on the options a button carries, not on action ids: the stepped options come from one
 	// shared builder used by many actions, so an id list would miss half of them.
@@ -118,6 +130,83 @@ function dropUseVarToggles(_context, props) {
 	return result
 }
 
+// The value the current model's definition would accept in place of a stored one it would not.
+// Companion drops the whole entity over a single dropdown value outside `choices`, so putting the
+// model's own default back is strictly better than leaving the button dead — which is also why a
+// value stranded by the operator switching models afterwards is repaired here rather than left.
+function reconcileValue(option, field) {
+	if (field.type !== 'dropdown') return option // number fields are clamped by the callback
+
+	const ids = field.choices.map((choice) => choice.id)
+	if (ids.includes(option.value)) return option
+
+	// The preset dropdown is the one that takes any index (allowInvalidValues) and constrains it, so
+	// its stored number only needs bringing back into the range this model actually has.
+	if (field.allowInvalidValues) {
+		const idx = parseInt(option.value, 10)
+		if (!Number.isFinite(idx)) return option
+		return wrap(
+			constrainRange(idx, 0, ids.length - 1)
+				.toString(10)
+				.padStart(2, '0'),
+		)
+	}
+
+	return field.default === undefined ? option : wrap(field.default)
+}
+
+// v2.0.0 shipped the two scripts above writing bare values, and resolving the model from a
+// props.config that is null whenever buttons rather than the connection are being upgraded. Companion
+// tracks upgrade progress by index, so neither slot ever runs again for a connection that already
+// passed through 2.0.0 — appending is the only way to reach those buttons. For a connection coming
+// straight from 1.x this is a no-op: the repaired slots already wrote the right shape, from the right
+// model.
+function repairPre201Writes(context, props) {
+	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
+
+	let actionSpecs, feedbackSpecs
+	try {
+		const self = {
+			config: configOf(context, props),
+			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+		}
+		actionSpecs = optionSpecs(getActionDefinitions(self))
+		feedbackSpecs = optionSpecs(getFeedbackDefinitions(self))
+	} catch {
+		return result // unresolvable model: nothing to reconcile against
+	}
+
+	const repair = (entities, idKey, specs, updated) => {
+		for (const entity of entities ?? []) {
+			const spec = specs[entity[idKey]]
+			if (!spec || !entity.options) continue
+
+			let changed = false
+			for (const [id, stored] of Object.entries(entity.options)) {
+				const field = spec.fields[id]
+				if (!field) continue
+
+				// unwrap() returns the stored object itself when it is already a wrapper, so an identity
+				// check is what separates "was written bare" from "was already fine".
+				const option = unwrap(stored)
+				const fixed = option.isExpression ? option : reconcileValue(option, field)
+
+				if (fixed !== stored) {
+					entity.options[id] = fixed
+					changed = true
+				}
+			}
+
+			if (changed) updated.push(entity)
+		}
+	}
+
+	repair(props.actions, 'actionId', actionSpecs, result.updatedActions)
+	repair(props.feedbacks, 'feedbackId', feedbackSpecs, result.updatedFeedbacks)
+
+	return result
+}
+
 export const upgradeScripts = [
 	// Was addSetIncDecVariables. Blanked, not deleted: upgrade progress is tracked by index.
 	EmptyUpgradeScript,
@@ -133,7 +222,7 @@ export const upgradeScripts = [
 				case 'ptSpeed':
 				case 'zoomSpeed':
 				case 'focusSpeed':
-					action.options.step = action.options.step === undefined ? 1 : action.options.step
+					if (action.options.step === undefined) action.options.step = wrap(1)
 					result.updatedActions.push(action)
 					break
 			}
@@ -143,4 +232,5 @@ export const upgradeScripts = [
 	// Upgrade progress is tracked by index, so new scripts go last.
 	fillOmittedOptions,
 	dropUseVarToggles,
+	repairPre201Writes,
 ]

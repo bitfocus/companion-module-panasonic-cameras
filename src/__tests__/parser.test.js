@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseUpdate } from '../parser.js'
-import { constrainRange, getNext, getNextValue, getLabel, toHexString } from '../common.js'
+import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
 
 // parseUpdate mutates self.data in place from the camera's notification strings.
 function parse(...args) {
@@ -63,6 +63,47 @@ describe('parseUpdate', () => {
 	it('decodes speed values, which are offset by 50', () => {
 		expect(parse('zS50').zoomSpeedValue).toBe(0)
 		expect(parse('fS99').focusSpeedValue).toBe(49)
+	})
+
+	// NaN publishes as a NaN variable, satisfies the zoomControl feedback (NaN != 0) so the button
+	// latches lit, and comes back out of lensAxis as a literal "#ZNaN" on the wire.
+	it.each(['zS', 'zSx', 'zS-', 'fS', 'fSab'])('keeps the last known speed rather than storing NaN for %s', (cmd) => {
+		const self = {
+			data: {
+				zoomSpeedValue: 7,
+				focusSpeedValue: 7,
+				presetThumbnails: [],
+				presetEntries: [],
+				presetEntries0: [],
+				presetEntries1: [],
+				presetEntries2: [],
+			},
+			getThumbnail: () => {},
+		}
+		parseUpdate(self, [cmd])
+
+		expect(self.data.zoomSpeedValue).toBe(7)
+		expect(self.data.focusSpeedValue).toBe(7)
+	})
+})
+
+// checkVariables() runs after every HTTP response and every TCP batch. Resolving the series there
+// meant two Array.find scans over the model tables, plus a write to self.data, on that hot path.
+describe('seriesOf', () => {
+	const bare = (model) => ({ config: { model }, data: { model: null, modelAuto: null, series: null } })
+
+	it('hands back what the connection already resolved instead of scanning again', () => {
+		const resolved = { id: 'UE160', capabilities: {} }
+		const self = { ...bare('AW-HE2'), SERIES: resolved }
+
+		expect(seriesOf(self)).toBe(resolved)
+		expect(self.data.model).toBeNull() // the hot path writes nothing
+	})
+
+	it('still resolves for a caller with no connection behind it', () => {
+		// The upgrade scripts and the definition tests build a bare self; so does reInitAll() until the
+		// camera has answered QID.
+		expect(seriesOf(bare('AW-HE2')).capabilities.preset).toBe(9)
 	})
 })
 

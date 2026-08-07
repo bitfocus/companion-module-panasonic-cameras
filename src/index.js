@@ -37,6 +37,12 @@ export const REACHABILITY_ERRORS = new Set([
 	'EAI_AGAIN', // DNS is temporarily unreachable
 ])
 
+// Consecutive reachability failures before the connection counts as lost. A single dropped
+// connection is routine with these cameras, and declaring it lost is expensive: a full reInitAll()
+// re-queries the model, rebuilds the TCP subscription and re-publishes every action, feedback,
+// variable and preset, so the operator watches the whole panel redraw for a blip already recovered.
+const FAILURE_THRESHOLD = 3
+
 // Lead with the code: got carries it in `code` and does not always repeat it in the message. The
 // String() fallback keeps a thrown non-Error from reading as "[object Object]".
 export function describeError(err) {
@@ -65,11 +71,29 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.pollGen = 0
 		this.pollImage = false
 		this.pollImageGen = 0
+
+		// Consecutive reachability failures; a success resets it (see onRequestSucceeded()).
+		this.failures = 0
+
+		// True from the moment a reconnect is committed until it starts, so nothing withdraws it.
+		this.reconnecting = false
 	}
 
 	// True while `generation` is still the running connection.
 	current(generation) {
 		return generation === this.generation
+	}
+
+	// One camera line is one parse. Contained here, a line the parser chokes on costs that line and
+	// not the 390 behind it in a bulk dump — and, more importantly, never leaves the parse inside the
+	// request's try, where a TypeError carrying no `err.code` reached handleConnectionError and was
+	// reported to the operator as a camera fault, with the connection deadened and no retry armed.
+	parseSafely(line, parse) {
+		try {
+			parse()
+		} catch (err) {
+			this.log('error', `Failed to parse camera response "${line}": ${describeError(err)}`)
+		}
 	}
 
 	// All requests go through here so teardown()'s abort signal is never missed.
@@ -89,6 +113,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.pollGen++
 		this.pollImageGen++
 		this.timeoutID = clearTimeout(this.timeoutID) // a retry owed to the old connection is not the new one's
+		this.reconnecting = false // ...and neither is the reconnect that retry was committed to
 
 		// 2. Invalidate in-flight work (see current()) and cancel it so it drops the old camera's socket.
 		this.generation++
@@ -150,7 +175,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 			this.log('info', 'subscribed: ' + url)
 
-			this.updateStatus(InstanceStatus.Ok)
+			this.onRequestSucceeded()
 
 			await this.getPTZ('LPC1') // enable Lens Position Information updates
 		} catch (err) {
@@ -208,11 +233,16 @@ export default class PanasonicCameraInstance extends InstanceBase {
 							this.log('info', `Received Update: ${command}  (${source})`)
 						}
 
-						parseUpdate(this, command.split(':'))
+						this.parseSafely(command, () => parseUpdate(this, command.split(':')))
 					}
 
 					// Once for the whole batch: a coalesced burst is one redraw.
 					if (updates.length) {
+						// A subscription-only camera may make no HTTP requests for minutes, so without this
+						// one failed request would sit at failures > 0 until the fallback declared a
+						// connection lost that has been pushing updates the whole time.
+						this.markReachable()
+
 						this.checkVariables()
 						this.checkAllFeedbacks()
 					}
@@ -226,7 +256,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					this.log('error', 'TCP error: Please change it and click apply in ALL camera instances')
 					this.updateStatus(InstanceStatus.UnknownError, 'TCP Port in use')
 
-					this.unsubscribeTCPEvents(tcpPortSelected).catch(() => null)
+					// Nothing was ever subscribed on this port, so there is nothing to say goodbye to. The
+					// server must still go: teardown() reads `this.server` as proof of a subscription and
+					// would send a stop for a port the camera was never told about.
+					this.server.close()
+					delete this.server
 				} else {
 					this.log('error', 'TCP server error: ' + String(err))
 				}
@@ -279,13 +313,13 @@ export default class PanasonicCameraInstance extends InstanceBase {
 							this.log('info', 'camdata response: ' + str)
 						}
 
-						parseUpdate(this, str.split(':'))
+						this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 					}
 
 					this.checkVariables()
 					this.checkAllFeedbacks()
 
-					this.updateStatus(InstanceStatus.Ok)
+					this.onRequestSucceeded()
 				}
 			} catch (err) {
 				// The old camera's failure must not schedule a reconnect for the current one.
@@ -313,12 +347,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					this.log('info', 'PTZ response: ' + str)
 				}
 
-				parseUpdate(this, str.split(':'))
+				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
 				this.checkVariables()
 				this.checkAllFeedbacks()
 
-				this.updateStatus(InstanceStatus.Ok)
+				this.onRequestSucceeded()
 			}
 		} catch (err) {
 			if (!this.current(generation)) return
@@ -345,12 +379,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					this.log('info', 'Cam response: ' + str)
 				}
 
-				parseUpdate(this, str.split(':'))
+				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
 				this.checkVariables()
 				this.checkAllFeedbacks()
 
-				this.updateStatus(InstanceStatus.Ok)
+				this.onRequestSucceeded()
 			}
 		} catch (err) {
 			if (!this.current(generation)) return
@@ -381,20 +415,20 @@ export default class PanasonicCameraInstance extends InstanceBase {
 						this.log('info', 'Web response [' + cmd + ']: ' + str)
 					}
 
-					parseWeb(this, str.split('='), cmd)
+					this.parseSafely(str, () => parseWeb(this, str.split('='), cmd))
 				}
 			} else {
 				if (this.config.debug) {
 					this.log('info', 'Web response [' + cmd + ']: Response code ' + response.statusCode.toString())
 				}
 
-				parseWebCode(this, response.statusCode, cmd)
+				this.parseSafely(response.statusCode, () => parseWebCode(this, response.statusCode, cmd))
 			}
 
 			this.checkVariables()
 			this.checkAllFeedbacks()
 
-			this.updateStatus(InstanceStatus.Ok)
+			this.onRequestSucceeded()
 		} catch (err) {
 			if (!this.current(generation)) return
 			if (this.handleConnectionError(err)) this.log('error', 'Web request ' + url + ' failed: ' + String(err))
@@ -425,7 +459,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 				this.checkAllFeedbacks()
 
-				this.updateStatus(InstanceStatus.Ok)
+				this.onRequestSucceeded()
 			} catch (err) {
 				if (!this.current(generation)) return
 				if (err.code !== 'ERR_ABORTED') this.log('error', 'Thumbnail request ' + url + ' failed: ' + String(err))
@@ -516,33 +550,91 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		await this.reInitAll()
 	}
 
+	// Evidence the camera is reachable, from anything short of a completed request: an HTTP error the
+	// camera itself produced, or a framed batch arriving over the subscription. Ends the failure
+	// streak and withdraws the fallback retry armed for it, but says nothing about the status.
+	//
+	// Refuses once a reconnect is committed: scheduleReInit() has already stopped the poll loops and
+	// only reInitAll() starts them again, so cancelling its timer here would leave the connection
+	// reporting Ok with its monitoring permanently dead. Returns whether it took effect.
+	markReachable() {
+		if (this.reconnecting) return false
+
+		this.failures = 0
+		this.timeoutID = clearTimeout(this.timeoutID)
+		return true
+	}
+
+	// Every request that reached the camera ends here: the connection is up, so the failure streak is
+	// over and any retry owed to it is withdrawn. Without this a single dropped keep-alive left a
+	// re-init armed that fired minutes later against a connection that had long since recovered.
+	onRequestSucceeded() {
+		if (this.markReachable()) this.updateStatus(InstanceStatus.Ok)
+	}
+
 	// Handle timeouts and hide HTTP errors. Returns whether the caller should log the error.
 	handleConnectionError(err) {
 		// Cancelled by teardown(), not a camera failure; got raises it as ERR_ABORTED.
 		if (err.code === 'ERR_ABORTED') return false
 
-		// Unreachable: keep re-initialising until it comes back.
+		// Unreachable: keep re-initialising until it comes back, but only once it is more than a blip.
 		if (REACHABILITY_ERRORS.has(err.code)) {
-			this.scheduleReInit(String(err.code))
-			return true // print error
+			this.failures++
+
+			if (this.failures >= FAILURE_THRESHOLD) {
+				this.scheduleReInit(String(err.code))
+				return true // print error
+			}
+
+			// Not yet evidence the camera is gone. The next request decides — but a connection with no
+			// polling has no next request, so arm a fallback that re-checks once the streak has had time
+			// to either clear itself or grow.
+			this.armFallbackRetry(String(err.code))
+			return this.config.debug // hide error
 		}
 
-		// Camera answered but rejected the request; not a connection problem.
-		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') return this.config.debug // hide error
+		// Camera answered but rejected the request; not a connection problem — and an answer is proof
+		// the camera is there, so it ends any streak a reachability error had started.
+		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') {
+			this.markReachable()
+			return this.config.debug // hide error
+		}
+
+		// No code at all is one of ours, not the camera's: got labels everything it raises. Saying so
+		// is the difference between the operator chasing a network fault and reporting a module bug.
+		if (err?.code === undefined) {
+			this.updateStatus(InstanceStatus.UnknownError, 'Module error: ' + describeError(err))
+			return true // print error
+		}
 
 		// Undiagnosed fault: stop rather than retry-loop against it.
 		this.updateStatus(InstanceStatus.UnknownError, describeError(err))
 		return true // print error
 	}
 
+	// Sub-threshold failures leave the connection alone but must not leave it unattended: if nothing
+	// drives another request, this is what eventually notices the camera never came back.
+	armFallbackRetry(reason) {
+		if (this.timeoutID) return // one failure already armed it; a success clears it
+
+		this.timeoutID = setTimeout(() => {
+			this.timeoutID = undefined
+			if (this.failures > 0) this.scheduleReInit(reason)
+		}, this.config.timeout + this.config.pollDelay)
+	}
+
 	// The instance's one retry timer: a burst of failures must schedule a single re-init, not one each.
+	// Past this point the reconnect is committed — the poll loops are down and nothing but reInitAll()
+	// brings them back, so no late arrival may cancel it (see markReachable()).
 	scheduleReInit(reason) {
+		this.reconnecting = true
 		this.poll = false
 		this.pollImage = false // an unreachable camera must not keep being asked for JPEGs
 		this.updateStatus(InstanceStatus.ConnectionFailure, reason)
 
 		this.timeoutID = clearTimeout(this.timeoutID)
 		this.timeoutID = setTimeout(() => {
+			this.reconnecting = false
 			this.reInitAll().catch((err) => this.log('error', 'Re-initialisation failed: ' + String(err)))
 		}, this.config.timeout + this.config.pollDelay)
 	}
@@ -555,7 +647,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		await this.teardown()
 		const generation = this.generation
 
+		// The one place the series is resolved. Cleared first so the QID round-trip below — which
+		// publishes variables on its way through — cannot read the previous camera's capabilities.
+		this.SERIES = undefined
+
 		this.imageErrors = 0
+		this.failures = 0 // the streak belonged to the connection just torn down
 		this.updateStatus(InstanceStatus.Connecting, this.config.host + ':' + this.config.httpPort)
 
 		await this.getCam('QID') // pull model

@@ -44,6 +44,34 @@ function seriesSpec(series) {
 	return SERIES_SPECS.find((s) => s.id === series)
 }
 
+// A level capability drives optSetIncDecStep() and cmdValue(): `step` becomes the Step size field's
+// default *and* its min, `hexlen` the width of the value on the wire. Miss either and the field ships
+// with `default: undefined`, fillOmittedOptions skips it (it only fills ids that have a default), and
+// resolveSetStep() gets parseInt(undefined) -> NaN, so the action returns having sent nothing. That is
+// how the AK-UB300's Master Pedestal shipped as a silent no-op.
+describe('level capabilities', () => {
+	const LEVELS = SERIES_SPECS.flatMap((spec) =>
+		Object.entries(spec.capabilities)
+			.filter(([, cap]) => cap && typeof cap === 'object' && 'offset' in cap && 'limit' in cap)
+			.map(([name, cap]) => ({ series: spec.id, name, cap })),
+	)
+
+	it('is a set worth checking', () => {
+		expect(LEVELS.length).toBeGreaterThan(0)
+	})
+
+	it.each(LEVELS)('$series.$name carries the step and hexlen the action needs', ({ cap }) => {
+		expect(cap.step).toBeTypeOf('number')
+		expect(cap.step).toBeGreaterThan(0)
+		expect(cap.hexlen).toBeTypeOf('number')
+	})
+
+	it.each(LEVELS)('$series.$name declares a hexlen wide enough for its own range', ({ cap }) => {
+		const widest = Math.max(cap.offset + cap.limit, Math.abs(cap.offset - cap.limit))
+		expect(widest.toString(16).length).toBeLessThanOrEqual(cap.hexlen)
+	})
+})
+
 describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => {
 	const self = mockInstance(id)
 	const caps = seriesSpec(series).capabilities

@@ -21,6 +21,14 @@ export function getAndUpdateSeries(self) {
 	return SERIES || SERIES_SPECS.find((SERIES_SPECS) => SERIES_SPECS.id === 'Other')
 }
 
+// The series a running instance is on. reInitAll() resolves it once per connection; everything else
+// reads that. The fallback is for callers with no live instance behind them — the upgrade scripts and
+// the definition tests build a bare `self` — and for the window inside reInitAll() before the QID
+// answer has been turned into a series.
+export function seriesOf(self) {
+	return self.SERIES ?? getAndUpdateSeries(self)
+}
+
 export function getNext(values, key, step = 1, overrun = true) {
 	const firstIndex = 0
 	const lastIndex = values.length - 1
@@ -120,6 +128,7 @@ export function optionSpecs(definitions) {
 				id,
 				{
 					ids: fields.map((field) => field.id),
+					fields: Object.fromEntries(fields.map((field) => [field.id, field])),
 					defaults: Object.fromEntries(
 						fields.filter((field) => field.default !== undefined).map((field) => [field.id, field.default]),
 					),
