@@ -20,9 +20,10 @@ const expr = (value) => ({ isExpression: true, value })
 // A preset-built button that stored only the operation, leaving the hidden value unset.
 const brokenPowerButton = () => ({ actionId: 'power', options: { op: val('t') } })
 
-const run = (props) => fillOmittedOptions({}, { config: { model: 'AW-UE100' }, feedbacks: [], ...props })
-const migrate = (props) =>
-	dropUseVarToggles({}, { config: { model: 'AW-UE100' }, actions: [], feedbacks: [], ...props })
+const run = (props, context = {}) =>
+	fillOmittedOptions(context, { config: { model: 'AW-UE100' }, feedbacks: [], ...props })
+const migrate = (props, context = {}) =>
+	dropUseVarToggles(context, { config: { model: 'AW-UE100' }, actions: [], feedbacks: [], ...props })
 
 // Scripts are identified by index, so one may only ever be appended — a removed or reordered script
 // re-runs the wrong migration on every existing connection.
@@ -124,6 +125,21 @@ describe('fillOmittedOptions', () => {
 
 		expect(() => run({ config, actions })).not.toThrow()
 	})
+
+	// props.config is only filled when the connection itself is upgraded; upgrading buttons hands it
+	// over as null. Reading the model off it reconciled a UE160's buttons against the generic `Other`
+	// action set, so a filled default could be a value the real model's choices do not contain.
+	it('takes the model from the context when props.config is null', () => {
+		const actions = [{ actionId: 'gain', options: { op: val('s') } }]
+		run({ config: null, actions }, { currentConfig: { model: 'AK-UB300' } })
+
+		const field = getActionDefinitions({
+			config: { model: 'AK-UB300' },
+			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+		}).gain.options.find((o) => o.id === 'set')
+
+		expect(field.choices.map((c) => c.id)).toContain(actions[0].options.set.value)
+	})
 })
 
 // The "Use Variable" checkbox and its parallel textinputs are gone (every field is expression-capable
@@ -195,6 +211,15 @@ describe('dropUseVarToggles', () => {
 		it('clamps a literal to a slot this model actually has', () => {
 			const actions = [{ actionId: 'presetMem', options: { useVar: val(true), valVar: val('150') } }]
 			migrate({ config: { model: 'AW-HE2' }, actions }) // the one camera with only nine slots
+
+			expect(actions[0].options.val).toEqual(val('08'))
+		})
+
+		it('clamps against the context model when props.config is null', () => {
+			// Off props.config alone the count fell back to 100, so an AW-HE2 clamped to '99' — a slot
+			// the camera does not have — instead of '08'.
+			const actions = [{ actionId: 'presetMem', options: { useVar: val(true), valVar: val('150') } }]
+			migrate({ config: null, actions }, { currentConfig: { model: 'AW-HE2' } })
 
 			expect(actions[0].options.val).toEqual(val('08'))
 		})

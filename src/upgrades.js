@@ -12,10 +12,16 @@ const DEAD_OPTIONS = ['useVar', 'setVar', 'stepVar', 'valVar', 'optionVar']
 // scripts exist to repair. Everything written to an entity's options goes through here.
 const wrap = (value) => ({ isExpression: false, value })
 
+// Which camera these buttons belong to. props.config is only filled when the *connection* itself is
+// being upgraded; upgrading buttons hands it over as null, and reconciling a UE160's buttons against
+// the generic `Other` action set reintroduces exactly the invalid option this file exists to repair.
+// The context is the field documented as "current configuration of the module", so it comes first.
+const configOf = (context, props) => context?.currentConfig ?? props.config ?? { model: 'Other' }
+
 // 2.0 validates every declared option; an option a stored button never got is invalid (undefined is
 // "not in the dropdown choices") and takes the whole action down, even when hidden. Reconciles
 // on-disk buttons against the definitions, as presets.js already does for presets we hand out.
-function fillOmittedOptions(_context, props) {
+function fillOmittedOptions(context, props) {
 	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
 
 	// Options and defaults are model-dependent, so build definitions as the running instance does.
@@ -24,7 +30,7 @@ function fillOmittedOptions(_context, props) {
 	let actionSpecs, feedbackSpecs
 	try {
 		const self = {
-			config: props.config ?? { model: 'Other' },
+			config: configOf(context, props),
 			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
 		}
 		actionSpecs = optionSpecs(getActionDefinitions(self))
@@ -85,7 +91,7 @@ function toPresetIndex(stored, max) {
 function presetCount(config) {
 	try {
 		const self = {
-			config: config ?? { model: 'Other' },
+			config,
 			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
 		}
 		return getAndUpdateSeries(self).capabilities.preset || 100
@@ -94,9 +100,9 @@ function presetCount(config) {
 	}
 }
 
-function dropUseVarToggles(_context, props) {
+function dropUseVarToggles(context, props) {
 	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
-	const max = presetCount(props.config)
+	const max = presetCount(configOf(context, props))
 
 	// Keyed on the options a button carries, not on action ids: the stepped options come from one
 	// shared builder used by many actions, so an id list would miss half of them.
