@@ -8,11 +8,17 @@ import { getActionDefinitions } from '../actions.js'
 
 // Pinned by index, not `.at(-1)`: Companion identifies a script by position, so appending one must
 // not repoint these tests at the new arrival.
+const addSetStepSize = upgradeScripts[1]
 const fillOmittedOptions = upgradeScripts[2]
 const dropUseVarToggles = upgradeScripts[3]
 
+// An upgrade script both reads and writes CompanionMigrationOptionValues, so every option in these
+// fixtures — and every option a script writes — is an ExpressionOrValue wrapper, never a bare value.
+const val = (value) => ({ isExpression: false, value })
+const expr = (value) => ({ isExpression: true, value })
+
 // A preset-built button that stored only the operation, leaving the hidden value unset.
-const brokenPowerButton = () => ({ actionId: 'power', options: { op: 't' } })
+const brokenPowerButton = () => ({ actionId: 'power', options: { op: val('t') } })
 
 const run = (props) => fillOmittedOptions({}, { config: { model: 'AW-UE100' }, feedbacks: [], ...props })
 const migrate = (props) =>
@@ -27,13 +33,49 @@ describe('upgradeScripts', () => {
 	})
 })
 
+describe('addSetStepSize', () => {
+	const step = (props) => addSetStepSize({}, { config: { model: 'AW-UE100' }, feedbacks: [], ...props })
+
+	it('gives the speed actions a step size, in the value wrapper 2.0 requires', () => {
+		const actions = [{ actionId: 'zoomSpeed', options: { op: val('i') } }]
+		const result = step({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	it('leaves a step size the button already carries alone', () => {
+		const actions = [{ actionId: 'ptSpeed', options: { op: val('i'), step: val(5) } }]
+		step({ actions })
+
+		expect(actions[0].options.step).toEqual(val(5))
+	})
+
+	it('does not touch an action that has no step size', () => {
+		const actions = [{ actionId: 'power', options: { op: val('t') } }]
+		const result = step({ actions })
+
+		expect(actions[0].options).toEqual({ op: val('t') })
+		expect(result.updatedActions).toEqual([])
+	})
+})
+
 describe('fillOmittedOptions', () => {
 	it('gives a value to the options a preset-built button never got', () => {
 		const actions = [brokenPowerButton()]
 		const result = run({ actions })
 
-		expect(actions[0].options).toEqual({ op: 't', set: '0' })
+		expect(actions[0].options).toEqual({ op: val('t'), set: val('0') })
 		expect(result.updatedActions).toEqual(actions)
+	})
+
+	// A bare default reads back as `.value === undefined`, which is the very state — an option
+	// Companion cannot parse, taking the whole action down — that this script exists to repair.
+	it('writes the value wrapper 2.0 requires, not the bare default', () => {
+		const actions = [brokenPowerButton()]
+		run({ actions })
+
+		expect(actions[0].options.set).toEqual({ isExpression: false, value: '0' })
 	})
 
 	it('fills only from the action definition, so the value it writes is one Companion accepts', () => {
@@ -45,14 +87,14 @@ describe('fillOmittedOptions', () => {
 			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
 		}).power.options.find((o) => o.id === 'set')
 
-		expect(field.choices.map((c) => c.id)).toContain(actions[0].options.set)
+		expect(field.choices.map((c) => c.id)).toContain(actions[0].options.set.value)
 	})
 
 	it('leaves a value the user picked alone', () => {
-		const actions = [{ actionId: 'gain', options: { op: 's', set: '20' } }]
+		const actions = [{ actionId: 'gain', options: { op: val('s'), set: val('20') } }]
 		const result = run({ actions })
 
-		expect(actions[0].options.set).toBe('20')
+		expect(actions[0].options.set).toEqual(val('20'))
 		expect(result.updatedActions).toEqual([])
 	})
 
@@ -60,7 +102,7 @@ describe('fillOmittedOptions', () => {
 		const feedbacks = [{ feedbackId: 'shootingMode', options: {} }]
 		const result = run({ actions: [], feedbacks })
 
-		expect(feedbacks[0].options).toEqual({ option: '0' })
+		expect(feedbacks[0].options).toEqual({ option: val('0') })
 		expect(result.updatedFeedbacks).toEqual(feedbacks)
 	})
 
@@ -87,10 +129,6 @@ describe('fillOmittedOptions', () => {
 // The "Use Variable" checkbox and its parallel textinputs are gone (every field is expression-capable
 // in 2.0). Where the checkbox was on, the textinput's value must survive as an expression on the plain field.
 describe('dropUseVarToggles', () => {
-	// An upgrade script sees the 2.0 wrapper, so that is the shape these fixtures use.
-	const val = (value) => ({ isExpression: false, value })
-	const expr = (value) => ({ isExpression: true, value })
-
 	describe('with the checkbox on', () => {
 		it('lifts a variable onto the plain field as an expression', () => {
 			const actions = [

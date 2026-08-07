@@ -6,6 +6,12 @@ import { constrainRange, getAndUpdateSeries, optionSpecs } from './common.js'
 // Leftovers from the "Use Variable" construct, dropped from every button that carries them.
 const DEAD_OPTIONS = ['useVar', 'setVar', 'stepVar', 'valVar', 'optionVar']
 
+// An upgrade script's options are CompanionMigrationOptionValues: every entry is an
+// ExpressionOrValue wrapper, with none of the "raw value also accepted" leniency preset options get.
+// A bare write reads back as `.value === undefined`, which is exactly the invalid option these
+// scripts exist to repair. Everything written to an entity's options goes through here.
+const wrap = (value) => ({ isExpression: false, value })
+
 // 2.0 validates every declared option; an option a stored button never got is invalid (undefined is
 // "not in the dropdown choices") and takes the whole action down, even when hidden. Reconciles
 // on-disk buttons against the definitions, as presets.js already does for presets we hand out.
@@ -37,7 +43,7 @@ function fillOmittedOptions(_context, props) {
 			if (omitted.length === 0) continue
 
 			entity.options = { ...entity.options }
-			for (const id of omitted) entity.options[id] = spec.defaults[id]
+			for (const id of omitted) entity.options[id] = wrap(spec.defaults[id])
 			updated.push(entity)
 		}
 	}
@@ -133,7 +139,7 @@ export const upgradeScripts = [
 				case 'ptSpeed':
 				case 'zoomSpeed':
 				case 'focusSpeed':
-					action.options.step = action.options.step === undefined ? 1 : action.options.step
+					if (action.options.step === undefined) action.options.step = wrap(1)
 					result.updatedActions.push(action)
 					break
 			}
