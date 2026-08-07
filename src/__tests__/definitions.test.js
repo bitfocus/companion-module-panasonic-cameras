@@ -198,6 +198,64 @@ describe('pull coverage', () => {
 	})
 })
 
+// The web endpoints live in the "Supplement for WEB Control" documents rather than the interface
+// specifications, and nothing pushes them — a stream that is started elsewhere only shows up if its
+// status is polled. So the capability and the poll entry have to travel together in both directions:
+// a capability without its query leaves the variable dead, a query without its capability asks a
+// camera for something the documents say it does not have.
+describe('web capability coverage', () => {
+	const PAIRS = [
+		['streamRTMP', 'get_rtmp_status'],
+		['streamSRT', 'get_srt_status'],
+		['streamTS', 'get_ts_status'],
+		['recordSD', 'get_state'],
+	]
+
+	// The AG-CX350 documents rtmp_ctrl and srt_ctrl but no status query for either, so it can start and
+	// stop a stream while never learning what state it is in.
+	const NO_STATUS_QUERY = { CX350: ['streamRTMP', 'streamSRT'] }
+
+	const webOf = (spec) => new Set([spec.capabilities.poll, spec.capabilities.pull].flatMap((l) => (l && l.web) || []))
+
+	const CASES = SERIES_SPECS.flatMap((spec) =>
+		PAIRS.map(([capability, query]) => ({
+			series: spec.id,
+			capability,
+			query,
+			declared: !!spec.capabilities[capability],
+			web: webOf(spec),
+		})),
+	)
+
+	// `Other` is the unknown-camera fallback and declares everything; it polls nothing on the web.
+	const NEEDS_QUERY = CASES.filter(
+		(c) => c.declared && c.series !== 'Other' && !NO_STATUS_QUERY[c.series]?.includes(c.capability),
+	)
+	const NEEDS_NONE = CASES.filter((c) => !c.declared)
+
+	it('is a set worth checking', () => {
+		expect(NEEDS_QUERY.length).toBeGreaterThan(15)
+		expect(NEEDS_NONE.length).toBeGreaterThan(50)
+	})
+
+	it.each(NEEDS_QUERY)('$series polls $query for its $capability', ({ web, query }) => {
+		expect(web.has(query)).toBe(true)
+	})
+
+	it.each(NEEDS_NONE)('$series does not poll $query, having no $capability', ({ web, query }) => {
+		expect(web.has(query)).toBe(false)
+	})
+
+	// Both are documented for the HE130/HR140 in a shape this module cannot use: there is no
+	// view.cgi (MJPEG lives on /cgi-bin/jpeg), and /cgi-bin/initial is POST-only without a Randomnum.
+	it.each(['HE130', 'HR140'])('%s offers neither the live image nor a restart', (id) => {
+		const caps = SERIES_SPECS.find((s) => s.id === id).capabilities
+
+		expect(caps.imageTransmission).toBe(false)
+		expect(caps.restart).toBe(false)
+	})
+})
+
 describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => {
 	const self = mockInstance(id)
 	const caps = seriesSpec(series).capabilities
