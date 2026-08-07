@@ -1,7 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as net from 'net'
 import PanasonicCameraInstance, { REACHABILITY_ERRORS, describeError } from '../index.js'
 import { pollCameraStatus } from '../polling.js'
 import { initialData } from '../data.js'
+
+// init_tcp() is the one path that reaches a real socket, so the listener is stubbed. `emitError`
+// stands in for the async 'error' the OS raises after listen() on a taken port.
+vi.mock('net', () => {
+	const createServer = vi.fn(() => {
+		const handlers = {}
+		return {
+			on: vi.fn((event, fn) => (handlers[event] = fn)),
+			listen: vi.fn(),
+			close: vi.fn(),
+			address: () => ({ port: 31004 }),
+			emitError: (err) => handlers.error?.(err),
+		}
+	})
+	return { createServer, default: { createServer } }
+})
 
 // Changing config used to leave the old camera running alongside the new one: it was never
 // unsubscribed (the goodbye went to the new config's host), its open socket survived server.close(),
@@ -309,6 +326,44 @@ describe('handleConnectionError', () => {
 		await self.configUpdated({ ...self.config, host: '10.0.0.2' })
 
 		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['disconnected'])
+	})
+})
+
+describe('a TCP port that is already taken', () => {
+	beforeEach(() => net.createServer.mockClear())
+
+	function bindOnTakenPort() {
+		const self = makeInstance()
+		self.init_tcp()
+
+		const server = net.createServer.mock.results[0].value
+		server.emitError(Object.assign(new Error('listen EADDRINUSE'), { code: 'EADDRINUSE' }))
+		return { self, server }
+	}
+
+	it('drops the server it could not bind, so nothing later mistakes it for a subscription', () => {
+		const { self, server } = bindOnTakenPort()
+
+		expect(server.close).toHaveBeenCalled()
+		expect(self.server).toBeUndefined()
+	})
+
+	it('does not say goodbye for a subscription it never made', async () => {
+		// The camera was never told about this port: `connect=start` only goes out once the listener is
+		// up. Both the handler's own unsubscribe and teardown()'s goodbye were stops for nothing.
+		const { self } = bindOnTakenPort()
+
+		expect(stops(self)).toHaveLength(0)
+
+		await self.teardown()
+		expect(stops(self)).toHaveLength(0)
+	})
+
+	it('still reports the port conflict to the operator', () => {
+		const { self } = bindOnTakenPort()
+
+		expect(self.updateStatus).toHaveBeenCalledWith('unknown_error', 'TCP Port in use')
+		expect(self.log.mock.calls.some(([, message]) => message.includes('already in use'))).toBe(true)
 	})
 })
 

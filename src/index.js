@@ -235,7 +235,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					this.log('error', 'TCP error: Please change it and click apply in ALL camera instances')
 					this.updateStatus(InstanceStatus.UnknownError, 'TCP Port in use')
 
-					this.unsubscribeTCPEvents(tcpPortSelected).catch(() => null)
+					// Nothing was ever subscribed on this port, so there is nothing to say goodbye to. The
+					// server must still go: teardown() reads `this.server` as proof of a subscription and
+					// would send a stop for a port the camera was never told about.
+					this.server.close()
+					delete this.server
 				} else {
 					this.log('error', 'TCP server error: ' + String(err))
 				}
