@@ -268,7 +268,7 @@ export function parseUpdate(self, str) {
 					self.data.irisPosition = parseInt(str[4], 16) - 0x555
 					break
 				case '20':
-					self.data.colorTempLabel = parseInt(str[2].substring(0, 5), 16).toString() + 'K'
+					self.data.colorTempLabel = parseInt(str[2], 16).toString() + 'K'
 					break // VAR
 				case '30':
 					self.data.shootingMode = str[2]

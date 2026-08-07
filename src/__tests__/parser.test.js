@@ -85,6 +85,30 @@ describe('parseUpdate', () => {
 		expect(self.data.zoomSpeedValue).toBe(7)
 		expect(self.data.focusSpeedValue).toBe(7)
 	})
+
+	// The camera writes "OSI:20:0x00FA0:0". getCameraStatus strips that prefix before parsing, so the
+	// camdata.html path always arrives clean — but it does so with replace(':0x', ':'), which takes
+	// only the first match (compare "OSI:18:0xFFF:0x555:0xD24", where the last two keep theirs). The
+	// getCam path behind the QSI:20 pull strips nothing at all, so both forms have to read the same.
+	it.each([
+		['00FA0', '4000K'],
+		['0x00FA0', '4000K'],
+	])('reads the colour temperature from %s whether or not the 0x was stripped', (data, expected) => {
+		expect(parse('OSI', '20', data, '0').colorTempLabel).toBe(expected)
+	})
+
+	// One PTG stands in for five separate queries, so the pull lists of the models that support it
+	// depend on all five fields coming out of a single token.
+	it('decodes gain, colour temperature, shutter and ND from one PTG report', () => {
+		// gain 12 | 00FA0 K | shutter mode 1 | step 2710 | synchro 00000 | ND 0
+		const data = parse('pTG1200FA012710000000')
+
+		expect(data.gain).toBe('12')
+		expect(data.colorTempLabel).toBe('4000K')
+		expect(data.shutter).toBe('1')
+		expect(data.shutterStepLabel).toBe('1/10000')
+		expect(data.filter).toBe('0')
+	})
 })
 
 // checkVariables() runs after every HTTP response and every TCP batch. Resolving the series there

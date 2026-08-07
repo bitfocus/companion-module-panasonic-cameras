@@ -207,6 +207,31 @@ function repairPre201Writes(context, props) {
 	return result
 }
 
+// The colour temperature step used to be offered as a Kelvin delta and then thrown away — every
+// Increase/Decrease sent one notch regardless. OSI:1E/OSI:1F take a count of notches, so the field's
+// range moved from 20..13000 to 1..10. Without this a stored 20 would be clamped to 10 notches and
+// turn a nudge into a leap. Keyed on the action id rather than on the options: this is the only
+// action whose step field changed unit, and the builder it shares is used by a dozen others.
+function rescaleColorTemperatureStep(_context, props) {
+	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
+
+	for (const action of props.actions ?? []) {
+		if (action.actionId !== 'colorTemperature') continue
+		if (!action.options || !('step' in action.options)) continue
+
+		const option = unwrap(action.options.step)
+		if (option.isExpression) continue // the operator's own arithmetic, in whichever unit they meant
+
+		const stored = parseInt(option.value, 10)
+		if (!Number.isFinite(stored) || stored <= 10) continue // already a notch count
+
+		action.options.step = wrap(1)
+		result.updatedActions.push(action)
+	}
+
+	return result
+}
+
 export const upgradeScripts = [
 	// Was addSetIncDecVariables. Blanked, not deleted: upgrade progress is tracked by index.
 	EmptyUpgradeScript,
@@ -233,4 +258,5 @@ export const upgradeScripts = [
 	fillOmittedOptions,
 	dropUseVarToggles,
 	repairPre201Writes,
+	rescaleColorTemperatureStep,
 ]

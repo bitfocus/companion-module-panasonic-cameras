@@ -61,7 +61,9 @@ const BASE_CAPABILITIES = {
 	chromaPhase: { offset: 0x80, limit: 31, step: 1, hexlen: 2 }, // Has Chroma Phase (OSJ:0B)
 	colorGain: { cmd: { red: 'ORI', blue: 'OBI' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 }, // Has numbered red/blue Gain (ORG and OBG)
 	colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 }, // Has numbered red/blue Pedestal (ORP or OBP)
-	colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F', set: 'OSI:20', min: 2000, max: 15000 } }, // Has Color Temperature (OSD:B1 or OSI:20)
+	colorTemperature: {
+		advanced: { inc: 'OSI:1E', dec: 'OSI:1F', set: 'OSI:20', min: 2000, max: 15000, maxStep: 10 },
+	}, // Has Color Temperature (OSD:B1 or OSI:20)
 	colorbar: true, // Has Color Bar Generator (DCB)
 	dnr: { dropdown: e.ENUM_DNR }, // Has Digital Noise Reduction (OSD:3A)
 	drs: { dropdown: e.ENUM_DRS }, // Has Dynamic Range Stretch (OSE:33)
@@ -397,7 +399,7 @@ export const SERIES_SPECS = [
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 1000, step: 1, hexlen: 3 },
 			colorPedestal: { cmd: { red: 'OSG:4C', blue: 'OSG:4E' }, offset: 0x800, limit: 800, step: 1, hexlen: 3 },
-			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F' } },
+			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F', maxStep: 1 } }, // one notch per command
 			dnr: { dropdown: e.ENUM_OFF_ON },
 			drs: false,
 			filter: { dropdown: e.ENUM_FILTER_3 },
@@ -415,6 +417,7 @@ export const SERIES_SPECS = [
 			preset: false,
 			presetSpeed: false,
 			presetTime: false,
+			pull: { ptz: false, cam: ['QSI:20'], web: false },
 			recordSD: false,
 			restart: false,
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
@@ -440,7 +443,9 @@ export const SERIES_SPECS = [
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: false,
-			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F', set: 'OSI:20', min: 2500, max: 10000 } },
+			colorTemperature: {
+				advanced: { inc: 'OSI:1E', dec: 'OSI:1F', set: 'OSI:20', min: 2500, max: 10000, maxStep: 10 },
+			},
 			dnr: false,
 			drs: false,
 			error: false, // reports errors via OSI:46 instead of rER, which is not parsed yet
@@ -456,6 +461,7 @@ export const SERIES_SPECS = [
 			panTilt: false,
 			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 15, step: 1, hexlen: 3 },
 			power: false,
+			pull: { ptz: ['PTG'], cam: false, web: false },
 			preset: false,
 			presetSpeed: false,
 			presetTime: false,
@@ -553,7 +559,7 @@ export const SERIES_SPECS = [
 			presetThumbnails: true,
 			pull: {
 				ptz: false,
-				cam: ['QSA:87', 'QSD:3A', 'QSE:33', 'QSJ:0B', 'QSL:B6', 'QSL:B7', 'QSL:BB', 'QSA:D5:0', 'QSA:D5:1'],
+				cam: ['QSA:87', 'QSD:3A', 'QSE:33', 'QSI:20', 'QSJ:0B', 'QSL:B6', 'QSL:B7', 'QSL:BB', 'QSA:D5:0', 'QSA:D5:1'],
 				web: false,
 			}, // ToDo
 			recordSD: false,
@@ -602,7 +608,7 @@ export const SERIES_SPECS = [
 			presetThumbnails: true,
 			pull: {
 				ptz: false,
-				cam: ['QSA:87', 'QSD:3A', 'QSE:33', 'QSJ:0B', 'QSL:B6', 'QSL:B7', 'QSL:BB', 'QSA:D5:0', 'QSA:D5:1'],
+				cam: ['QSA:87', 'QSD:3A', 'QSE:33', 'QSI:20', 'QSJ:0B', 'QSL:B6', 'QSL:B7', 'QSL:BB', 'QSA:D5:0', 'QSA:D5:1'],
 				web: false,
 			}, // ToDo
 			recordSD: false,
@@ -743,6 +749,7 @@ export const SERIES_SPECS = [
 				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 			},
 			presetThumbnails: true,
+			pull: { ptz: false, cam: ['QSI:20'], web: false },
 			recordSD: false,
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			tally3: false,
@@ -774,6 +781,7 @@ export const SERIES_SPECS = [
 				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 			},
 			presetThumbnails: true,
+			pull: { ptz: ['PTG'], cam: false, web: false },
 			recordSD: false,
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			tally3: false,
@@ -808,6 +816,7 @@ export const SERIES_SPECS = [
 			ois: { dropdown: e.ENUM_OIS_UE160 },
 			poll: { ptz: false, cam: false, web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'] },
 			presetThumbnails: true,
+			pull: { ptz: ['PTG'], cam: false, web: false },
 			recordSD: false,
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			trackingAuto: false,

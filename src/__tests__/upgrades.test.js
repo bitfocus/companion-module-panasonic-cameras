@@ -12,6 +12,7 @@ const addSetStepSize = upgradeScripts[1]
 const fillOmittedOptions = upgradeScripts[2]
 const dropUseVarToggles = upgradeScripts[3]
 const repairPre201Writes = upgradeScripts[4]
+const rescaleColorTemperatureStep = upgradeScripts[5]
 
 // An upgrade script both reads and writes CompanionMigrationOptionValues, so every option in these
 // fixtures — and every option a script writes — is an ExpressionOrValue wrapper, never a bare value.
@@ -30,8 +31,53 @@ const migrate = (props, context = {}) =>
 // re-runs the wrong migration on every existing connection.
 describe('upgradeScripts', () => {
 	it('only ever grows, and blanks a retired script in place', () => {
-		expect(upgradeScripts).toHaveLength(5)
+		expect(upgradeScripts).toHaveLength(6)
 		expect(upgradeScripts[0]).toBe(EmptyUpgradeScript)
+	})
+})
+
+// The Steps field changed unit: it was offered as a Kelvin delta (min 20) and thrown away, and now
+// carries the notch count OSI:1E/OSI:1F actually take (1-10). A stored Kelvin value left alone would
+// be clamped to 10 notches and turn a rotary nudge into a leap.
+describe('rescaleColorTemperatureStep', () => {
+	const rescale = (props, context = {}) =>
+		rescaleColorTemperatureStep(context, { config: { model: 'AW-UE150A' }, actions: [], feedbacks: [], ...props })
+
+	it('replaces a stored Kelvin step with a single notch', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: val(20) } }]
+		const result = rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	it('leaves a value that is already a notch count alone', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: val(5) } }]
+		const result = rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(val(5))
+		expect(result.updatedActions).toEqual([])
+	})
+
+	it('leaves an expression alone, in whichever unit the operator meant it', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: expr('$(x)') } }]
+		rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(expr('$(x)'))
+	})
+
+	it('leaves the step of every other action alone', () => {
+		const actions = [{ actionId: 'ped', options: { op: val(1), step: val(20) } }]
+		const result = rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(val(20))
+		expect(result.updatedActions).toEqual([])
+	})
+
+	it('skips a button that has no step at all', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val('s'), set: val(3200) } }]
+
+		expect(rescale({ actions }).updatedActions).toEqual([])
 	})
 })
 

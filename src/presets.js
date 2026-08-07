@@ -846,7 +846,7 @@ export function getPresetDefinitions(self) {
 								actionId: 'colorTemperature',
 								options: {
 									op: -1,
-									step: 20,
+									step: 1,
 								},
 							},
 						],
@@ -855,7 +855,7 @@ export function getPresetDefinitions(self) {
 								actionId: 'colorTemperature',
 								options: {
 									op: 1,
-									step: 20,
+									step: 1,
 								},
 							},
 						],

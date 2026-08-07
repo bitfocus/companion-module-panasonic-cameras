@@ -137,8 +137,14 @@ function optSetToggleNextPrev(choices, label = 'Setting', def = 0) {
 }
 
 // allowInvalidValues lets an out-of-range expression result through; resolveSetStep constrains it below.
-function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
+// The step field normally shares the value's unit and range. A camera that steps in fixed notches
+// (colour temperature: OSI:1E/OSI:1F take a count, not a Kelvin delta) passes its own via stepRange.
+function optSetStepped(incLabel, decLabel, label, def, min, max, step, stepRange = {}) {
 	const outOfRange = 'Values outside this range are constrained to it; an unreadable value takes no action.'
+	const stepLabel = stepRange.label ?? 'Step size'
+	const stepDef = stepRange.default ?? step
+	const stepMin = stepRange.min ?? step
+	const stepMax = stepRange.max ?? max - min
 
 	return [
 		{
@@ -170,20 +176,20 @@ function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
 		{
 			id: 'step',
 			type: 'number',
-			label: 'Step size',
-			default: step,
-			min: step,
-			max: max - min,
+			label: stepLabel,
+			default: stepDef,
+			min: stepMin,
+			max: stepMax,
 			asInteger: true,
 			allowInvalidValues: true,
-			expressionDescription: `This expression should return a number in the range ${step} to ${max - min}. ${outOfRange}`,
+			expressionDescription: `This expression should return a number in the range ${stepMin} to ${stepMax}. ${outOfRange}`,
 			isVisibleExpression: '$(options:op) != "s"',
 		},
 	]
 }
 
-function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
-	return optSetStepped('Increase', 'Decrease', label, def, min, max, step)
+function optSetIncDecStep(label = 'Value', def, min, max, step = 1, stepRange = {}) {
+	return optSetStepped('Increase', 'Decrease', label, def, min, max, step, stepRange)
 }
 
 // Cameras that can only step (no absolute Set) get the relative options only.
@@ -223,13 +229,15 @@ function abortSetStep(self, action, field) {
 }
 
 // Constrains set/step into range; returns false on a non-numeric value to abort the action.
-function resolveSetStep(self, action, min, max, step) {
+// stepRange must match the one the options were built with, or the field would offer values the
+// callback then clamps away.
+function resolveSetStep(self, action, min, max, step, stepRange = {}) {
 	if (action.options.op === ACTION_SET) {
 		const set = constrainRange(parseInt(action.options.set, 10), min, max)
 		if (isNaN(set)) return abortSetStep(self, action, 'set')
 		action.options.set = set
 	} else {
-		const size = constrainRange(parseInt(action.options.step, 10), step, max - min)
+		const size = constrainRange(parseInt(action.options.step, 10), stepRange.min ?? step, stepRange.max ?? max - min)
 		if (isNaN(size)) return abortSetStep(self, action, 'step')
 		action.options.step = size
 	}
@@ -668,22 +676,30 @@ export function getActionDefinitions(self) {
 	// UB300 can only step colour temperature, not set it.
 	if (caps.colorTemperature && caps.colorTemperature.advanced) {
 		const advanced = caps.colorTemperature.advanced
+		// OSI:1E/OSI:1F take a count of the camera's own notches (1h-Ah), so the step field is measured
+		// in notches while `set` stays in Kelvin.
+		const stepRange = { label: 'Steps', default: 1, min: 1, max: advanced.maxStep }
+
 		actions.colorTemperature = {
 			name: 'Image - Color Temperature',
 			options: advanced.set
-				? optSetIncDecStep('Color Temperature [K]', 3200, advanced.min, advanced.max, 20)
+				? optSetIncDecStep('Color Temperature [K]', 3200, advanced.min, advanced.max, 20, stepRange)
 				: optIncDec(),
 			callback: async (action) => {
-				if (advanced.set && !resolveSetStep(self, action, advanced.min, advanced.max, 20)) return
+				if (advanced.set && !resolveSetStep(self, action, advanced.min, advanced.max, 20, stepRange)) return
+
+				// Without `set` there is no step field (UB300), and that camera takes one notch anyway.
+				const notches = advanced.set ? toHexString(action.options.step, 1) : '1'
+
 				switch (action.options.op) {
 					case ACTION_SET:
 						await cam(advanced.set + ':' + toHexString(action.options.set, 5) + ':0')
 						break
 					case ACTION_INC:
-						await cam(advanced.inc + ':1')
+						await cam(`${advanced.inc}:${notches}`)
 						break
 					case ACTION_DEC:
-						await cam(advanced.dec + ':1')
+						await cam(`${advanced.dec}:${notches}`)
 						break
 				}
 			},

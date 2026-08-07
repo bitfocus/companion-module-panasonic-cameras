@@ -72,6 +72,32 @@ describe('level capabilities', () => {
 	})
 })
 
+// Colour temperature steps in the camera's own notches: OSI:1E/OSI:1F take a count of 1h to Ah, so
+// maxStep is what bounds the Steps field — not the Kelvin range that bounds OSI:20. Miss it and the
+// field ships with `max: undefined`, which is the same silent no-op the level capabilities guard
+// against above.
+describe('colour temperature capabilities', () => {
+	const ADVANCED = SERIES_SPECS.filter((spec) => spec.capabilities.colorTemperature?.advanced).map((spec) => ({
+		series: spec.id,
+		cap: spec.capabilities.colorTemperature.advanced,
+	}))
+
+	it('is a set worth checking', () => {
+		expect(ADVANCED.length).toBeGreaterThan(0)
+	})
+
+	it.each(ADVANCED)('$series carries a notch count the wire can encode', ({ cap }) => {
+		expect(cap.maxStep).toBeTypeOf('number')
+		expect(cap.maxStep).toBeGreaterThanOrEqual(1)
+		expect(cap.maxStep).toBeLessThanOrEqual(0xa) // OSI:1E:[Data] is a single hex digit
+	})
+
+	it.each(ADVANCED.filter(({ cap }) => cap.set))('$series bounds its Kelvin range', ({ cap }) => {
+		expect(cap.min).toBeTypeOf('number')
+		expect(cap.max).toBeGreaterThan(cap.min)
+	})
+})
+
 describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => {
 	const self = mockInstance(id)
 	const caps = seriesSpec(series).capabilities
