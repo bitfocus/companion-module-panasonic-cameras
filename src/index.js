@@ -74,6 +74,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 		// Consecutive reachability failures; a success resets it (see onRequestSucceeded()).
 		this.failures = 0
+
+		// True from the moment a reconnect is committed until it starts, so nothing withdraws it.
+		this.reconnecting = false
 	}
 
 	// True while `generation` is still the running connection.
@@ -110,6 +113,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.pollGen++
 		this.pollImageGen++
 		this.timeoutID = clearTimeout(this.timeoutID) // a retry owed to the old connection is not the new one's
+		this.reconnecting = false // ...and neither is the reconnect that retry was committed to
 
 		// 2. Invalidate in-flight work (see current()) and cancel it so it drops the old camera's socket.
 		this.generation++
@@ -234,6 +238,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 					// Once for the whole batch: a coalesced burst is one redraw.
 					if (updates.length) {
+						// A subscription-only camera may make no HTTP requests for minutes, so without this
+						// one failed request would sit at failures > 0 until the fallback declared a
+						// connection lost that has been pushing updates the whole time.
+						this.markReachable()
+
 						this.checkVariables()
 						this.checkAllFeedbacks()
 					}
@@ -541,13 +550,26 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		await this.reInitAll()
 	}
 
+	// Evidence the camera is reachable, from anything short of a completed request: an HTTP error the
+	// camera itself produced, or a framed batch arriving over the subscription. Ends the failure
+	// streak and withdraws the fallback retry armed for it, but says nothing about the status.
+	//
+	// Refuses once a reconnect is committed: scheduleReInit() has already stopped the poll loops and
+	// only reInitAll() starts them again, so cancelling its timer here would leave the connection
+	// reporting Ok with its monitoring permanently dead. Returns whether it took effect.
+	markReachable() {
+		if (this.reconnecting) return false
+
+		this.failures = 0
+		this.timeoutID = clearTimeout(this.timeoutID)
+		return true
+	}
+
 	// Every request that reached the camera ends here: the connection is up, so the failure streak is
 	// over and any retry owed to it is withdrawn. Without this a single dropped keep-alive left a
 	// re-init armed that fired minutes later against a connection that had long since recovered.
 	onRequestSucceeded() {
-		this.failures = 0
-		this.timeoutID = clearTimeout(this.timeoutID)
-		this.updateStatus(InstanceStatus.Ok)
+		if (this.markReachable()) this.updateStatus(InstanceStatus.Ok)
 	}
 
 	// Handle timeouts and hide HTTP errors. Returns whether the caller should log the error.
@@ -571,8 +593,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			return this.config.debug // hide error
 		}
 
-		// Camera answered but rejected the request; not a connection problem.
-		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') return this.config.debug // hide error
+		// Camera answered but rejected the request; not a connection problem — and an answer is proof
+		// the camera is there, so it ends any streak a reachability error had started.
+		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') {
+			this.markReachable()
+			return this.config.debug // hide error
+		}
 
 		// No code at all is one of ours, not the camera's: got labels everything it raises. Saying so
 		// is the difference between the operator chasing a network fault and reporting a module bug.
@@ -598,13 +624,17 @@ export default class PanasonicCameraInstance extends InstanceBase {
 	}
 
 	// The instance's one retry timer: a burst of failures must schedule a single re-init, not one each.
+	// Past this point the reconnect is committed — the poll loops are down and nothing but reInitAll()
+	// brings them back, so no late arrival may cancel it (see markReachable()).
 	scheduleReInit(reason) {
+		this.reconnecting = true
 		this.poll = false
 		this.pollImage = false // an unreachable camera must not keep being asked for JPEGs
 		this.updateStatus(InstanceStatus.ConnectionFailure, reason)
 
 		this.timeoutID = clearTimeout(this.timeoutID)
 		this.timeoutID = setTimeout(() => {
+			this.reconnecting = false
 			this.reInitAll().catch((err) => this.log('error', 'Re-initialisation failed: ' + String(err)))
 		}, this.config.timeout + this.config.pollDelay)
 	}

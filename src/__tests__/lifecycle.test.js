@@ -56,6 +56,7 @@ function makeInstance(config = {}, { series = 'UE80', capabilities } = {}) {
 	self.pollImageGen = 0
 	self.imageErrors = 0
 	self.failures = 0
+	self.reconnecting = false
 	self.imageSubscribers = new Map()
 	self.tcpPortSelected = 31004
 
@@ -319,6 +320,39 @@ describe('handleConnectionError', () => {
 		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
 	})
 
+	it('does not let a late answer cancel a reconnect that is already committed', async () => {
+		// scheduleReInit() has stopped the poll loops and only reInitAll() starts them again. A request
+		// still in flight when the streak completed would otherwise clear the timer on its way in,
+		// leaving the connection reporting Ok with its monitoring dead for good.
+		const self = makeInstance()
+		self.reInitAll = vi.fn(async () => {})
+		self.poll = true
+
+		for (let i = 0; i < 3; i++) self.handleConnectionError({ code: 'ETIMEDOUT' })
+		expect(self.poll).toBe(false) // committed
+
+		self.httpGet = vi.fn(async () => ({ body: 'OID:AW-UE100\r\n', statusCode: 200 }))
+		await self.getCam('QID') // the in-flight request lands a moment too late
+
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
+
+		await vi.advanceTimersByTimeAsync(self.config.timeout + self.config.pollDelay)
+		expect(self.reInitAll).toHaveBeenCalled() // the reconnect still runs, and restarts polling
+	})
+
+	it('takes a rejected request as proof the camera is there', async () => {
+		// ERR_NON_2XX_3XX_RESPONSE means the camera answered, so it ends a streak rather than ignoring it.
+		const self = makeInstance()
+
+		self.handleConnectionError({ code: 'ECONNRESET' })
+		expect(vi.getTimerCount()).toBe(1)
+
+		self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE' })
+
+		expect(self.failures).toBe(0)
+		expect(vi.getTimerCount()).toBe(0)
+	})
+
 	it('keeps Disconnected for the one thing the user did on purpose', async () => {
 		const self = makeInstance()
 		self.reInitAll = vi.fn()
@@ -409,6 +443,34 @@ describe('a TCP port that is already taken', () => {
 
 		await self.teardown()
 		expect(stops(self)).toHaveLength(0)
+	})
+
+	it('lets a pushed update prove the camera is still there', async () => {
+		// A subscription-only camera can go minutes without an HTTP request, so one failed request
+		// would otherwise sit at failures > 0 until the fallback declared a connection lost that had
+		// been pushing updates the whole time.
+		vi.useFakeTimers()
+		const self = makeInstance()
+		self.init_tcp()
+
+		self.handleConnectionError({ code: 'ECONNRESET' })
+		expect(self.failures).toBe(1)
+		expect(vi.getTimerCount()).toBe(1)
+
+		// Frame layout per Interface Specifications §4.2: [Reserve 22][Size 2][Reserve 4][CRLF cmd CRLF][Reserve 24]
+		const info = Buffer.concat([Buffer.from('\r\n'), Buffer.from('p1', 'latin1'), Buffer.from('\r\n')])
+		const header = Buffer.alloc(28, 0x01)
+		header.writeUInt16BE(info.length + 8, 22)
+
+		const socket = { ...fakeSocket(), on: vi.fn() }
+		net.createServer.mock.calls[0][0](socket)
+		const onData = socket.on.mock.calls.find(([event]) => event === 'data')[1]
+		onData(Buffer.concat([header, info, Buffer.alloc(24, 0x02)]))
+
+		expect(self.data.power).toBe('1') // the batch really was parsed
+		expect(self.failures).toBe(0)
+		expect(vi.getTimerCount()).toBe(0)
+		vi.useRealTimers()
 	})
 
 	it('still reports the port conflict to the operator', () => {
