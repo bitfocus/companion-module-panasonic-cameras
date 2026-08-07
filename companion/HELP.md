@@ -19,6 +19,7 @@ and the model specific "Supplement for Web Control" specifications.
 - **HE40 series:** AW-HE35, AW-HE38, AW-HE40, AW-HE48, AW-HE58, AW-HE65, AW-HE70, AW-HN38, AW-HN40, AW-HN65
 - **UE70 series:** AW-HE42, AW-HE68, AW-HE75, AW-UE63, AW-UE65, AW-UE70, AW-UN70
 - **UE4:** AW-UE4
+- **UE5:** AW-UE5
 - **UE20 series:** AW-HE20, AW-UE20
 - **UE50 series:** AW-UE30, AW-UE40, AW-UE50
 - **UE80:** AW-UE80
@@ -36,6 +37,7 @@ and the model specific "Supplement for Web Control" specifications.
 
 - **UB50:** AK-UB10, AK-UB50
 - **UB300:** AK-UB300
+- **UBX100:** AK-UBX100
 
 **Camcorders**
 

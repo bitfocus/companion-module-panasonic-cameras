@@ -83,6 +83,7 @@ export const e = {
 	ENUM_GAIN_CX350: gain(-6, 42, 1, { manual: true }),
 	ENUM_GAIN_UE160: gain(-4, 12),
 	ENUM_GAIN_UB50: gain(-6, 62, 1, { auto: false }), // OSL:25 has no auto step; AGC separate (OSL:26)
+	ENUM_GAIN_UBX100: gain(-6, 18),
 	ENUM_GAIN_UB300: [
 		{ id: '01', label: 'LOW' },
 		{ id: '04', label: 'MID' },
@@ -259,6 +260,7 @@ export const e = {
 	ENUM_CHROMA_LEVEL_10: chromaSteps(0, 10),
 	ENUM_CHROMA_PCT_40: chromaPercent(-99, 40),
 	ENUM_CHROMA_PCT_99: chromaPercent(-99, 99),
+	ENUM_CHROMA_PCT_UBX100: chromaPercent(-100, 80),
 
 	// ######################################
 	// #### Dynamic Range Stretch (DRS) #####

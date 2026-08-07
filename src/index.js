@@ -673,7 +673,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			}
 		}
 
-		if (this.SERIES.capabilities.poll && this.config.pollAllow) {
+		const caps = this.SERIES.capabilities
+		const needsLoop = caps.poll || (caps.pull && !this.config.subscriptionEnable)
+
+		if (needsLoop && this.config.pollAllow) {
 			this.poll = true
 			pollCameraStatus(this).catch((err) => this.log('error', 'Polling stopped: ' + String(err)))
 		}

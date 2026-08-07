@@ -26,12 +26,12 @@ export function setVariables(self) {
 		[
 			'preset',
 			{
-				presetScope: 'Preset Recall Scope',
 				presetCompleted: 'Preset # Completed',
 				presetSelected: 'Preset # Selected',
 				presetMemory: 'Used Preset Memory slots',
 			},
 		],
+		[(c) => c.preset && c.presetScope, { presetScope: 'Preset Recall Scope' }],
 		['shutter', { shutter: 'Shutter Mode' }],
 		[(c) => c.shutter && c.shutter.dropdown === e.ENUM_SHUTTER_ADV, { shutterStep: 'Shutter Step' }],
 		['ois', { ois: 'O.I.S.' }],
@@ -143,7 +143,7 @@ export function checkVariables(self) {
 		['nightMode', 'night', e.ENUM_OFF_ON],
 		['ois', 'ois', (cap) => cap.dropdown],
 		['power', 'power', e.ENUM_OFF_ON],
-		['presetScope', 'preset', e.ENUM_PRESET_SCOPE],
+		['presetScope', 'presetScope', e.ENUM_PRESET_SCOPE],
 		['presetSpeed', 'presetSpeed', e.ENUM_PRESET_SPEED_TIME],
 		['presetSpeedTable', 'presetSpeed', (cap) => cap.dropdown],
 		['presetSpeedUnit', 'presetTime', e.ENUM_PRESET_SPEED_UNIT],

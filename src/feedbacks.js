@@ -228,13 +228,15 @@ export function getFeedbackDefinitions(self) {
 			() => self.data.presetSpeed,
 		)
 
-		feedbacks.presetRecallScope = selectionFeedback(
-			'Preset - Recall Scope',
-			'Indicates if the selected preset recall scope is currently active',
-			'Scope',
-			e.ENUM_PRESET_SCOPE,
-			() => self.data.presetScope,
-		)
+		if (caps.presetScope) {
+			feedbacks.presetRecallScope = selectionFeedback(
+				'Preset - Recall Scope',
+				'Indicates if the selected preset recall scope is currently active',
+				'Scope',
+				e.ENUM_PRESET_SCOPE,
+				() => self.data.presetScope,
+			)
+		}
 
 		feedbacks.presetSelected = {
 			type: 'boolean',

@@ -549,6 +549,50 @@ describe('the status poll loop', () => {
 	})
 })
 
+// `poll` is state the camera never reports on its own; `pull` stands in for a disabled subscription.
+// The loop used to start on `poll` alone, so a camera that has only a pull list (AK-UB300, AK-UB50,
+// AW-HR140) read its state once at connect and then went stale for the rest of the session.
+describe('starting the status poll loop', () => {
+	beforeEach(() => vi.useFakeTimers())
+	afterEach(() => vi.useRealTimers())
+
+	// The real model tables, so the test breaks if a series' poll/pull shape changes underneath it.
+	async function connect(model, subscriptionEnable) {
+		const self = makeInstance({ model, subscriptionEnable })
+		await self.reInitAll()
+		const started = self.poll
+		self.poll = false // park the loop before the timers go away
+		return { self, started }
+	}
+
+	it('runs for a pull-only camera once the subscription is off', async () => {
+		const { self, started } = await connect('AK-UB300', false)
+
+		expect(self.SERIES.capabilities.poll).toBe(false)
+		expect(self.SERIES.capabilities.pull).toBeTruthy()
+		expect(started).toBe(true)
+	})
+
+	it('stays off for that same camera while the subscription is on', async () => {
+		// Not just wasteful: with poll false the loop has nothing to await and would spin the event loop.
+		const { started } = await connect('AK-UB300', true)
+
+		expect(started).toBe(false)
+	})
+
+	it('still runs for a camera with a poll list, subscription or not', async () => {
+		expect((await connect('AW-UE80', true)).started).toBe(true)
+		expect((await connect('AW-UE80', false)).started).toBe(true)
+	})
+
+	it('respects the pollAllow switch either way', async () => {
+		const self = makeInstance({ model: 'AK-UB300', subscriptionEnable: false, pollAllow: false })
+		await self.reInitAll()
+
+		expect(self.poll).toBe(false)
+	})
+})
+
 describe('configUpdated', () => {
 	it('wipes the old camera state before the new camera speaks', async () => {
 		const self = makeInstance({ host: '10.0.0.1' })

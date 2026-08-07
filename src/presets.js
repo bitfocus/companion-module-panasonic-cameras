@@ -289,11 +289,7 @@ export function getPresetDefinitions(self) {
 			},
 			steps: [
 				{
-					down: [
-						{
-							actionId: 'focusPushAuto',
-						},
-					],
+					down: SERIES.capabilities.focusPushAuto ? [{ actionId: 'focusPushAuto' }] : [],
 					up: [],
 					rotate_left: [
 						{
@@ -1213,7 +1209,8 @@ export function getPresetDefinitions(self) {
 		)
 	}
 
-	if (SERIES.capabilities.preset) {
+	// Scoping a recall is its own capability: the AW-UE4 stores and recalls presets but has no OSE:71.
+	if (SERIES.capabilities.preset && SERIES.capabilities.presetScope) {
 		presets['preset-scope-a'] = valuePreset(
 			'Preset Memory',
 			'Preset Recall Scope A',
@@ -1243,7 +1240,9 @@ export function getPresetDefinitions(self) {
 			'2',
 			{ color: colorWhite, bgcolor: colorRed },
 		)
+	}
 
+	if (SERIES.capabilities.preset) {
 		presets['preset-clear-all'] = {
 			type: 'simple',
 			category: 'Preset Memory',

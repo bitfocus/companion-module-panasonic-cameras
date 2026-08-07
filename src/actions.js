@@ -757,14 +757,16 @@ export function getActionDefinitions(self) {
 			},
 		}
 
-		actions.presetRecallScope = enumAction(
-			'Preset - Recall Scope',
-			cam,
-			'OSE:71:',
-			e.ENUM_PRESET_SCOPE,
-			() => self.data.presetScope,
-			{ nextPrev: true, label: 'Preset Recall Scope' },
-		)
+		if (caps.presetScope) {
+			actions.presetRecallScope = enumAction(
+				'Preset - Recall Scope',
+				cam,
+				'OSE:71:',
+				e.ENUM_PRESET_SCOPE,
+				() => self.data.presetScope,
+				{ nextPrev: true, label: 'Preset Recall Scope' },
+			)
+		}
 
 		actions.presetClearAll = {
 			name: 'Preset - Clear All',

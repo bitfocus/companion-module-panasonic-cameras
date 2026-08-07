@@ -98,6 +98,106 @@ describe('colour temperature capabilities', () => {
 	})
 })
 
+// Without a subscription, `pull` is the only source for everything the camera would otherwise push
+// (see pollCameraStatus). A capability that drives a variable but has nothing querying it leaves that
+// variable blank forever — which is how six series shipped with no pull list at all. Each entry names
+// the capability and every query that would satisfy it; one of them has to be in the list.
+describe('pull coverage', () => {
+	// The broad PT queries stand in for several narrow ones: PTG carries gain, colour temperature,
+	// shutter, shutter step and ND; PTV carries pan/tilt/zoom/focus/iris; TAA carries all three tallies.
+	const REQUIRED = [
+		['colorbar', () => ['QBR']],
+		['whiteBalance', (c) => (c.whiteBalance.dropdown ? ['QAW'] : null)],
+		['focusAuto', () => ['QAF', 'D1']],
+		['irisAuto', () => ['QRS', 'D3', 'GI']],
+		['irisF', () => ['QIF', 'PTD']],
+		['ois', () => ['QIS']],
+		['videoFormat', () => ['QSA:87']],
+		['dnr', () => ['QSD:3A']],
+		['drs', () => ['QSE:33']],
+		['chromaPhase', () => ['QSJ:0B']],
+		['install', () => ['INS']],
+		['night', () => ['D6']],
+		['error', () => ['RER']],
+		['power', () => ['O']],
+		['preset', () => ['PE00']],
+		['presetSpeed', () => ['PST', 'UPVS']],
+		['presetTime', () => ['QSJ:29']],
+		['trackingAuto', () => ['QSL:B6']],
+		['shootingMode', () => ['QSI:30']],
+		['tally', () => ['TAA', 'QLR', 'DA']],
+		['tally2', () => ['TAA', 'QLG']],
+		['tally3', () => ['TAA', 'QLY']],
+		['audioVolumeLevel', () => ['QSA:D5:0']],
+		['chromaLevel', (c) => ['Q' + c.chromaLevel.cmd.slice(1), 'QCG']],
+		['gain', (c) => ['Q' + c.gain.cmd.slice(1), 'PTG']],
+		['shutter', (c) => ['Q' + c.shutter.cmd.slice(1), 'PTG']],
+		['filter', () => ['QFT', 'QSJ:D2', 'PTG']],
+		['pedestal', (c) => ['Q' + c.pedestal.cmd.slice(1)]],
+		['zoom', () => ['PTV', 'LPI', 'AXZ', 'GZ', 'QSI:18']],
+		['focus', () => ['PTV', 'LPI', 'AXF', 'GF', 'QSI:18']],
+		[
+			'colorTemperature',
+			(c) => (c.colorTemperature.index ? ['Q' + c.colorTemperature.index.cmd.slice(1)] : ['QSI:20', 'QSJ:4A', 'PTG']),
+		],
+	]
+
+	// CX350 has subscription false, so it never gets a push and `poll` carries what pull would.
+	const queriesOf = (spec) => {
+		const lists = [spec.capabilities.pull, spec.capabilities.poll].filter(Boolean)
+		return new Set(lists.flatMap((l) => ['ptz', 'cam', 'web'].flatMap((k) => l[k] || [])))
+	}
+
+	// Named exemptions, so a gap is a decision on record rather than a hole the test quietly allows.
+	const EXEMPT = {
+		// The unknown-camera fallback. BASE_CAPABILITIES advertises nearly everything, so covering it in
+		// full would mean ~40 queries per cycle against a camera that may support none of them. It gets
+		// the small set almost any Panasonic PTZ answers; anyone needing more picks their actual model.
+		Other: '*',
+		// Box camera, no PT head: #O and #RER do not exist for it, and the compatible model table has no
+		// power command for the UB300 at all. `power: true` and `error: true` are inherited from
+		// BASE_CAPABILITIES and are wrong here — the Power action sends #O to a camera that cannot
+		// answer it. Its error info is QER/OER:[Data], which the parser has no branch for.
+		UB300: ['power', 'error'],
+	}
+	const exempt = (series, name) => EXEMPT[series] === '*' || EXEMPT[series]?.includes(name)
+
+	const CASES = SERIES_SPECS.flatMap((spec) =>
+		REQUIRED.flatMap(([name, wants]) => {
+			const cap = spec.capabilities[name]
+			if (!cap || exempt(spec.id, name)) return []
+			const accepted = wants(spec.capabilities)
+			return accepted ? [{ series: spec.id, name, accepted, have: queriesOf(spec) }] : []
+		}),
+	)
+
+	it('is a set worth checking', () => {
+		expect(CASES.length).toBeGreaterThan(200)
+	})
+
+	it.each(CASES)('$series queries something for $name', ({ accepted, have }) => {
+		expect(accepted.some((q) => have.has(q))).toBe(true)
+	})
+
+	// The PT command table lists no box camera: without a pan/tilt head they answer nothing on aw_ptz,
+	// so a `#` command in their list is a request that can only ever fail. This does not extend to the
+	// CX350 camcorders — their own spec documents #GZ/#GF/#GI for the lens positions.
+	it.each(['UB300', 'UB50'])('%s sends no PT command, having no PT head', (id) => {
+		const caps = SERIES_SPECS.find((s) => s.id === id).capabilities
+
+		expect(caps.pull && caps.pull.ptz).toBeFalsy()
+		expect(caps.poll && caps.poll.ptz).toBeFalsy()
+	})
+
+	// The CX350 spec has no QSI:18, no #LPI and no #AXZ, so the lens positions have exactly one source.
+	it('reads the CX350 lens positions the only way its own spec offers', () => {
+		const poll = SERIES_SPECS.find((s) => s.id === 'CX350').capabilities.poll
+
+		expect(poll.ptz).toEqual(['GF', 'GI', 'GZ'])
+		expect(poll.cam).not.toContain('QSI:18')
+	})
+})
+
 describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => {
 	const self = mockInstance(id)
 	const caps = seriesSpec(series).capabilities
