@@ -240,9 +240,11 @@ and the model specific "Supplement for Web Control" specifications.
 | `$(irisPosition)` | Iris Position |
 | `$(irisPositionPct)` | Iris Position % |
 | `$(irisPositionBar)` | Iris Position (bar graph) |
-| `$(irisVolume)` | Iris Volume |
 | `$(irisMode)` | Iris Mode |
 | `$(irisF)` | Iris F No. |
+| `$(irisFollowPosition)` | Iris Follow Position |
+| `$(irisFollowPositionPct)` | Iris Follow Position % |
+| `$(irisFollowPositionBar)` | Iris Follow Position (bar graph) |
 | `$(masterPed)` | Master Pedestal |
 | `$(chromaLevel)` | Chroma Level |
 | `$(chromaPhase)` | Chroma Phase |

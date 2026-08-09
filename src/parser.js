@@ -252,6 +252,9 @@ export function parseUpdate(self, str) {
 				case '3A':
 					self.data.dnr = str[2].replace('0x', '')
 					break
+				case '4F':
+					self.data.irisFollowPosition = parseInt(str[2], 16)
+					break
 				case 'B0':
 					self.data.chromaLevel = str[2].replace('0x', '')
 					break
@@ -382,7 +385,7 @@ export function parseUpdate(self, str) {
 			self.data.irisMode = str[1]
 			break
 		case 'ORV':
-			self.data.irisVolume = parseInt(str[1], 16)
+			self.data.irisPosition = parseInt(str[1], 16)
 			break
 		case 'OTD':
 			self.data.masterPedValue = parseInt(str[1], 16) - 0x1e

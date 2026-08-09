@@ -97,6 +97,18 @@ describe('parseUpdate', () => {
 		expect(parse('OSI', '20', data, '0').colorTempLabel).toBe(expected)
 	})
 
+	// Iris Follow is the lens's own position, 00h closed to FFh open. It shipped in three poll lists
+	// from the very first commit with no branch to receive it, so the answer was thrown away every
+	// cycle until this case existed.
+	it.each([
+		['00', 0],
+		['7F', 127],
+		['0x7F', 127], // only the camdata path strips the prefix; parseInt takes it either way
+		['FF', 255],
+	])('reads the iris follow position from %s', (data, expected) => {
+		expect(parse('OSD', '4F', data).irisFollowPosition).toBe(expected)
+	})
+
 	// One PTG stands in for five separate queries, so the pull lists of the models that support it
 	// depend on all five fields coming out of a single token.
 	it('decodes gain, colour temperature, shutter and ND from one PTG report', () => {

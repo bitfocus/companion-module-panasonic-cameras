@@ -508,25 +508,17 @@ export function getActionDefinitions(self) {
 	// ##########################
 
 	if (caps.iris) {
-		// Box cameras drive the lens iris directly (ORV, 0x0-0x3FF).
-		actions.iris =
-			caps.iris.cmd === 'ORV'
-				? {
-						name: 'Exposure - Iris',
-						options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
-						callback: async (action) => {
-							if (!resolveSetStep(self, action, 0x0, 0x3ff, 0xa)) return
-							await cam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
-						},
-					}
-				: {
-						name: 'Exposure - Iris',
-						options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
-						callback: async (action) => {
-							if (!resolveSetStep(self, action, 0x0, 0xaaa, 0x1e)) return
-							await ptz('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
-						},
-					}
+		const { cmd, transport, offset, max, step } = caps.iris
+		const send = transport === 'cam' ? (value) => cam(`${cmd}:${value}`) : (value) => ptz(cmd + value)
+
+		actions.iris = {
+			name: 'Exposure - Iris',
+			options: optSetIncDecStep('Iris setting', max >> 1, 0x0, max, step),
+			callback: async (action) => {
+				if (!resolveSetStep(self, action, 0x0, max, step)) return
+				await send(cmdValue(action, offset, 0x0, max, action.options.step, 3, self.data.irisPosition))
+			},
+		}
 	}
 
 	if (caps.irisAuto) {

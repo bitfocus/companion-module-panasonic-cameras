@@ -73,11 +73,18 @@ export function setVariables(self) {
 				irisPosition: 'Iris Position',
 				irisPositionPct: 'Iris Position %',
 				irisPositionBar: 'Iris Position',
-				irisVolume: 'Iris Volume',
 			},
 		],
 		['irisAuto', { irisMode: 'Iris Mode' }],
 		['irisF', { irisF: 'Iris F No.' }],
+		[
+			'irisFollowPosition',
+			{
+				irisFollowPosition: 'Iris Follow',
+				irisFollowPositionPct: 'Iris Follow %',
+				irisFollowPositionBar: 'Iris Follow',
+			},
+		],
 		['pedestal', { masterPed: 'Master Pedestal' }],
 		['chromaLevel', { chromaLevel: 'Chroma Level' }],
 		['chromaPhase', { chromaPhase: 'Chroma Phase' }],
@@ -188,6 +195,8 @@ export function checkVariables(self) {
 		return val < low || val > high ? null : (((val - low) / (high - low)) * 100).toFixed(fractionDigits)
 	}
 
+	const irisMax = SERIES.capabilities.iris?.max ?? 0xaaa
+
 	self.setVariableValues({
 		model: self.data.model,
 		title: self.data.title,
@@ -204,14 +213,15 @@ export function checkVariables(self) {
 		focusPosition: self.data.focusPosition,
 		irisPosition: self.data.irisPosition,
 		zoomPosition: self.data.zoomPosition,
+		irisFollowPosition: self.data.irisFollowPosition,
 		focusPositionPct: normalizePct(self.data.focusPosition, 0x0, 0xaaa, false),
-		irisPositionPct: normalizePct(self.data.irisPosition, 0x0, 0xaaa, false),
+		irisPositionPct: normalizePct(self.data.irisPosition, 0x0, irisMax, false),
 		zoomPositionPct: normalizePct(self.data.zoomPosition, 0x0, 0xaaa, false, 1),
-		zoomPositionBar: progressBar(normalizePct(self.data.zoomPosition, 0x0, 0xaaa), 10, 'W', 'T'),
+		irisFollowPositionPct: normalizePct(self.data.irisFollowPosition, 0x0, 0xff, false),
 		focusPositionBar: progressBar(normalizePct(self.data.focusPosition, 0x0, 0xaaa), 10, 'N', 'F'),
-		irisPositionBar: progressBar(normalizePct(self.data.irisPosition, 0x0, 0xaaa), 10, 'C', 'O'),
-
-		irisVolume: self.data.irisVolume,
+		irisPositionBar: progressBar(normalizePct(self.data.irisPosition, 0x0, irisMax), 10, 'C', 'O'),
+		zoomPositionBar: progressBar(normalizePct(self.data.zoomPosition, 0x0, 0xaaa), 10, 'W', 'T'),
+		irisFollowPositionBar: progressBar(normalizePct(self.data.irisFollowPosition, 0x0, 0xff), 10, 'C', 'O'),
 
 		chromaPhase: self.data.chromaPhaseValue,
 		focusSpeed: self.data.focusSpeedValue,

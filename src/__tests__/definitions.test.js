@@ -111,6 +111,7 @@ describe('pull coverage', () => {
 		['focusAuto', () => ['QAF', 'D1']],
 		['irisAuto', () => ['QRS', 'D3', 'GI']],
 		['irisF', () => ['QIF', 'PTD']],
+		['irisFollowPosition', () => ['QSD:4F']],
 		['ois', () => ['QIS']],
 		['videoFormat', () => ['QSA:87']],
 		['dnr', () => ['QSD:3A']],
@@ -485,6 +486,27 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 				expect(def.name, variableId).toBeTypeOf('string')
 				expect(def, variableId).not.toHaveProperty('variableId')
 			}
+		})
+	})
+
+	// The Iris preset writes a variable name into its button text, and nothing validates a name in free
+	// text - a model that does not publish it just renders an empty line. So the name it picks has to
+	// follow the capability: Iris Follow where the camera reports the lens's own position, the
+	// commanded one everywhere else.
+	describe('the iris preset readout', () => {
+		const iris = presets['exposure-iris']
+
+		it.runIf(iris)('names only variables this model actually publishes', () => {
+			const used = [...iris.style.text.matchAll(/\$\(generic-module:(\w+)\)/g)].map((m) => m[1])
+
+			expect(used.length).toBeGreaterThan(0)
+			for (const name of used) expect(variables, name).toHaveProperty(name)
+		})
+
+		it.runIf(iris)('shows the lens position itself wherever the camera reports it', () => {
+			const wanted = caps.irisFollowPosition ? 'irisFollowPosition' : 'irisPosition'
+
+			expect(iris.style.text).toContain(`$(generic-module:${wanted}Bar)`)
 		})
 	})
 })

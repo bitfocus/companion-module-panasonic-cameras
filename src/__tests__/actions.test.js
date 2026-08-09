@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { getActionDefinitions } from '../actions.js'
 
 // The action callbacks are what actually reach the camera, so these assert the command string rather
-// than the definition around it. `self.getCam` is the only transport these actions use.
-function mockInstance(model) {
+// than the definition around it. Iris is the one that picks its transport from the capability, so
+// both are recorded, tagged with the endpoint they went to.
+function mockInstance(model, data = {}) {
 	const sent = []
 	const self = {
 		config: { model },
-		data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+		data: { model: null, modelAuto: null, series: null, presetThumbnails: [], ...data },
 		getCam: (cmd) => sent.push(cmd),
+		getPTZ: (cmd) => sent.push('#' + cmd),
 		log: () => {},
 		sent,
 	}
@@ -83,6 +85,43 @@ describe('colorTemperature on a camera that can only step (AK-UB300)', () => {
 		const options = getActionDefinitions(mockInstance('AK-UB300')).colorTemperature.options
 
 		expect(options.map((field) => field.id)).toEqual(['op'])
+	})
+})
+
+// A pan/tilt head drives the iris over aw_ptz with #AXI (555h-FFFh); a box camera has no head and
+// drives the lens over aw_cam with ORV (000h-3FFh). No model has both, so they share irisPosition and
+// the capability carries the numbers. Splitting them left the box cameras' `$(irisPositionBar)` -
+// which the shipped Iris preset puts on the button - permanently empty.
+describe('iris, which reaches the lens by two different roads', () => {
+	const iris = async (model, options, data) => {
+		const self = mockInstance(model, data)
+		await getActionDefinitions(self).iris.callback({ actionId: 'iris', options })
+		return self.sent
+	}
+
+	it('drives the head over aw_ptz, offset by 0x555', async () => {
+		expect(await iris('AW-UE150', { op: 's', set: 0x0 })).toEqual(['#AXI555'])
+		expect(await iris('AW-UE150', { op: 's', set: 0xaaa })).toEqual(['#AXIFFF'])
+	})
+
+	it('drives a box camera lens over aw_cam, with no offset', async () => {
+		expect(await iris('AK-UB300', { op: 's', set: 0x0 })).toEqual(['ORV:000'])
+		expect(await iris('AK-UB300', { op: 's', set: 0x3ff })).toEqual(['ORV:3FF'])
+	})
+
+	it('steps from the one position field, whichever road it came in on', async () => {
+		expect(await iris('AW-UE150', { op: 1, step: 0x1e }, { irisPosition: 0x100 })).toEqual(['#AXI673'])
+		expect(await iris('AK-UB300', { op: 1, step: 0xa }, { irisPosition: 0x100 })).toEqual(['ORV:10A'])
+	})
+
+	it('offers each model its own range rather than one borrowed from the other', () => {
+		const range = (model) => {
+			const set = getActionDefinitions(mockInstance(model)).iris.options.find((f) => f.id === 'set')
+			return [set.min, set.max, set.default]
+		}
+
+		expect(range('AW-UE150')).toEqual([0x0, 0xaaa, 0x555])
+		expect(range('AK-UB300')).toEqual([0x0, 0x3ff, 0x1ff])
 	})
 })
 

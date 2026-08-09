@@ -77,9 +77,10 @@ const BASE_CAPABILITIES = {
 	gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_CX350 }, // Has Gain (OGS/OGU)
 	imageTransmission: { cmd: 'view.cgi?action=snapshot' }, // Has a JPEG one-shot image request (view.cgi)
 	install: true, // Has support for Desktop or Hanging Install Position (iNSx)
-	iris: true, // Has Iris control and position (AXIxxx)
+	iris: { cmd: 'AXI', transport: 'ptz', offset: 0x555, max: 0xaaa, step: 0x1e }, // Has Iris control and position (#AXI or ORV)
 	irisAuto: true, // Has (switchable) Auto Iris (ORS)
 	irisF: false, // Has Iris F No. decoding (OIF)
+	irisFollowPosition: true, // Has Iris Follow (QSD:4F)
 	night: true, // Has Day/Night Mode (d6x)
 	ois: { dropdown: e.ENUM_OIS_OTHER }, // Has Optical Image Stabilisation control (OIS)
 	panTilt: true, // Has Pan/Tilt Head control and position support (PTSxxxx and aPCxxxxxx)
@@ -158,6 +159,7 @@ export const SERIES_SPECS = [
 					'QLR',
 					'QRP',
 					'QRS',
+					'QSD:4F',
 					'QSD:B0',
 					'QSG:39',
 					'QSG:3A',
@@ -211,7 +213,7 @@ export const SERIES_SPECS = [
 			presetTime: false,
 			pull: {
 				ptz: ['O', 'DA', 'PE00', 'PE01', 'PE02', 'RER', 'S'],
-				cam: ['QAW', 'QBR', 'QRS', 'QSA:87', 'QSE:71'],
+				cam: ['QAW', 'QBR', 'QRS', 'QSA:87', 'QSD:4F', 'QSE:71'],
 				web: false,
 			},
 			recordSD: false,
@@ -257,6 +259,7 @@ export const SERIES_SPECS = [
 					'QRS',
 					'QSA:87',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B1',
 					'QSE:33',
 					'QSE:71',
@@ -283,7 +286,7 @@ export const SERIES_SPECS = [
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
 			colorPedestal: false,
-			colorTemperature: false, // the compatible model table gives OSD:B1 to neither the HE50 nor the HE60
+			colorTemperature: false,
 			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
 			filter: false, // no OFT on either model
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE50 },
@@ -304,6 +307,7 @@ export const SERIES_SPECS = [
 					'QRS',
 					'QSA:87',
 					'QSD:3A',
+					'QSD:4F',
 					'QSE:33',
 					'QSE:71',
 					'QSH',
@@ -329,7 +333,7 @@ export const SERIES_SPECS = [
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
 			chromaPhase: false,
-			colorTemperature: false, // the compatible model table gives OSD:B1 to the HE130, not the HE120
+			colorTemperature: false,
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE120 },
 			imageTransmission: false,
@@ -353,6 +357,7 @@ export const SERIES_SPECS = [
 					'QRS',
 					'QSA:87',
 					'QSD:3A',
+					'QSD:4F',
 					'QSE:33',
 					'QSE:71',
 					'QSH',
@@ -383,14 +388,6 @@ export const SERIES_SPECS = [
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE130 },
-			// No view.cgi on this generation: /cgi-bin/jpeg and /cgi-bin/mjpeg are continuous MJPEG
-			// pushes, and the one on /cgi-bin/jpeg wants a getuid handshake first. /cgi-bin/camera is the
-			// one-shot. Unlike mjpeg, its spec shows no call with the parameters left off, so resolution
-			// is given. 320x180 is the smallest step that still covers the button: fitImage letterboxes
-			// onto IMAGE_SIZE 288, so 320 is scaled slightly down while the 160x90 step below it would
-			// have to be blown up almost twofold. The WEB menu (Video over IP / JPEG) wins over the
-			// argument and has to have JPEG transmission switched on at all, so this asks rather than
-			// dictates; an unexpected size just gets scaled like any other.
 			imageTransmission: { cmd: 'camera?resolution=320' },
 			pedestal: { cmd: 'OTP', offset: 0x96, limit: 150, step: 1, hexlen: 3 },
 			presetTime: false,
@@ -410,7 +407,9 @@ export const SERIES_SPECS = [
 					'QRS',
 					'QSA:87',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B0',
+					'QSD:4F',
 					'QSD:B1',
 					'QSE:33',
 					'QSE:71',
@@ -466,7 +465,9 @@ export const SERIES_SPECS = [
 					'QSA:D5:2',
 					'QSA:D5:3',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B0',
+					'QSD:4F',
 					'QSD:B1',
 					'QSE:33',
 					'QSE:71',
@@ -518,8 +519,9 @@ export const SERIES_SPECS = [
 			focusPushAuto: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UBX100 },
 			install: false,
-			iris: { cmd: 'ORV' }, // box camera: drives the lens iris directly instead of the head's AXI
+			iris: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa },
 			irisF: true,
+			irisFollowPosition: false,
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -589,8 +591,9 @@ export const SERIES_SPECS = [
 			focusPushAuto: false,
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
 			install: false,
-			iris: { cmd: 'ORV' }, // box camera: drives the lens iris directly instead of the head's AXI
+			iris: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa },
 			irisF: true,
+			irisFollowPosition: false,
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -658,8 +661,9 @@ export const SERIES_SPECS = [
 			focusAuto: false,
 			gain: { cmd: 'OSL:25', dropdown: e.ENUM_GAIN_UB50 },
 			install: false,
-			iris: { cmd: 'ORV' }, // box camera: drives the lens iris directly instead of the head's AXI
+			iris: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa },
 			irisF: true,
+			irisFollowPosition: false,
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -714,9 +718,10 @@ export const SERIES_SPECS = [
 			drs: { dropdown: e.ENUM_OFF_ON },
 			error: false, // no rER
 			filter: false,
-			focusAuto: false, // #AXF positions the lens, but there is no OAF to switch auto focus
+			focusAuto: false,
 			focusPushAuto: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE4 },
+			irisFollowPosition: false,
 			night: false,
 			ois: false,
 			pedestal: false,
@@ -755,6 +760,7 @@ export const SERIES_SPECS = [
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE4 },
 			iris: false,
 			irisAuto: false, // supports only 1 (Auto)
+			irisFollowPosition: false,
 			night: false,
 			ois: false,
 			pedestal: false,
@@ -810,6 +816,7 @@ export const SERIES_SPECS = [
 					'QSA:87',
 					'QSA:D5:0',
 					'QSD:3A',
+					'QSD:4F',
 					'QSE:33',
 					'QSE:71',
 					'QSG:39',
@@ -835,8 +842,6 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 2, min: -36, max: 12, step: 3 },
-			// The compatible model table gives OCG to the UE80 alone in this family; the UE30/UE40/UE50
-			// carry chroma level on OSD:B0 like every other current model.
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: false,
@@ -852,6 +857,7 @@ export const SERIES_SPECS = [
 					'QAF',
 					'QAW',
 					'QBR',
+					'QSD:4F',
 					'QSD:B0',
 					'QIF',
 					'QIS',
@@ -908,6 +914,7 @@ export const SERIES_SPECS = [
 					'QRS',
 					'QSA:87',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B1',
 					'QSE:33',
 					'QSE:71',
@@ -953,6 +960,7 @@ export const SERIES_SPECS = [
 					'QSA:D5:0',
 					'QSA:D5:1',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B0',
 					'QSE:33',
 					'QSE:71',
@@ -972,7 +980,7 @@ export const SERIES_SPECS = [
 		},
 	},
 	{
-		// Specific for the UE100 series
+		// Specific for the UE100 camera
 		id: 'UE100',
 		capabilities: {
 			...BASE_CAPABILITIES,
@@ -1010,6 +1018,7 @@ export const SERIES_SPECS = [
 					'QSA:87',
 					'QSA:D5:0',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B0',
 					'QSE:33',
 					'QSE:71',
@@ -1030,8 +1039,7 @@ export const SERIES_SPECS = [
 		},
 	},
 	{
-		// Specific for the AW-UR100 camera, the ruggedized UE100: two audio channels instead of one,
-		// an extra Auto ND filter step, and no Shooting Mode.
+		// Specific for the AW-UR100 camera
 		id: 'UR100',
 		capabilities: {
 			...BASE_CAPABILITIES,
@@ -1070,6 +1078,7 @@ export const SERIES_SPECS = [
 					'QSA:D5:0',
 					'QSA:D5:1',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B0',
 					'QSE:33',
 					'QSE:71',
@@ -1125,6 +1134,7 @@ export const SERIES_SPECS = [
 					'QSA:87',
 					'QSA:D5:0',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B0',
 					'QSE:33',
 					'QSE:71',
@@ -1145,8 +1155,7 @@ export const SERIES_SPECS = [
 		},
 	},
 	{
-		// Specific for the AW-UE150A camera, which adds autotracking over the UE150. Everything else
-		// the compatible model table lists for it (crop, down convert, 12G SDI) is not modelled here.
+		// Specific for the AW-UE150A camera
 		id: 'UE150A',
 		capabilities: {
 			...BASE_CAPABILITIES,
@@ -1183,6 +1192,7 @@ export const SERIES_SPECS = [
 					'QSA:87',
 					'QSA:D5:0',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B0',
 					'QSE:33',
 					'QSE:71',
@@ -1246,6 +1256,7 @@ export const SERIES_SPECS = [
 					'QSA:D5:0',
 					'QSA:D5:1',
 					'QSD:3A',
+					'QSD:4F',
 					'QSD:B0',
 					'QSE:71',
 					'QSG:4C',

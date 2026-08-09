@@ -408,6 +408,8 @@ export function getPresetDefinitions(self) {
 	// ##########################
 
 	if (SERIES.capabilities.iris) {
+		const position = SERIES.capabilities.irisFollowPosition ? 'irisFollowPosition' : 'irisPosition'
+
 		presets['exposure-iris'] = {
 			type: 'simple',
 			category: 'Exposure',
@@ -415,8 +417,10 @@ export function getPresetDefinitions(self) {
 			style: {
 				text:
 					'IRIS\\n$(generic-module:' +
-					(SERIES.capabilities.irisF ? 'irisF' : 'irisPosition') +
-					')\\n$(generic-module:irisPositionBar)',
+					(SERIES.capabilities.irisF ? 'irisF' : position) +
+					')\\n$(generic-module:' +
+					position +
+					'Bar)',
 				size: '14',
 				color: colorWhite,
 				bgcolor: colorBlack,
