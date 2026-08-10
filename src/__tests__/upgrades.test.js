@@ -51,11 +51,23 @@ describe('rescaleColorTemperatureStep', () => {
 		expect(result.updatedActions).toEqual(actions)
 	})
 
-	it('leaves a value that is already a notch count alone', () => {
+	// A small stored number is not a notch count that survived from somewhere: the old field's minimum
+	// was 20, so anything below it got in through allowInvalidValues, and it still moved the single
+	// notch every other value moved. Left alone, a stored 5 would suddenly step five.
+	it('replaces a stored value below the old minimum too', () => {
 		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: val(5) } }]
 		const result = rescale({ actions })
 
-		expect(actions[0].options.step).toEqual(val(5))
+		expect(actions[0].options.step).toEqual(val(1))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	// Idempotent, so a button that already carries the one notch is not reported as changed.
+	it('leaves a step of one alone', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: val(1) } }]
+		const result = rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
 		expect(result.updatedActions).toEqual([])
 	})
 

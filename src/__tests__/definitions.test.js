@@ -63,6 +63,39 @@ describe('manifest products', () => {
 	})
 })
 
+// The variable tables are the only place a user learns what the module publishes, and nothing tied
+// them to the code — which is how $(errorCamera), $(customResponse) and the four limit variables all
+// shipped undocumented. HELP.md is packaged with the module, README.md is what GitHub shows.
+describe('documented variables', () => {
+	const DOCS = ['companion/HELP.md', 'README.md']
+	const read = (file) => readFileSync(new URL('../../' + file, import.meta.url), 'utf8')
+	const documented = (file) => new Set([...read(file).matchAll(/`\$\((\w+)\)`/g)].map((m) => m[1]))
+
+	const published = new Set(
+		MODELS.filter((m) => m.id !== 'Auto').flatMap((m) => Object.keys(setVariables(mockInstance(m.id)))),
+	)
+
+	// The per-channel audio variables get one collective row, `$(audioVolumeLevel1…N)`, because how many
+	// there are depends on the model. The ellipsis keeps it out of the match above.
+	const collective = /^audioVolumeLevel\d+$/
+
+	it.each(DOCS)('%s lists every variable the module publishes', (file) => {
+		const missing = [...published].filter((v) => !documented(file).has(v) && !collective.test(v))
+
+		expect(missing.sort()).toEqual([])
+	})
+
+	it.each(DOCS)('%s names no variable the module never publishes', (file) => {
+		expect([...documented(file)].filter((v) => !published.has(v)).sort()).toEqual([])
+	})
+
+	it('keeps the two tables identical', () => {
+		const rows = (file) => read(file).match(/^\| `\$\(.*$/gm)
+
+		expect(rows(DOCS[0])).toEqual(rows(DOCS[1]))
+	})
+})
+
 // A level capability drives optSetIncDecStep() and cmdValue(): `step` becomes the Step size field's
 // default *and* its min, `hexlen` the width of the value on the wire. Miss either and the field ships
 // with `default: undefined`, fillOmittedOptions skips it (it only fills ids that have a default), and
@@ -156,6 +189,9 @@ describe('pull coverage', () => {
 		['shutter', (c) => ['Q' + c.shutter.cmd.slice(1), 'PTG']],
 		['filter', () => ['QFT', 'QSJ:D2', 'PTG']],
 		['pedestal', (c) => ['Q' + c.pedestal.cmd.slice(1)]],
+		// #APC is a query only on the HD Integrated line; the newer models answer #PTV instead, and the
+		// four that can do neither do not carry the capability at all.
+		['panTiltPosition', () => ['APC', 'PTV']],
 		['zoom', () => ['PTV', 'LPI', 'AXZ', 'GZ', 'QSI:18']],
 		['focus', () => ['PTV', 'LPI', 'AXF', 'GF', 'QSI:18']],
 		[

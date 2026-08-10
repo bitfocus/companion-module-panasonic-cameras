@@ -42,6 +42,11 @@ export function setVariables(self) {
 				ptSpeed: 'Pan/Tilt Speed',
 				pSpeed: 'Pan Speed',
 				tSpeed: 'Tilt Speed',
+			},
+		],
+		[
+			'panTiltPosition',
+			{
 				panPosition: 'Pan Position',
 				tiltPosition: 'Tilt Position',
 				panPositionDeg: 'Pan Position °',

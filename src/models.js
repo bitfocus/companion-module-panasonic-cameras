@@ -84,7 +84,8 @@ const BASE_CAPABILITIES = {
 	irisFollowPosition: true, // Has Iris Follow (QSD:4F)
 	night: true, // Has Day/Night Mode (d6x)
 	ois: { dropdown: e.ENUM_OIS_OTHER }, // Has Optical Image Stabilisation control (OIS)
-	panTilt: true, // Has Pan/Tilt Head control and position support (PTSxxxx and aPCxxxxxx)
+	panTilt: true, // Has Pan/Tilt Head control (#P, #T, #PTS, #APC)
+	panTiltPosition: true, // Reports Pan/Tilt position (#APC query, #PTV)
 	panTiltLimit: true, // Has support for movement range limit (#LC)
 	pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 200, step: 1, hexlen: 3 }, // Has Master Pedestal (OTD, OSJ:0F or OSG:4A)
 	poll: false, // Definiton of states that needs to be polled continously from camera (never updated by subscription etc.)
@@ -148,6 +149,7 @@ export const SERIES_SPECS = [
 			install: false,
 			night: false,
 			panTilt: false,
+			panTiltPosition: false,
 			panTiltLimit: false, // camcorder, no pan/tilt head
 			poll: {
 				ptz: ['GF', 'GI', 'GZ'],
@@ -214,6 +216,7 @@ export const SERIES_SPECS = [
 			night: false,
 			ois: false,
 			panTiltLimit: false,
+			panTiltPosition: false,
 			pedestal: false,
 			preset: 9,
 			presetSpeed: false,
@@ -255,6 +258,7 @@ export const SERIES_SPECS = [
 			presetTime: false,
 			pull: {
 				ptz: [
+					'APC',
 					'O',
 					'D6',
 					'DA',
@@ -323,6 +327,7 @@ export const SERIES_SPECS = [
 			presetTime: false,
 			pull: {
 				ptz: [
+					'APC',
 					'O',
 					'D6',
 					'DA',
@@ -387,7 +392,24 @@ export const SERIES_SPECS = [
 			pedestal: { cmd: 'OTP', offset: 0x96, limit: 150, step: 1, hexlen: 3 },
 			presetTime: false,
 			pull: {
-				ptz: ['O', 'DA', 'INS', 'LC1', 'LC2', 'LC3', 'LC4', 'LPI', 'PE00', 'PE01', 'PE02', 'PST', 'RER', 'S', 'UPVS'],
+				ptz: [
+					'APC',
+					'O',
+					'DA',
+					'INS',
+					'LC1',
+					'LC2',
+					'LC3',
+					'LC4',
+					'LPI',
+					'PE00',
+					'PE01',
+					'PE02',
+					'PST',
+					'RER',
+					'S',
+					'UPVS',
+				],
 				cam: [
 					'QAF',
 					'QAW',
@@ -440,6 +462,7 @@ export const SERIES_SPECS = [
 			presetTime: false,
 			pull: {
 				ptz: [
+					'APC',
 					'O',
 					'D6',
 					'DA',
@@ -512,6 +535,7 @@ export const SERIES_SPECS = [
 			presetTime: false,
 			pull: {
 				ptz: [
+					'APC',
 					'O',
 					'D6',
 					'DA',
@@ -607,6 +631,7 @@ export const SERIES_SPECS = [
 			night: false,
 			ois: false,
 			panTilt: false,
+			panTiltPosition: false,
 			panTiltLimit: false, // box camera, no pan/tilt head
 			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			power: false,
@@ -683,6 +708,7 @@ export const SERIES_SPECS = [
 			night: false,
 			ois: false,
 			panTilt: false,
+			panTiltPosition: false,
 			panTiltLimit: false, // box camera, no pan/tilt head
 			pedestal: { cmd: 'OSG:4A', offset: 0x80, limit: 99, step: 1, hexlen: 2 },
 			power: false,
@@ -757,6 +783,7 @@ export const SERIES_SPECS = [
 			night: false,
 			ois: false,
 			panTilt: false,
+			panTiltPosition: false,
 			panTiltLimit: false, // box camera, no pan/tilt head
 			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 15, step: 1, hexlen: 3 },
 			power: false,
@@ -817,7 +844,8 @@ export const SERIES_SPECS = [
 			irisFollowPosition: false,
 			night: false,
 			ois: false,
-			panTiltLimit: false, // no limitation command in its spec
+			panTiltLimit: false,
+			panTiltPosition: false,
 			pedestal: false,
 			poll: { ptz: false, cam: false, web: ['get_rtmp_status'] },
 			presetScope: false,
@@ -859,7 +887,8 @@ export const SERIES_SPECS = [
 			irisFollowPosition: false,
 			night: false,
 			ois: false,
-			panTiltLimit: false, // the only --- in the PT command table
+			panTiltLimit: false,
+			panTiltPosition: false,
 			pedestal: false,
 			poll: { ptz: false, cam: false, web: ['get_rtmp_status'] },
 			presetScope: false, // has presets, but no OSE:71 to scope what a recall restores
@@ -898,6 +927,7 @@ export const SERIES_SPECS = [
 			irisF: true,
 			night: false,
 			ois: false,
+			panTiltPosition: false,
 			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 10, step: 1, hexlen: 3 },
 			poll: { ptz: false, cam: false, web: ['get_rtmp_status'] },
 			presetThumbnails: true,
@@ -1019,6 +1049,7 @@ export const SERIES_SPECS = [
 			presetTime: false,
 			pull: {
 				ptz: [
+					'APC',
 					'O',
 					'D6',
 					'DA',

@@ -286,7 +286,9 @@ export function getPresetDefinitions(self) {
 		presets['pan-tilt-position'] = momentaryPreset(
 			'Pan/Tilt',
 			'Pan/Tilt Position',
-			'P/T Pos.\\n$(generic-module:panPositionDeg)°\\n$(generic-module:tiltPositionDeg)°',
+			SERIES.capabilities.panTiltPosition
+				? 'P/T Pos.\\n$(generic-module:panPositionDeg)°\\n$(generic-module:tiltPositionDeg)°'
+				: 'P/T\\nHOME',
 			'home',
 			{},
 		)

@@ -219,13 +219,13 @@ function rescaleColorTemperatureStep(_context, props) {
 		if (action.actionId !== 'colorTemperature') continue
 		if (!action.options || !('step' in action.options)) continue
 
-		// Expressions go too. It is tempting to leave the operator's own arithmetic alone, but the old
-		// callback discarded the step whatever produced it, so an expression never moved more than the
-		// single notch a literal did. Keeping one that returns 500 would clamp it to ten notches now -
-		// the very leap this exists to prevent - so every stored step resets to the one notch it was.
+		// Every stored step resets, whatever it holds. There is no value to preserve: the old field was a
+		// Kelvin delta with a minimum of 20 and the old callback sent `inc + ':1'` regardless, so a small
+		// number was never a notch count - it was an out-of-range Kelvin delta the field's
+		// allowInvalidValues let through, and it still moved exactly one notch. Expressions go for the
+		// same reason: one returning 500 would clamp to ten notches now, the very leap this prevents.
 		const option = unwrap(action.options.step)
-		const stored = parseInt(option.value, 10)
-		if (!option.isExpression && Number.isFinite(stored) && stored <= 10) continue // already a notch count
+		if (!option.isExpression && option.value === 1) continue // already the one notch it always sent
 
 		action.options.step = wrap(1)
 		result.updatedActions.push(action)
