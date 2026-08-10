@@ -70,6 +70,7 @@ const BASE_CAPABILITIES = {
 	dnr: { dropdown: e.ENUM_DNR }, // Has Digital Noise Reduction (OSD:3A)
 	drs: { dropdown: e.ENUM_DRS }, // Has Dynamic Range Stretch (OSE:33)
 	error: true, // Camera can return enumerated error messages (rER)
+	errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature', 'Lens', 'Pan/Tilt', 'Sensor'] }, // Has error state bitmask (QSI:46 or QER)
 	filter: { dropdown: e.ENUM_FILTER_OTHER }, // Has ND Filter Support (OFT)
 	focus: true, // Has Focus control and position (Fxx and AXFxxx)
 	focusAuto: true, // Has (switchable) Auto Focus (OAF)
@@ -140,6 +141,7 @@ export const SERIES_SPECS = [
 			dnr: false,
 			drs: false,
 			error: false,
+			errorCamera: false,
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_CX350 },
 			install: false,
@@ -197,6 +199,8 @@ export const SERIES_SPECS = [
 			colorTemperature: false,
 			dnr: false,
 			drs: false,
+			error: false,
+			errorCamera: false,
 			filter: false,
 			focus: false,
 			focusAuto: false,
@@ -212,7 +216,7 @@ export const SERIES_SPECS = [
 			presetSpeed: false,
 			presetTime: false,
 			pull: {
-				ptz: ['O', 'DA', 'PE00', 'PE01', 'PE02', 'RER', 'S'],
+				ptz: ['O', 'DA', 'PE00', 'PE01', 'PE02', 'S'],
 				cam: ['QAW', 'QBR', 'QRS', 'QSA:87', 'QSD:4F', 'QSE:71'],
 				web: false,
 			},
@@ -240,6 +244,7 @@ export const SERIES_SPECS = [
 			colorPedestal: false,
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_LINEAR } },
 			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
+			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
 			filter: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE40 },
 			pedestal: { cmd: 'OTD', offset: 0x1e, limit: 30, step: 3, hexlen: 2 },
@@ -252,6 +257,7 @@ export const SERIES_SPECS = [
 					'QAW',
 					'QBR',
 					'QCG',
+					'QER',
 					'QGB',
 					'QGR',
 					'QGU',
@@ -288,6 +294,7 @@ export const SERIES_SPECS = [
 			colorPedestal: false,
 			colorTemperature: false,
 			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
+			errorCamera: false,
 			filter: false, // no OFT on either model
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE50 },
 			imageTransmission: false,
@@ -334,6 +341,7 @@ export const SERIES_SPECS = [
 			audioVolumeLevel: false,
 			chromaPhase: false,
 			colorTemperature: false,
+			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE120 },
 			imageTransmission: false,
@@ -350,6 +358,7 @@ export const SERIES_SPECS = [
 					'QBP',
 					'QBR',
 					'QCG',
+					'QER',
 					'QFT',
 					'QGU',
 					'QRI',
@@ -386,6 +395,7 @@ export const SERIES_SPECS = [
 			chromaPhase: false,
 			colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 100, step: 1, hexlen: 3 },
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
+			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE130 },
 			imageTransmission: { cmd: 'camera?resolution=320' },
@@ -399,6 +409,7 @@ export const SERIES_SPECS = [
 					'QBI',
 					'QBP',
 					'QBR',
+					'QER',
 					'QFT',
 					'QGU',
 					'QIS',
@@ -438,6 +449,7 @@ export const SERIES_SPECS = [
 			chromaPhase: false,
 			colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 100, step: 1, hexlen: 3 },
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
+			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HR140 },
 			imageTransmission: { cmd: 'camera?resolution=320' }, // no view.cgi, see HE130
@@ -452,6 +464,7 @@ export const SERIES_SPECS = [
 					'QBI',
 					'QBP',
 					'QBR',
+					'QER',
 					'QFT',
 					'QGU',
 					'QIS',
@@ -549,6 +562,7 @@ export const SERIES_SPECS = [
 					'QSG:4E',
 					'QSI:18',
 					'QSI:30',
+					'QSI:46',
 					'QSJ:03',
 					'QSJ:06',
 					'QSJ:0F',
@@ -584,6 +598,7 @@ export const SERIES_SPECS = [
 			dnr: { dropdown: e.ENUM_OFF_ON },
 			drs: false,
 			error: false, // reports errors on QER/OER, which the parser has no branch for
+			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			focus: false,
 			focusAuto: false,
@@ -605,6 +620,7 @@ export const SERIES_SPECS = [
 				ptz: false,
 				cam: [
 					'QBR',
+					'QER',
 					'QFT',
 					'QGS',
 					'QIF',
@@ -655,7 +671,8 @@ export const SERIES_SPECS = [
 			},
 			dnr: false,
 			drs: false,
-			error: false, // reports errors via OSI:46 instead of rER, which is not parsed yet
+			error: false,
+			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
 			filter: false,
 			focus: false, // special implementation req. 'HFF', 'HFN', 'HFS', 'LFP:xxx', 'LFS:x'
 			focusAuto: false,
@@ -683,6 +700,7 @@ export const SERIES_SPECS = [
 					'QSG:3A',
 					'QSI:18',
 					'QSI:20',
+					'QSI:46',
 					'QSJ:0F',
 					'QSL:25',
 				],
@@ -717,6 +735,7 @@ export const SERIES_SPECS = [
 			colorTemperature: false,
 			drs: { dropdown: e.ENUM_OFF_ON },
 			error: false, // no rER
+			errorCamera: false,
 			filter: false,
 			focusAuto: false,
 			focusPushAuto: false,
@@ -753,6 +772,8 @@ export const SERIES_SPECS = [
 			colorPedestal: false,
 			colorTemperature: false,
 			drs: { dropdown: e.ENUM_OFF_ON },
+			error: false,
+			errorCamera: false,
 			filter: false,
 			focus: false,
 			focusAuto: false,
@@ -769,7 +790,7 @@ export const SERIES_SPECS = [
 			presetSpeed: false,
 			presetTime: false,
 			pull: {
-				ptz: ['O', 'AXZ', 'INS', 'PE00', 'PE01', 'PE02', 'RER', 'S', 'TAA'],
+				ptz: ['O', 'AXZ', 'INS', 'PE00', 'PE01', 'PE02', 'S', 'TAA'],
 				cam: ['QAW', 'QBR', 'QCG', 'QGU', 'QSA:87', 'QSD:3A', 'QSE:33', 'QSJ:03', 'QSJ:06'],
 				web: false,
 			},
@@ -794,6 +815,8 @@ export const SERIES_SPECS = [
 			colorPedestal: false,
 			colorTemperature: false,
 			drs: { dropdown: e.ENUM_OFF_ON },
+			error: false,
+			errorCamera: false,
 			filter: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
 			irisF: true,
@@ -804,7 +827,7 @@ export const SERIES_SPECS = [
 			presetThumbnails: true,
 			presetTime: false,
 			pull: {
-				ptz: ['O', 'INS', 'LPI', 'PE00', 'PE01', 'PE02', 'PST', 'RER', 'S', 'TAA', 'UPVS'],
+				ptz: ['O', 'INS', 'LPI', 'PE00', 'PE01', 'PE02', 'PST', 'S', 'TAA', 'UPVS'],
 				cam: [
 					'QAF',
 					'QAW',
@@ -870,6 +893,7 @@ export const SERIES_SPECS = [
 					'QSE:71',
 					'QSG:39',
 					'QSG:3A',
+					'QSI:46',
 					'QSJ:0B',
 					'QSJ:0F',
 					'QSJ:29',
@@ -894,6 +918,7 @@ export const SERIES_SPECS = [
 			colorPedestal: false,
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_LINEAR } },
 			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
+			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
 			filter: { dropdown: e.ENUM_FILTER_3A },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE40 },
 			pedestal: { cmd: 'OTD', offset: 0x1e, limit: 30, step: 3, hexlen: 2 },
@@ -906,6 +931,7 @@ export const SERIES_SPECS = [
 					'QAW',
 					'QBR',
 					'QCG',
+					'QER',
 					'QFT',
 					'QGB',
 					'QGR',
@@ -966,6 +992,7 @@ export const SERIES_SPECS = [
 					'QSE:71',
 					'QSG:39',
 					'QSG:3A',
+					'QSI:46',
 					'QSJ:0B',
 					'QSJ:0F',
 					'QSJ:29',
@@ -1000,7 +1027,7 @@ export const SERIES_SPECS = [
 			ois: { dropdown: e.ENUM_OIS_UE100 },
 			poll: {
 				ptz: false,
-				cam: ['QIF', 'QSD:B0', 'QSJ:10'],
+				cam: ['QIF', 'QSD:B0', 'QSI:46', 'QSJ:10'],
 				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 			},
 			presetThumbnails: true,
@@ -1059,7 +1086,7 @@ export const SERIES_SPECS = [
 			ois: { dropdown: e.ENUM_OIS_UE100 },
 			poll: {
 				ptz: false,
-				cam: ['QIF', 'QSD:B0', 'QSJ:10'],
+				cam: ['QIF', 'QSD:B0', 'QSI:46', 'QSJ:10'],
 				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 			},
 			presetThumbnails: true,
@@ -1116,7 +1143,7 @@ export const SERIES_SPECS = [
 			irisF: true,
 			poll: {
 				ptz: false,
-				cam: ['QIF', 'QSD:B0', 'QSJ:10', 'QSA:D5:0'],
+				cam: ['QIF', 'QSD:B0', 'QSI:46', 'QSJ:10', 'QSA:D5:0'],
 				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 			},
 			presetThumbnails: true,
@@ -1174,7 +1201,7 @@ export const SERIES_SPECS = [
 			irisF: true,
 			poll: {
 				ptz: false,
-				cam: ['QIF', 'QSD:B0', 'QSJ:10', 'QSA:D5:0'],
+				cam: ['QIF', 'QSD:B0', 'QSI:46', 'QSJ:10', 'QSA:D5:0'],
 				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 			},
 			presetThumbnails: true,
@@ -1263,6 +1290,7 @@ export const SERIES_SPECS = [
 					'QSG:4D',
 					'QSG:4E',
 					'QSI:30',
+					'QSI:46',
 					'QSJ:0F',
 					'QSJ:29',
 					'QSL:36',

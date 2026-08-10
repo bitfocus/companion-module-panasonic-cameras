@@ -109,6 +109,24 @@ describe('parseUpdate', () => {
 		expect(parse('OSD', '4F', data).irisFollowPosition).toBe(expected)
 	})
 
+	// The camera's own fault state, as a bitmask: several faults can stand at once. OER carries two
+	// bits, OSI:46 five, and they are kept apart because a model that speaks both would otherwise
+	// flip the value - bit 1 means "Other" to OER and "High Temperature" to OSI:46.
+	it('reads the coarse camera error from OER', () => {
+		expect(parse('OER', '0').errorCamera).toBe(0)
+		expect(parse('OER', '1').errorCamera).toBe(1)
+		expect(parse('OER', '2').errorCamera).toBe(2)
+	})
+
+	it.each([
+		['00000000', 0],
+		['00000012', 0x12], // fan and pan/tilt
+		['0x00000012', 0x12], // the camdata spelling, which carries the prefix
+		['00000010', 0x10],
+	])('reads the detailed camera error from OSI:46:%s', (data, expected) => {
+		expect(parse('OSI', '46', data).errorCameraDetail).toBe(expected)
+	})
+
 	// One PTG stands in for five separate queries, so the pull lists of the models that support it
 	// depend on all five fields coming out of a single token.
 	it('decodes gain, colour temperature, shutter and ND from one PTG report', () => {

@@ -10,6 +10,7 @@ export function setVariables(self) {
 		[null, { model: 'Model of camera', title: 'Title of camera' }],
 		['version', { version: 'Firmware Version' }],
 		['error', { error: 'Error Code' }],
+		['errorCamera', { errorCamera: 'Camera Error' }],
 		['install', { installMode: 'Install Position' }],
 		['power', { power: 'Power Status' }],
 		['colorbar', { colorbar: 'Color Bar Status' }],
@@ -197,7 +198,19 @@ export function checkVariables(self) {
 
 	const irisMax = SERIES.capabilities.iris?.max ?? 0xaaa
 
+	// The camera's fault state is a bitmask, not one of the id/label tables the other enums use: several
+	// faults can stand at once. Empty string rather than "No Error", so a button can carry it bare and
+	// stay blank while all is well. A bit above the model's own list is dropped, not rendered undefined.
+	const errorBits = SERIES.capabilities.errorCamera?.bits ?? []
+	const errorCameraValue =
+		SERIES.capabilities.errorCamera?.cmd === 'QER' ? self.data.errorCamera : self.data.errorCameraDetail
+
 	self.setVariableValues({
+		errorCamera:
+			errorCameraValue === null || errorCameraValue === undefined
+				? null
+				: errorBits.filter((_, i) => errorCameraValue & (1 << i)).join(', '),
+
 		model: self.data.model,
 		title: self.data.title,
 		version: self.data.version,

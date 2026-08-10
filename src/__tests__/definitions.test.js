@@ -112,6 +112,7 @@ describe('pull coverage', () => {
 		['irisAuto', () => ['QRS', 'D3', 'GI']],
 		['irisF', () => ['QIF', 'PTD']],
 		['irisFollowPosition', () => ['QSD:4F']],
+		['errorCamera', (c) => [c.errorCamera.cmd]],
 		['ois', () => ['QIS']],
 		['videoFormat', () => ['QSA:87']],
 		['dnr', () => ['QSD:3A']],
@@ -183,6 +184,77 @@ describe('pull coverage', () => {
 
 		expect(caps.pull && caps.pull.ptz).toBeFalsy()
 		expect(caps.poll && caps.poll.ptz).toBeFalsy()
+	})
+
+	// The error indicator answers one question - "is something wrong" - from two sources: rER for the
+	// pan/tilt head, OER or OSI:46 for the camera. Its callback is where the null case has to be handled,
+	// because data.error starts null and `null !== '00'` is true: that lit the button on every model that
+	// never sends rER, and on every model for the stretch before the first one arrived.
+	describe('the error condition feedback', () => {
+		const lit = (data) => {
+			const self = {
+				config: { model: 'AW-UE150' },
+				data: { model: null, modelAuto: null, series: null, presetThumbnails: [], error: null, ...data },
+			}
+			return getFeedbackDefinitions(self).error.callback({})
+		}
+
+		it('stays dark until the camera has said anything at all', () => {
+			expect(lit({})).toBe(false)
+		})
+
+		it('stays dark while the camera reports no fault', () => {
+			expect(lit({ error: '00', errorCameraDetail: 0 })).toBe(false)
+		})
+
+		it('lights for a head error', () => {
+			expect(lit({ error: '03' })).toBe(true)
+		})
+
+		it('lights for a camera error, which rER would never mention', () => {
+			expect(lit({ error: '00', errorCameraDetail: 0x02 })).toBe(true)
+			expect(lit({ error: '00', errorCamera: 0x01 })).toBe(true)
+		})
+
+		it('is not offered where the camera reports neither', () => {
+			const self = {
+				config: { model: 'AW-UE4' },
+				data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+			}
+
+			expect(getFeedbackDefinitions(self).error).toBeUndefined()
+		})
+	})
+
+	// The camera fault state is a bitmask, so the capability has to name both the command that carries
+	// it and what each bit means - QSI:46 has five, the older QER two. A missing bits list would render
+	// the variable as an empty string on a camera that is in fact reporting a fault.
+	const FAULTY = SERIES_SPECS.filter((s) => s.capabilities.errorCamera).map((s) => ({
+		series: s.id,
+		cap: s.capabilities.errorCamera,
+	}))
+
+	it('is a set worth checking', () => {
+		expect(FAULTY.length).toBeGreaterThan(10)
+	})
+
+	it.each(FAULTY)('$series names the command and the bits behind its camera error', ({ cap }) => {
+		expect(['QER', 'QSI:46']).toContain(cap.cmd)
+		expect(Array.isArray(cap.bits)).toBe(true)
+		expect(cap.bits.length).toBeGreaterThan(0)
+		expect(cap.bits.length).toBeLessThanOrEqual(cap.cmd === 'QER' ? 2 : 5)
+		for (const bit of cap.bits) expect(bit).toBeTypeOf('string')
+	})
+
+	// The AW-UE20/HE20, AW-UE4 and AW-HE2 have no #RER at all. They carried error: true anyway, and
+	// since the feedback only compared against '00', a data.error left at null read as a fault - the
+	// indicator sat lit for the life of the connection.
+	it.each(['UE20', 'UE4', 'HE2'])('%s claims no rER it cannot answer', (id) => {
+		const caps = SERIES_SPECS.find((s) => s.id === id).capabilities
+		const ptz = [caps.poll, caps.pull].filter(Boolean).flatMap((l) => l.ptz || [])
+
+		expect(caps.error).toBe(false)
+		expect(ptz).not.toContain('RER')
 	})
 
 	// The CX350 spec has no QSI:18, no #LPI and no #AXZ, so the lens positions have exactly one source.

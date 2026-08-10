@@ -228,6 +228,9 @@ export function parseUpdate(self, str) {
 		case 'OAF':
 			self.data.focusMode = str[1]
 			break
+		case 'OER':
+			self.data.errorCamera = parseInt(str[1], 16)
+			break
 		case 'OAW':
 			self.data.whiteBalance = str[1]
 			break
@@ -275,6 +278,9 @@ export function parseUpdate(self, str) {
 					break // VAR
 				case '30':
 					self.data.shootingMode = str[2]
+					break
+				case '46':
+					self.data.errorCameraDetail = parseInt(str[2], 16)
 					break
 				// case 'D2': self.data.filter = str[2]; break // UB300's additional "Intelligent ND Filter"
 			}

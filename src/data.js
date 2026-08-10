@@ -24,6 +24,8 @@ export function initialData() {
 		dnr: null,
 		drs: null,
 		error: null,
+		errorCamera: null,
+		errorCameraDetail: null,
 		filter: null,
 		focusMode: null,
 		gain: null,

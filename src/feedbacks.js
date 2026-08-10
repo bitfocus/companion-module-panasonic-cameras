@@ -74,11 +74,14 @@ export function getFeedbackDefinitions(self) {
 
 	// ---- System ----
 
-	if (caps.error) {
+	if (caps.error || caps.errorCamera) {
 		feedbacks.error = stateFeedback(
 			'System - Error Condition',
 			'Indicates if an error condition currently exists',
-			() => self.data.error !== '00',
+			() =>
+				(self.data.error !== null && self.data.error !== '00') ||
+				self.data.errorCamera > 0 ||
+				self.data.errorCameraDetail > 0,
 		)
 	}
 
