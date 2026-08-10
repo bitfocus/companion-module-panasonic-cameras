@@ -113,6 +113,7 @@ describe('pull coverage', () => {
 		['irisF', () => ['QIF', 'PTD']],
 		['irisFollowPosition', () => ['QSD:4F']],
 		['errorCamera', (c) => [c.errorCamera.cmd]],
+		['panTiltLimit', () => ['LC1']],
 		['ois', () => ['QIS']],
 		['videoFormat', () => ['QSA:87']],
 		['dnr', () => ['QSD:3A']],
@@ -224,6 +225,12 @@ describe('pull coverage', () => {
 
 			expect(getFeedbackDefinitions(self).error).toBeUndefined()
 		})
+	})
+
+	// The movement range limit needs a pan/tilt head, so the box cameras and the camcorder cannot have
+	// it, and the AW-UE4 is the one PT model the compatible model table marks --- for #LC.
+	it.each(['UB300', 'UB50', 'UBX100', 'CX350', 'UE4', 'UE5', 'HE2'])('%s claims no movement range limit', (id) => {
+		expect(SERIES_SPECS.find((s) => s.id === id).capabilities.panTiltLimit).toBe(false)
 	})
 
 	// The camera fault state is a bitmask, so the capability has to name both the command that carries
@@ -560,15 +567,28 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 	// text - a model that does not publish it just renders an empty line. So the name it picks has to
 	// follow the capability: Iris Follow where the camera reports the lens's own position, the
 	// commanded one everywhere else.
+	// A variable name in a button's style text is free text — Companion validates nothing and a name
+	// this model does not publish simply renders as an empty line. That is how the Iris preset's bar
+	// sat blank on every box camera for years: those fill a field the preset did not name.
+	describe('preset button text', () => {
+		const named = Object.entries(presets).flatMap(([presetId, preset]) =>
+			[...(preset.style?.text ?? '').matchAll(/\$\(generic-module:(\w+)\)/g)].map((m) => ({
+				presetId,
+				variable: m[1],
+			})),
+		)
+
+		it('is a set worth checking', () => {
+			expect(named.length).toBeGreaterThan(5)
+		})
+
+		it.each(named)('$presetId names $variable, which this model publishes', ({ presetId, variable }) => {
+			expect(variables, `${presetId}: ${variable}`).toHaveProperty(variable)
+		})
+	})
+
 	describe('the iris preset readout', () => {
 		const iris = presets['exposure-iris']
-
-		it.runIf(iris)('names only variables this model actually publishes', () => {
-			const used = [...iris.style.text.matchAll(/\$\(generic-module:(\w+)\)/g)].map((m) => m[1])
-
-			expect(used.length).toBeGreaterThan(0)
-			for (const name of used) expect(variables, name).toHaveProperty(name)
-		})
 
 		it.runIf(iris)('shows the lens position itself wherever the camera reports it', () => {
 			const wanted = caps.irisFollowPosition ? 'irisFollowPosition' : 'irisPosition'

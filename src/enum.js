@@ -64,6 +64,13 @@ export const e = {
 		{ id: '1', label: 'ON' },
 	],
 
+	ENUM_PT_LIMIT: [
+		{ id: '1', label: 'Tilt Up' },
+		{ id: '2', label: 'Tilt Down' },
+		{ id: '3', label: 'Pan Left' },
+		{ id: '4', label: 'Pan Right' },
+	],
+
 	ENUM_STOP_START: [
 		{ id: '0', label: 'Stop' },
 		{ id: '1', label: 'Start' },

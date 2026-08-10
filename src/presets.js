@@ -111,13 +111,13 @@ const togglePreset = (
 	actionId,
 	feedbackId,
 	style,
-	{ size = '14', color = colorWhite, bgcolor = colorBlack, feedbackOptions, isInverted } = {},
+	{ size = '14', color = colorWhite, bgcolor = colorBlack, feedbackOptions, isInverted, extra = {} } = {},
 ) => ({
 	type: 'simple',
 	category,
 	name,
 	style: { text, size, color, bgcolor },
-	steps: [{ down: [{ actionId, options: { op: 't' } }], up: [] }],
+	steps: [{ down: [{ actionId, options: { ...extra, op: 't' } }], up: [] }],
 	feedbacks: feedbackId
 		? [
 				{
@@ -213,6 +213,27 @@ export function getPresetDefinitions(self) {
 			'ptSpeed',
 			{ scope: 'pt' },
 		)
+
+		if (SERIES.capabilities.panTiltLimit) {
+			const PAN_TILT_LIMIT = [
+				['pan-tilt-limit-up', '1', 'Tilt Up', 'limitUp'],
+				['pan-tilt-limit-down', '2', 'Tilt Down', 'limitDown'],
+				['pan-tilt-limit-left', '3', 'Pan Left', 'limitLeft'],
+				['pan-tilt-limit-right', '4', 'Pan Right', 'limitRight'],
+			]
+
+			for (const [id, dir, label, variable] of PAN_TILT_LIMIT) {
+				presets[id] = togglePreset(
+					'Pan/Tilt',
+					`Movement Range Limit ${label}`,
+					`LIMIT\\n${label}\\n$(generic-module:${variable})`,
+					'ptLimit',
+					'ptLimit',
+					{ color: colorWhite, bgcolor: colorRed },
+					{ extra: { dir }, feedbackOptions: { option: dir } },
+				)
+			}
+		}
 	}
 
 	// ######################

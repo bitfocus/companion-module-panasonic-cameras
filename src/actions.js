@@ -411,6 +411,28 @@ export function getActionDefinitions(self) {
 
 		actions.home = simpleAction('Pan/Tilt - Home Position', ptz, 'APC80008000')
 
+		if (caps.panTiltLimit) {
+			actions.ptLimit = {
+				name: 'Pan/Tilt - Movement Range Limit',
+				description:
+					'Switches the movement range limit for one direction. Each direction is independent, and the camera reports every change back.',
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Direction',
+						id: 'dir',
+						default: e.ENUM_PT_LIMIT[0].id,
+						choices: e.ENUM_PT_LIMIT,
+					},
+					...optSetToggle(e.ENUM_OFF_ON, 'Limit', 0),
+				],
+				callback: async (action) => {
+					const current = self.data.panTiltLimits[parseInt(action.options.dir, 10) - 1]
+					await ptz('LC' + action.options.dir + cmdEnum(action, e.ENUM_OFF_ON, current))
+				},
+			}
+		}
+
 		actions.ptSpeed = {
 			name: 'Pan/Tilt - Speed',
 			options: [
@@ -1006,17 +1028,11 @@ export function getActionDefinitions(self) {
 			},
 		],
 		callback: async (action) => {
-			switch (action.options.dest) {
-				case 0:
-					await cam(action.options.cmd)
-					break
-				case 1:
-					await ptz(action.options.cmd)
-					break
-				case 2:
-					await web(action.options.cmd)
-					break
-			}
+			const send = { 0: cam, 1: ptz, 2: web }[action.options.dest]
+			if (!send) return
+
+			self.data.customResponse = (await send(action.options.cmd)) ?? null
+			self.checkVariables()
 		},
 	}
 

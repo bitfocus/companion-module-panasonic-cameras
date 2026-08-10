@@ -7,7 +7,7 @@ export function setVariables(self) {
 
 	// [capability guard, variables it unlocks]. Guard is a capability key or a predicate.
 	const VARIABLES = [
-		[null, { model: 'Model of camera', title: 'Title of camera' }],
+		[null, { model: 'Model of camera', title: 'Title of camera', customResponse: 'Last Custom Command Response' }],
 		['version', { version: 'Firmware Version' }],
 		['error', { error: 'Error Code' }],
 		['errorCamera', { errorCamera: 'Camera Error' }],
@@ -34,7 +34,7 @@ export function setVariables(self) {
 		],
 		[(c) => c.preset && c.presetScope, { presetScope: 'Preset Recall Scope' }],
 		['shutter', { shutter: 'Shutter Mode' }],
-		[(c) => c.shutter && c.shutter.dropdown === e.ENUM_SHUTTER_ADV, { shutterStep: 'Shutter Step' }],
+		[(c) => c.shutter && c.shutter.cmd === 'OSJ:03', { shutterStep: 'Shutter Step' }],
 		['ois', { ois: 'O.I.S.' }],
 		[
 			'panTilt',
@@ -74,6 +74,15 @@ export function setVariables(self) {
 				irisPosition: 'Iris Position',
 				irisPositionPct: 'Iris Position %',
 				irisPositionBar: 'Iris Position',
+			},
+		],
+		[
+			'panTiltLimit',
+			{
+				limitUp: 'Tilt Up Limit',
+				limitDown: 'Tilt Down Limit',
+				limitLeft: 'Pan Left Limit',
+				limitRight: 'Pan Right Limit',
 			},
 		],
 		['irisAuto', { irisMode: 'Iris Mode' }],
@@ -211,6 +220,15 @@ export function checkVariables(self) {
 				? null
 				: errorBits.filter((_, i) => errorCameraValue & (1 << i)).join(', '),
 
+		customResponse: self.data.customResponse,
+		// null, not undefined, for a direction the camera has not reported: setVariableValues treats an
+		// undefined value as "leave as it was", which would keep a stale label after a reconnect.
+		...Object.fromEntries(
+			['limitUp', 'limitDown', 'limitLeft', 'limitRight'].map((name, i) => [
+				name,
+				getLabel(e.ENUM_OFF_ON, self.data.panTiltLimits[i]) ?? null,
+			]),
+		),
 		model: self.data.model,
 		title: self.data.title,
 		version: self.data.version,

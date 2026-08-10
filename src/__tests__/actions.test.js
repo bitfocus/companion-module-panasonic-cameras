@@ -125,6 +125,32 @@ describe('iris, which reaches the lens by two different roads', () => {
 	})
 })
 
+// The camera drives its movement range limits with #LC[direction][state] - four independent booleans.
+// The #L toggle would look like a better fit but its reply carries no direction, so nothing could
+// follow it; toggling is done here instead, against the state the camera last reported.
+describe('the movement range limit', () => {
+	const limit = async (options, data) => {
+		const self = mockInstance('AW-UE150', { panTiltLimits: [null, null, null, null], ...data })
+		await getActionDefinitions(self).ptLimit.callback({ actionId: 'ptLimit', options })
+		return self.sent
+	}
+
+	it('switches one direction at a time', async () => {
+		expect(await limit({ dir: '1', op: 's', set: '1' })).toEqual(['#LC11'])
+		expect(await limit({ dir: '4', op: 's', set: '0' })).toEqual(['#LC40'])
+	})
+
+	it('toggles against what the camera last reported', async () => {
+		expect(await limit({ dir: '1', op: 't' }, { panTiltLimits: ['0', null, null, null] })).toEqual(['#LC11'])
+		expect(await limit({ dir: '1', op: 't' }, { panTiltLimits: ['1', null, null, null] })).toEqual(['#LC10'])
+	})
+
+	it('is not offered on a camera with no pan/tilt head', () => {
+		expect(getActionDefinitions(mockInstance('AK-UB300')).ptLimit).toBeUndefined()
+		expect(getActionDefinitions(mockInstance('AW-UE4')).ptLimit).toBeUndefined()
+	})
+})
+
 // Every other stepped action shares optSetStepped/resolveSetStep with colour temperature, so the
 // stepRange parameter added for the notch count must leave them measuring in their own unit.
 describe('the shared stepped options', () => {

@@ -41,6 +41,11 @@ export function parseUpdate(self, str) {
 		}
 	}
 
+	if (str[0].substring(0, 2) === 'lC') {
+		const direction = parseInt(str[0].substring(2, 3), 10)
+		if (direction >= 1 && direction <= 4) self.data.panTiltLimits[direction - 1] = str[0].substring(3, 4)
+	}
+
 	if (str[0].substring(0, 3) === 'lPI') {
 		self.data.zoomPosition = parseInt(str[0].substring(3, 6), 16) - 0x555
 		self.data.focusPosition = parseInt(str[0].substring(6, 9), 16) - 0x555

@@ -33,6 +33,7 @@ export function initialData() {
 		irisMode: null,
 		nightMode: null,
 		ois: null,
+		panTiltLimits: [null, null, null, null],
 		power: null,
 		presetScope: null,
 		presetSpeed: null,
@@ -79,6 +80,7 @@ export function initialData() {
 		colorTempLabel: null,
 		irisLabel: null,
 		shutterStepLabel: null,
+		customResponse: null,
 
 		// arrays
 		audioVolumeLevels: Array(4),

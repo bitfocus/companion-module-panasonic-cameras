@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { parseUpdate } from '../parser.js'
 import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
+import { initialData } from '../data.js'
 
-// parseUpdate mutates self.data in place from the camera's notification strings.
+// parseUpdate mutates self.data in place from the camera's notification strings. The real shape, so a
+// branch writing into a container the module initialises (presetThumbnails, panTiltLimits) is exercised
+// rather than hand-waved past.
 function parse(...args) {
-	const self = {
-		data: { presetThumbnails: [], presetEntries: [], presetEntries0: [], presetEntries1: [], presetEntries2: [] },
-		getThumbnail: () => {},
-	}
+	const self = { data: initialData(), getThumbnail: () => {} }
 	parseUpdate(self, args)
 	return self.data
 }
@@ -107,6 +107,24 @@ describe('parseUpdate', () => {
 		['FF', 255],
 	])('reads the iris follow position from %s', (data, expected) => {
 		expect(parse('OSD', '4F', data).irisFollowPosition).toBe(expected)
+	})
+
+	// lC[direction][state], four independent booleans. It has to be matched before lPI or it would never
+	// be reached - both replies start with a lowercase l.
+	it.each([
+		['lC11', ['1', null, null, null]],
+		['lC20', [null, '0', null, null]],
+		['lC31', [null, null, '1', null]],
+		['lC40', [null, null, null, '0']],
+	])('reads the movement range limit from %s', (token, expected) => {
+		expect(parse(token).panTiltLimits).toEqual(expected)
+	})
+
+	it('leaves the limits alone for the lens position report, which also starts with l', () => {
+		const data = parse('lPI555555555')
+
+		expect(data.panTiltLimits).toEqual([null, null, null, null])
+		expect(data.zoomPosition).toBe(0)
 	})
 
 	// The camera's own fault state, as a bitmask: several faults can stand at once. OER carries two

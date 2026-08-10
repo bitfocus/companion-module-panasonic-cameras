@@ -51,8 +51,7 @@ export function describeError(err) {
 	return err?.code ? `${err.code}: ${message}` : message
 }
 
-// First 40 bytes (28-byte header + start of command) for diagnosing desync without dumping a runaway buffer.
-const hexdump = (buffer) => buffer.subarray(0, 40).toString('hex').replace(/(..)/g, '$1 ').trim()
+const hexdump = (buffer) => buffer.subarray(0, 96).toString('hex').replace(/(..)/g, '$1 ').trim()
 
 export default class PanasonicCameraInstance extends InstanceBase {
 	constructor(internal) {
@@ -222,7 +221,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					if (desync || socket.buffer.length > MAX_BUFFER) {
 						this.log(
 							'error',
-							`Update notification stream out of sync, discarding buffer (${socket.name}): ${hexdump(raw)}`,
+							`Update notification stream out of sync, discarding buffer (${socket.name}, at byte ` +
+								`${raw.length - rest.length} of ${raw.length}): ${hexdump(rest)}`,
 						)
 						socket.buffer = Buffer.alloc(0)
 					}
@@ -353,6 +353,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				this.checkAllFeedbacks()
 
 				this.onRequestSucceeded()
+
+				return str // hand back for the Custom Command action
 			}
 		} catch (err) {
 			if (!this.current(generation)) return
@@ -385,6 +387,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				this.checkAllFeedbacks()
 
 				this.onRequestSucceeded()
+
+				return str // hand back for the Custom Command action
 			}
 		} catch (err) {
 			if (!this.current(generation)) return
@@ -429,6 +433,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			this.checkAllFeedbacks()
 
 			this.onRequestSucceeded()
+
+			// hand back for the Custom Command action
+			return response.body ? response.body.trim() : `Response code ${response.statusCode}`
 		} catch (err) {
 			if (!this.current(generation)) return
 			if (this.handleConnectionError(err)) this.log('error', 'Web request ' + url + ' failed: ' + String(err))

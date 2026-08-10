@@ -641,6 +641,41 @@ describe('the live image URL', () => {
 	})
 })
 
+// The Custom Command action is the only caller that cares what came back: a query the module does not
+// model parses to nothing, so the raw reply is all an operator has. The transports used to return
+// undefined to everyone.
+describe('the reply a transport hands back', () => {
+	const answering = (body) => {
+		const self = makeInstance()
+		self.httpGet = vi.fn(async (url) => {
+			self.requests.push(url)
+			return { body, statusCode: 200 }
+		})
+		return self
+	}
+
+	it('gives the camera command reply to its caller', async () => {
+		expect(await answering('OID:AW-UE150\r\n').getCam('QID')).toBe('OID:AW-UE150')
+	})
+
+	it('gives the pan/tilt reply to its caller', async () => {
+		expect(await answering('lC11').getPTZ('LC1')).toBe('lC11')
+	})
+
+	it('reports the status code where the web reply carries no body', async () => {
+		expect(await answering('').getWeb('initial?cmd=reset')).toBe('Response code 200')
+	})
+
+	it('hands back nothing when the request fails, so the variable clears', async () => {
+		const self = makeInstance()
+		self.httpGet = vi.fn(async () => {
+			throw Object.assign(new Error('gone'), { code: 'ECONNREFUSED' })
+		})
+
+		expect(await self.getCam('QID')).toBeUndefined()
+	})
+})
+
 describe('configUpdated', () => {
 	it('wipes the old camera state before the new camera speaks', async () => {
 		const self = makeInstance({ host: '10.0.0.1' })

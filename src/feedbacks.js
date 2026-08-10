@@ -156,6 +156,17 @@ export function getFeedbackDefinitions(self) {
 		}
 	}
 
+	if (caps.panTiltLimit) {
+		feedbacks.ptLimit = selectionFeedback(
+			'Pan/Tilt - Movement Range Limit',
+			'Indicates if the movement range is currently limited in the selected direction',
+			'Direction',
+			e.ENUM_PT_LIMIT,
+			(feedback) =>
+				self.data.panTiltLimits[parseInt(feedback.options.option, 10) - 1] === '1' ? feedback.options.option : null,
+		)
+	}
+
 	// ---- Lens ----
 
 	if (caps.focusAuto) {

@@ -6,9 +6,12 @@ import { extractUpdates, MAX_BUFFER } from '../framing.js'
 
 // Frame layout per Interface Specifications §4.2:
 //   [Reserve 22][Size 2][Reserve 4][ CRLF command CRLF ][Reserve 24]
-// with Size = information length + 8.
-function frame(command, { bigEndian = true, size } = {}) {
-	const info = Buffer.concat([Buffer.from('\r\n'), Buffer.from(command, 'latin1'), Buffer.from('\r\n')])
+// with Size = information length + 8. The cameras zero-pad the information field to a multiple of four
+// and count the padding in Size, so that is what this helper builds unless a test says otherwise.
+function frame(command, { bigEndian = true, size, pad = true } = {}) {
+	const command_ = Buffer.concat([Buffer.from('\r\n'), Buffer.from(command, 'latin1'), Buffer.from('\r\n')])
+	const padding = pad ? (4 - (command_.length % 4)) % 4 : 0
+	const info = Buffer.concat([command_, Buffer.alloc(padding)])
 
 	const header = Buffer.alloc(28, 0x01)
 	const declared = size ?? info.length + 8
@@ -100,6 +103,65 @@ describe('extractUpdates', () => {
 				source: 'from 192.168.11.41:12478, camera time: 26-07-14 22:03:10, unknown 00 01 00 80 00 00 00 00 00 01',
 			},
 		])
+	})
+
+	// Real bytes off an AW-UE150. Here the whole information field is visible, padding included, and it
+	// settles that Size counts the padding: 'OAW:0' is 9 information bytes but Size declares 12.
+	it('reads a padded frame captured from a real camera', () => {
+		const captured = Buffer.from(
+			'c0a814a7040b1a080a0c2c1200010080000000000001' + // 192.168.20.167, port, 26-08-10 12:44:18
+				'0014' + // Size = 20 big-endian → information length 12, for a five-character command
+				'01000000' + // Reserve(4)
+				'0d0a' +
+				Buffer.from('OAW:0').toString('hex') +
+				'0d0a' + // the command, ending well before the declared 12 bytes
+				'000000' + // and zero-padded to the next multiple of four
+				'00'.repeat(24), // Reserve(24)
+			'hex',
+		)
+
+		expect(extractUpdates(captured).updates.map((u) => u.command)).toEqual(['OAW:0'])
+	})
+
+	// What the UE150 test tripped over: every command whose length is not a multiple of four gets padded,
+	// and reading the closing CRLF off Size instead of finding it dropped all of them. lPC1 and lPI…, being
+	// multiples of four, came through — which is why the stream looked half-working rather than broken.
+	it.each([
+		['OSI:20:007DF:0', 'colour temperature'],
+		['OAW:0', 'white balance mode'],
+		['OSG:39:800', 'R gain'],
+		['OSJ:4A:00C80:0', 'iris'],
+		['lPC1', 'a length that needs no padding'],
+		['lPI559A06FE5', 'another that needs none'],
+	])('reads %s (%s)', (command) => {
+		expect(feed([frame(command)]).seen).toEqual([command])
+	})
+
+	it('reads a padded frame the same way however the chunks fall', () => {
+		const stream = Buffer.concat([frame('OAW:0'), frame('OSI:20:007DF:0'), frame('OSG:39:800')])
+
+		for (const size of [1, 3, 13, 64, 4096]) {
+			expect(feed(slice(stream, size)).seen).toEqual(['OAW:0', 'OSI:20:007DF:0', 'OSG:39:800'])
+		}
+	})
+
+	it('still refuses a frame whose CRLF is further off than padding could explain', () => {
+		// Finding the CRLF must not turn into hunting for one: four bytes past the command is no longer
+		// padding, so this is not the frame we take it for and reading on would lose the stream.
+		// A second frame follows only so the first one's declared length is available to be checked.
+		const overstated = Buffer.concat([frame('TLR:1', { size: 24 }), frame('OAF:1')]) // 12 bytes declared as 16
+		const { seen, desynced } = feed([overstated])
+
+		expect(seen).toEqual([])
+		expect(desynced).toBe(true)
+	})
+
+	it('refuses an information field with no closing CRLF at all', () => {
+		const f = frame('TLR:1') // [Reserve 28] CRLF 'TLR:1' CRLF [pad 3] [Reserve 24]
+		f[35] = 0x00 // the CR of the closing CRLF, at 28 + 2 + 5
+		f[36] = 0x00
+
+		expect(feed([f]).desynced).toBe(true)
 	})
 
 	it('reads Size big-endian, as the camera writes it', () => {
