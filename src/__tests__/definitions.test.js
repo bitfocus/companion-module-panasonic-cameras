@@ -724,6 +724,21 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 		})
 	})
 
+	// A camera reports faults on rER, on QER/QSI:46, or on both, and the info button has to light up
+	// whichever it is. Gated on rER alone it left the box cameras out entirely: no button at all on the
+	// AK-UB50 and AK-UB300, and one on the AK-UBX100 that could never light.
+	describe('the camera info preset', () => {
+		const info = presets['system-cam-info']
+
+		it.runIf(caps.error || caps.errorCamera)('exists wherever a fault can be reported', () => {
+			expect(info).toBeDefined()
+		})
+
+		it.runIf(caps.error || caps.errorCamera)('carries the error feedback', () => {
+			expect(info.feedbacks.map((f) => f.feedbackId)).toContain('error')
+		})
+	})
+
 	describe('the iris preset readout', () => {
 		const iris = presets['exposure-iris']
 

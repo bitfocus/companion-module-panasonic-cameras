@@ -54,6 +54,7 @@ and the model specific "Supplement for Web Control" specifications.
 - Pan/Tilt - Move
 - Pan/Tilt - Home Position
 - Pan/Tilt - Speed
+- Pan/Tilt - Movement Range Limit
 
 **Lens**
 
@@ -145,6 +146,10 @@ and the model specific "Supplement for Web Control" specifications.
 - System - Red / Green / Yellow Tally State
 - System - Install Position
 - System - Live Image
+
+**Pan/Tilt**
+
+- Pan/Tilt - Movement Range Limit
 
 **Lens**
 

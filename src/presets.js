@@ -937,17 +937,21 @@ export function getPresetDefinitions(self) {
 	// #### System Presets ####
 	// ########################
 
-	if (SERIES.capabilities.error || SERIES.capabilities.version) {
+	const anyError = SERIES.capabilities.error || SERIES.capabilities.errorCamera
+
+	if (anyError || SERIES.capabilities.version) {
 		presets['system-cam-info'] = {
 			type: 'layered',
 			category: 'System',
 			name: 'Camera title, model, version and error indication',
 			elements: layers({
-				text: '$(generic-module:title)\\n$(generic-module:model)\\n$(generic-module:version)',
+				text:
+					'$(generic-module:title)\\n$(generic-module:model)' +
+					(SERIES.capabilities.version ? '\\n$(generic-module:version)' : ''),
 				size: 'auto',
 			}),
 			steps: [],
-			feedbacks: SERIES.capabilities.error
+			feedbacks: anyError
 				? [
 						{
 							feedbackId: 'error',

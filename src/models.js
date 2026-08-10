@@ -618,7 +618,8 @@ export const SERIES_SPECS = [
 			colorTemperature: false,
 			dnr: { dropdown: e.ENUM_OFF_ON },
 			drs: false,
-			error: false, // reports errors via QER/OER, which the parser has no branch for yet
+			error: false,
+			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			focus: false, // special implementation req. 'OSM:77', 'OZP'
 			focusAuto: false,
@@ -694,7 +695,7 @@ export const SERIES_SPECS = [
 			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F', maxStep: 1 } }, // one notch per command
 			dnr: { dropdown: e.ENUM_OFF_ON },
 			drs: false,
-			error: false, // reports errors on QER/OER, which the parser has no branch for
+			error: false,
 			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			focus: false,

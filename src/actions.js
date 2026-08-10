@@ -1031,7 +1031,14 @@ export function getActionDefinitions(self) {
 			const send = { 0: cam, 1: ptz, 2: web }[action.options.dest]
 			if (!send) return
 
-			self.data.customResponse = (await send(action.options.cmd)) ?? null
+			// The variable is the answer to the command sent last, so a slow earlier request must not
+			// land on top of a faster later one. Requests are not serialised - two buttons may well be
+			// meant to fire at once - only the writing of the answer is.
+			const sequence = (self.customCommandSequence = (self.customCommandSequence ?? 0) + 1)
+			const response = (await send(action.options.cmd)) ?? null
+			if (sequence !== self.customCommandSequence) return
+
+			self.data.customResponse = response
 			self.checkVariables()
 		},
 	}

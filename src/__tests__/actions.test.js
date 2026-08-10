@@ -162,3 +162,55 @@ describe('the shared stepped options', () => {
 		expect(byId.step.max).toBe(byId.set.max - byId.set.min)
 	})
 })
+
+// $(customResponse) is documented as the answer to the command sent last, and Companion runs action
+// callbacks concurrently. Without a guard the slower of two overlapping requests wins simply by
+// finishing later, so a query fired from a second button could leave the first one's answer behind.
+describe('Custom Command responses', () => {
+	function harness(model = 'AW-UE150A') {
+		const self = {
+			config: { model },
+			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+			getCam: (cmd) => self.answers[cmd],
+			checkVariables: () => {},
+			log: () => {},
+			answers: {},
+		}
+		return self
+	}
+
+	const send = (self, cmd) =>
+		getActionDefinitions(self).customCommand.callback({ actionId: 'customCommand', options: { dest: 0, cmd } })
+
+	it('keeps the answer to the command sent last, however the two resolve', async () => {
+		const self = harness()
+		let releaseSlow
+		self.answers.QID = new Promise((resolve) => (releaseSlow = resolve))
+		self.answers.QAW = Promise.resolve('OAW:9')
+
+		const slow = send(self, 'QID') // fired first, answers last
+		await send(self, 'QAW')
+		releaseSlow('OID:AW-UE150')
+		await slow
+
+		expect(self.data.customResponse).toBe('OAW:9')
+	})
+
+	it('still publishes an answer that arrives on its own', async () => {
+		const self = harness()
+		self.answers.QID = Promise.resolve('OID:AW-UE150')
+
+		await send(self, 'QID')
+
+		expect(self.data.customResponse).toBe('OID:AW-UE150')
+	})
+
+	it('clears the variable when a request comes back empty', async () => {
+		const self = harness()
+		self.answers.QID = Promise.resolve(undefined)
+
+		await send(self, 'QID')
+
+		expect(self.data.customResponse).toBeNull()
+	})
+})
