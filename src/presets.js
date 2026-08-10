@@ -26,23 +26,108 @@ const colorDarkGreen = combineRgb(0, 102, 0)
 const colorGrey = combineRgb(51, 51, 51)
 const colorBlack = combineRgb(0, 0, 0)
 
+// ##########################
+// #### Button graphics ####
+// ##########################
+
+// A layered preset hands Companion the drawing elements directly. The alternative, `simple`, still
+// takes the 1.x style object, but there `size` is a pixel height on a 72px button that the host
+// rescales on import (×2.1 with a topbar, ×1/0.6 without) — which is why a preset written as
+// `size: '14'` read as 29.4 in the button properties. Here fontsize is what the field says it is: a
+// percentage of the element's own drawing area.
+const SIZE = 24
+const SIZE_LARGE = 32 // the tally captions and the jog icons, a third larger than SIZE
+
+// The host's own ids for the stack it used to synthesise from a legacy style. Reusing them keeps a
+// button imported from an older version pointing its overrides at the same layers.
+const BG = 'box0'
+const IMAGE = 'image0'
+const TEXT = 'text0'
+
+// A layered element takes the image as a data URL; only the legacy path wrapped bare base64 for us.
+const dataUrl = (png64) => 'data:image/png;base64,' + png64
+
+const align = (alignment) => {
+	if (!alignment) return {}
+	const [halign, valign] = alignment.split(':')
+	return { halign, valign }
+}
+
+// Background, image, text, in the order the host itself stacked them; Companion prepends the canvas.
+// Every button carries all three even when it draws no image, exactly as the legacy conversion did —
+// a feedback can then fill one in without the preset having to anticipate it.
+const layers = ({
+	text = '',
+	size = SIZE,
+	color = colorWhite,
+	alignment,
+	bgcolor = colorBlack,
+	png64,
+	pngalignment,
+} = {}) => [
+	{ id: BG, name: 'Background', type: 'box', color: bgcolor },
+	{
+		id: IMAGE,
+		name: 'Image',
+		type: 'image',
+		base64Image: png64 ? dataUrl(png64) : null,
+		...align(pngalignment),
+	},
+	{
+		id: TEXT,
+		name: 'Text',
+		type: 'text',
+		text,
+		// 'auto' was "fill the button, shrink until it fits", which is fontsize 100 plus the shrink flag.
+		fontsize: size === 'auto' ? 100 : size,
+		fontsizeAllowShrink: size === 'auto',
+		color,
+		...align(alignment),
+	},
+]
+
+// A feedback no longer carries a style, it names the element properties it overrides. The value has
+// to be wrapped: Companion drops any override that is not an ExpressionOrValue, and a feedback left
+// with none of them is dropped along with it.
+const set = (elementId, elementProperty, value) => ({
+	elementId,
+	elementProperty,
+	override: { isExpression: false, value },
+})
+
+// An advanced feedback returns a legacy style object instead of fixed values, so its overrides name
+// which key of that result feeds each element property. Both of this module's advanced feedbacks
+// deliver a picture; the preset thumbnail sends no alignment with it, and an override whose key the
+// result omits simply contributes nothing — which is what the host's own conversion relied on too.
+const advancedImage = [
+	set(IMAGE, 'base64Image', 'png64'),
+	set(IMAGE, 'halign', 'pngalignment'),
+	set(IMAGE, 'valign', 'pngalignment'),
+]
+
+// Takes the same bag the 1.x feedback style did, so a preset still says what it wants lit rather
+// than which layer holds it. Nullish-guarded: some presets pass a null style beside a null feedback.
+const overrides = (style) => {
+	const { color, bgcolor, png64, pngalignment } = style ?? {}
+
+	return [
+		...(bgcolor !== undefined ? [set(BG, 'color', bgcolor)] : []),
+		...(color !== undefined ? [set(TEXT, 'color', color)] : []),
+		...(png64 !== undefined ? [set(IMAGE, 'base64Image', dataUrl(png64))] : []),
+		...Object.entries(align(pngalignment)).map(([property, value]) => set(IMAGE, property, value)),
+	]
+}
+
 // #########################
 // #### Preset builders ####
 // #########################
 
 // Held button: action on press, counterpart on release.
 const jogPreset = (category, name, icon, actionId, downOptions, upOptions) => ({
-	type: 'simple',
+	type: 'layered',
 	category,
 	name,
-	style: {
-		text: '',
-		png64: icon,
-		pngalignment: 'center:center',
-		size: '18',
-		color: colorWhite,
-		bgcolor: colorBlack,
-	},
+	elements: layers({ png64: icon, size: SIZE_LARGE }),
 	steps: [
 		{
 			down: [{ actionId, options: downOptions }],
@@ -53,14 +138,14 @@ const jogPreset = (category, name, icon, actionId, downOptions, upOptions) => ({
 })
 
 // Rotary knob: press sets value (`set`), turn steps it.
-const knobPreset = (category, name, text, actionId, set, { bgcolor = colorBlack, step = 1, extra = {} } = {}) => ({
-	type: 'simple',
+const knobPreset = (category, name, text, actionId, value, { bgcolor = colorBlack, step = 1, extra = {} } = {}) => ({
+	type: 'layered',
 	category,
 	name,
-	style: { text, size: '14', color: colorWhite, bgcolor },
+	elements: layers({ text, bgcolor }),
 	steps: [
 		{
-			down: [{ actionId, options: { ...extra, op: 's', set } }],
+			down: [{ actionId, options: { ...extra, op: 's', set: value } }],
 			up: [],
 			rotate_left: [{ actionId, options: { ...extra, op: -1, step } }],
 			rotate_right: [{ actionId, options: { ...extra, op: 1, step } }],
@@ -71,10 +156,10 @@ const knobPreset = (category, name, text, actionId, set, { bgcolor = colorBlack,
 
 // Speed knob: press centres the range, turn nudges it.
 const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
-	type: 'simple',
+	type: 'layered',
 	category,
 	name,
-	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	elements: layers({ text }),
 	steps: [
 		{
 			down: [{ actionId, options: { ...extra, op: 's', set: 25 } }],
@@ -88,10 +173,10 @@ const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
 
 // Mode knob: press toggles, turn steps through the list.
 const enumKnobPreset = (category, name, text, actionId) => ({
-	type: 'simple',
+	type: 'layered',
 	category,
 	name,
-	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	elements: layers({ text }),
 	steps: [
 		{
 			down: [{ actionId, options: { op: 't' } }],
@@ -110,13 +195,13 @@ const togglePreset = (
 	text,
 	actionId,
 	feedbackId,
-	style,
-	{ size = '14', color = colorWhite, bgcolor = colorBlack, feedbackOptions, isInverted, extra = {} } = {},
+	activeStyle,
+	{ size = SIZE, color = colorWhite, bgcolor = colorBlack, feedbackOptions, isInverted, extra = {} } = {},
 ) => ({
-	type: 'simple',
+	type: 'layered',
 	category,
 	name,
-	style: { text, size, color, bgcolor },
+	elements: layers({ text, size, color, bgcolor }),
 	steps: [{ down: [{ actionId, options: { ...extra, op: 't' } }], up: [] }],
 	feedbacks: feedbackId
 		? [
@@ -124,7 +209,7 @@ const togglePreset = (
 					feedbackId,
 					...(feedbackOptions ? { options: feedbackOptions } : {}),
 					...(isInverted ? { isInverted } : {}),
-					style,
+					styleOverrides: overrides(activeStyle),
 				},
 			]
 		: [],
@@ -139,20 +224,20 @@ const momentaryPreset = (
 	options,
 	{ color = colorWhite, bgcolor = colorBlack } = {},
 ) => ({
-	type: 'simple',
+	type: 'layered',
 	category,
 	name,
-	style: { text, size: '14', color, bgcolor },
+	elements: layers({ text, color, bgcolor }),
 	steps: [{ down: [{ actionId, ...(options ? { options } : {}) }], up: [] }],
 	feedbacks: [],
 })
 
 // Text-labelled jog: drive while held, stop on release.
 const textJogPreset = (category, name, text, actionId, dir) => ({
-	type: 'simple',
+	type: 'layered',
 	category,
 	name,
-	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	elements: layers({ text }),
 	steps: [
 		{
 			down: [{ actionId, options: { dir } }],
@@ -163,13 +248,13 @@ const textJogPreset = (category, name, text, actionId, dir) => ({
 })
 
 // Applies a fixed value; lights up while on that value.
-const valuePreset = (category, name, text, actionId, feedbackId, value, style) => ({
-	type: 'simple',
+const valuePreset = (category, name, text, actionId, feedbackId, value, activeStyle) => ({
+	type: 'layered',
 	category,
 	name,
-	style: { text, size: '14', color: colorWhite, bgcolor: colorBlack },
+	elements: layers({ text }),
 	steps: [{ down: [{ actionId, options: { op: 's', set: value } }], up: [] }],
-	feedbacks: [{ feedbackId, options: { option: value }, style }],
+	feedbacks: [{ feedbackId, options: { option: value }, styleOverrides: overrides(activeStyle) }],
 })
 
 export function getPresetDefinitions(self) {
@@ -242,15 +327,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.zoom) {
 		presets['lens-zoom'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Lens',
 			name: 'Zoom',
-			style: {
-				text: 'ZOOM\\n$(generic-module:zoomPosition)\\n$(generic-module:zoomPositionBar)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'ZOOM\\n$(generic-module:zoomPosition)\\n$(generic-module:zoomPositionBar)' }),
 			steps: [
 				{
 					down: [
@@ -277,10 +357,7 @@ export function getPresetDefinitions(self) {
 			feedbacks: [
 				{
 					feedbackId: 'zoomControl',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
 				},
 			],
 		}
@@ -299,15 +376,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.focus) {
 		presets['lens-focus'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Lens',
 			name: 'Focus',
-			style: {
-				text: 'FOCUS\\n$(generic-module:focusPosition)\\n$(generic-module:focusPositionBar)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'FOCUS\\n$(generic-module:focusPosition)\\n$(generic-module:focusPositionBar)' }),
 			steps: [
 				{
 					down: SERIES.capabilities.focusPushAuto ? [{ actionId: 'focusPushAuto' }] : [],
@@ -370,15 +442,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.ois) {
 		presets[`lens-ois-mode`] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Lens',
 			name: 'O.I.S. Mode',
-			style: {
-				text: 'O.I.S.\n$(generic-module:ois)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'O.I.S.\n$(generic-module:ois)' }),
 			steps: [
 				{
 					down: [
@@ -415,10 +482,7 @@ export function getPresetDefinitions(self) {
 						option: SERIES.capabilities.ois.dropdown[0].id,
 					},
 					isInverted: true,
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
 				},
 			],
 		}
@@ -432,20 +496,17 @@ export function getPresetDefinitions(self) {
 		const position = SERIES.capabilities.irisFollowPosition ? 'irisFollowPosition' : 'irisPosition'
 
 		presets['exposure-iris'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Exposure',
 			name: 'Iris',
-			style: {
+			elements: layers({
 				text:
 					'IRIS\\n$(generic-module:' +
 					(SERIES.capabilities.irisF ? 'irisF' : position) +
 					')\\n$(generic-module:' +
 					position +
 					'Bar)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			}),
 			steps: [
 				{
 					down: [
@@ -504,15 +565,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.shutter) {
 		presets[`exposure-shutter`] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Exposure',
 			name: 'Shutter',
-			style: {
-				text: 'Shutter\\n$(generic-module:shutter)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'Shutter\\n$(generic-module:shutter)' }),
 			steps: [
 				{
 					down: [
@@ -549,25 +605,17 @@ export function getPresetDefinitions(self) {
 						option: SERIES.capabilities.shutter.dropdown[0].id,
 					},
 					isInverted: true,
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
 				},
 			],
 		}
 
 		if (SERIES.capabilities.shutter.inc && SERIES.capabilities.shutter.dec) {
 			presets[`exposure-shutter-step`] = {
-				type: 'simple',
+				type: 'layered',
 				category: 'Exposure',
 				name: 'Shutter Step',
-				style: {
-					text: 'Shutter Step\\n$(generic-module:shutterStep)',
-					size: '14',
-					color: colorWhite,
-					bgcolor: colorBlack,
-				},
+				elements: layers({ text: 'Shutter Step\\n$(generic-module:shutterStep)' }),
 				steps: [
 					{
 						down: [],
@@ -591,15 +639,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.filter) {
 		presets['exposure-filter'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Exposure',
 			name: 'ND Filter',
-			style: {
-				text: 'ND Filter\\n$(generic-module:filter)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'ND Filter\\n$(generic-module:filter)' }),
 			steps: [
 				{
 					down: [
@@ -636,10 +679,7 @@ export function getPresetDefinitions(self) {
 						option: SERIES.capabilities.filter.dropdown[0].id,
 					},
 					isInverted: true,
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
 				},
 			],
 		}
@@ -662,15 +702,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.gain) {
 		presets[`image-gain`] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Image',
 			name: 'Gain',
-			style: {
-				text: 'GAIN\\n$(generic-module:gain)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'GAIN\\n$(generic-module:gain)' }),
 			steps: [
 				{
 					down: [
@@ -706,10 +741,7 @@ export function getPresetDefinitions(self) {
 					options: {
 						option: SERIES.capabilities.gain.dropdown[0].id,
 					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
 				},
 			],
 		}
@@ -793,15 +825,14 @@ export function getPresetDefinitions(self) {
 	if (SERIES.capabilities.whiteBalance) {
 		if (SERIES.capabilities.whiteBalance.dropdown) {
 			presets[`image-whitebalance`] = {
-				type: 'simple',
+				type: 'layered',
 				category: 'Image',
 				name: 'White Balance',
-				style: {
+				elements: layers({
 					text: 'WB Mode\\n$(generic-module:whiteBalance)',
-					size: '14',
 					color: colorBlack,
 					bgcolor: colorWhite,
-				},
+				}),
 				steps: [
 					{
 						down: [
@@ -837,10 +868,7 @@ export function getPresetDefinitions(self) {
 						options: {
 							option: SERIES.capabilities.whiteBalance.dropdown[0].id,
 						},
-						style: {
-							color: colorWhite,
-							bgcolor: colorRed,
-						},
+						styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
 					},
 				],
 			}
@@ -849,15 +877,14 @@ export function getPresetDefinitions(self) {
 		// Knob only turns; unsupported options (e.g. UB300 step size) dropped at build.
 		if (SERIES.capabilities.colorTemperature) {
 			presets['image-colortemp'] = {
-				type: 'simple',
+				type: 'layered',
 				category: 'Image',
 				name: 'Color Temperature',
-				style: {
+				elements: layers({
 					text: 'Temp.\\n$(generic-module:colorTemperature)',
-					size: '14',
 					color: colorBlack,
 					bgcolor: colorWhite,
-				},
+				}),
 				steps: [
 					{
 						down: [],
@@ -910,24 +937,19 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.error || SERIES.capabilities.version) {
 		presets['system-cam-info'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'System',
 			name: 'Camera title, model, version and error indication',
-			style: {
+			elements: layers({
 				text: '$(generic-module:title)\\n$(generic-module:model)\\n$(generic-module:version)',
 				size: 'auto',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			}),
 			steps: [],
 			feedbacks: SERIES.capabilities.error
 				? [
 						{
 							feedbackId: 'error',
-							style: {
-								color: colorRed,
-								bgcolor: colorBlack,
-							},
+							styleOverrides: overrides({ color: colorRed, bgcolor: colorBlack }),
 						},
 					]
 				: [],
@@ -937,23 +959,20 @@ export function getPresetDefinitions(self) {
 	if (SERIES.capabilities.imageTransmission) {
 		// Feedbacks apply in order, last wins; red listed last so on-air always shows.
 		const tally = (capability, feedbackId, bgcolor) =>
-			SERIES.capabilities[capability] ? [{ feedbackId, style: { color: colorWhite, bgcolor } }] : []
+			SERIES.capabilities[capability] ? [{ feedbackId, styleOverrides: overrides({ color: colorWhite, bgcolor }) }] : []
 
 		presets['system-image'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'System',
 			name: 'Live camera image',
-			style: {
+			elements: layers({
 				text: '$(generic-module:title)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
 				alignment: 'center:bottom', // keep title clear of picture
-				show_topbar: false,
-			},
+			}),
+			canvas: { decoration: 'none' }, // the old show_topbar: false
 			steps: [],
 			feedbacks: [
-				{ feedbackId: 'liveImage' },
+				{ feedbackId: 'liveImage', styleOverrides: advancedImage },
 				...tally('tally2', 'tally2State', colorGreen),
 				...tally('tally3', 'tally3State', colorYellow),
 				...tally('tally', 'tallyState', colorRed),
@@ -969,7 +988,7 @@ export function getPresetDefinitions(self) {
 			'tally',
 			'tallyState',
 			{ color: colorWhite, bgcolor: colorRed },
-			{ size: '18', color: colorDarkRed },
+			{ size: SIZE_LARGE, color: colorDarkRed },
 		)
 	}
 
@@ -981,7 +1000,7 @@ export function getPresetDefinitions(self) {
 			'tally2',
 			'tally2State',
 			{ color: colorWhite, bgcolor: colorGreen },
-			{ size: '18', color: colorDarkGreen },
+			{ size: SIZE_LARGE, color: colorDarkGreen },
 		)
 	}
 
@@ -993,7 +1012,7 @@ export function getPresetDefinitions(self) {
 			'tally3',
 			'tally3State',
 			{ color: colorWhite, bgcolor: colorYellow },
-			{ size: '18', color: colorDarkYellow },
+			{ size: SIZE_LARGE, color: colorDarkYellow },
 		)
 	}
 
@@ -1041,15 +1060,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.videoFormat) {
 		presets['system-video-format'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'System',
 			name: 'Video Format',
-			style: {
-				text: 'Format\\n$(generic-module:videoFormat)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'Format\\n$(generic-module:videoFormat)' }),
 			steps: [
 				{
 					down: [],
@@ -1062,15 +1076,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.recordSD) {
 		presets['system-sd-recording'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'System',
 			name: 'SD Card Recording',
-			style: {
-				text: 'SD Card Recording\\n$(generic-module:recording)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'SD Card Recording\\n$(generic-module:recording)' }),
 			steps: [
 				{
 					down: [
@@ -1087,17 +1096,11 @@ export function getPresetDefinitions(self) {
 			feedbacks: [
 				{
 					feedbackId: 'sdSlotState',
-					style: {
-						color: colorWhite,
-						bgcolor: colorDarkGreen,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorDarkGreen }),
 				},
 				{
 					feedbackId: 'sdRecState',
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
 				},
 			],
 		}
@@ -1162,15 +1165,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.presetSpeed) {
 		presets[`preset-velocity`] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Preset Memory',
 			name: 'Preset Recall Velocity',
-			style: {
-				text: 'RECALL SPD/TM\\n$(generic-module:presetSpeed)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'RECALL SPD/TM\\n$(generic-module:presetSpeed)' }),
 			steps: [
 				{
 					down: [
@@ -1269,15 +1267,10 @@ export function getPresetDefinitions(self) {
 
 	if (SERIES.capabilities.preset) {
 		presets['preset-clear-all'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Preset Memory',
 			name: 'Clear All Presets (hold 3s)',
-			style: {
-				text: 'CLEAR ALL\\nPRESETS',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'CLEAR ALL\\nPRESETS' }),
 			steps: [
 				{
 					down: [],
@@ -1300,7 +1293,7 @@ export function getPresetDefinitions(self) {
 
 		// Templated over the model's actual preset slots (not a hardcoded 100).
 		presets['preset-memory'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Preset Memory',
 			name: 'Recall, Store or Clear Preset',
 			template: {
@@ -1311,12 +1304,7 @@ export function getPresetDefinitions(self) {
 				})),
 			},
 			localVariables: [{ variableType: 'simple', variableName: 'preset', startupValue: 1 }],
-			style: {
-				text: 'PRESET\\n$(local:preset)',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'PRESET\\n$(local:preset)' }),
 			steps: [
 				{
 					down: [
@@ -1355,34 +1343,26 @@ export function getPresetDefinitions(self) {
 				{
 					feedbackId: 'presetMemory',
 					options: presetFeedbackOptions(),
-					style: {
-						color: colorWhite,
-						bgcolor: colorGrey,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorGrey }),
 				},
 				...(SERIES.capabilities.presetThumbnails
 					? [
 							{
 								feedbackId: 'presetThumbnail',
 								options: presetFeedbackOptions(),
+								styleOverrides: advancedImage,
 							},
 						]
 					: []),
 				{
 					feedbackId: 'presetSelected',
 					options: presetFeedbackOptions(),
-					style: {
-						color: colorWhite,
-						bgcolor: colorOrange,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorOrange }),
 				},
 				{
 					feedbackId: 'presetComplete',
 					options: presetFeedbackOptions(),
-					style: {
-						color: colorWhite,
-						bgcolor: colorBlue,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorBlue }),
 				},
 			],
 		}
@@ -1413,15 +1393,10 @@ export function getPresetDefinitions(self) {
 		)
 
 		presets['autotracking-status'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Auto Tracking',
 			name: 'Auto Tracking Status & Start/Stop',
-			style: {
-				text: 'TRACK.\\nStart/Stop',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'TRACK.\\nStart/Stop' }),
 			steps: [
 				{
 					down: [
@@ -1441,20 +1416,14 @@ export function getPresetDefinitions(self) {
 					options: {
 						option: e.ENUM_AUTOTRACKING_ANGLE[1].id,
 					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
 				},
 				{
 					feedbackId: 'autotrackingStatus',
 					options: {
 						option: e.ENUM_AUTOTRACKING_ANGLE[2].id,
 					},
-					style: {
-						color: colorWhite,
-						bgcolor: colorBlue,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorBlue }),
 				},
 			],
 		}
@@ -1467,7 +1436,7 @@ export function getPresetDefinitions(self) {
 	if (SERIES.capabilities.audioVolumeLevel) {
 		const audio = SERIES.capabilities.audioVolumeLevel
 		presets['audio-volume'] = {
-			type: 'simple',
+			type: 'layered',
 			category: 'Audio',
 			name: 'Audio Volume Level',
 			template: {
@@ -1478,12 +1447,7 @@ export function getPresetDefinitions(self) {
 				})),
 			},
 			localVariables: [{ variableType: 'simple', variableName: 'channel', startupValue: 1 }],
-			style: {
-				text: 'Audio CH$(local:channel)\\n$(generic-module:audioVolumeLevel$(local:channel))',
-				size: '14',
-				color: colorWhite,
-				bgcolor: colorBlack,
-			},
+			elements: layers({ text: 'Audio CH$(local:channel)\\n$(generic-module:audioVolumeLevel$(local:channel))' }),
 			steps: [
 				{
 					down: [
@@ -1527,10 +1491,7 @@ export function getPresetDefinitions(self) {
 						option: 0,
 					},
 					isInverted: true,
-					style: {
-						color: colorWhite,
-						bgcolor: colorRed,
-					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
 				},
 			],
 		}

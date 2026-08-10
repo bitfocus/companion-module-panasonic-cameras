@@ -367,14 +367,59 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 	)
 
 	describe('presets', () => {
-		it('only emits `simple` presets, with no leftover 1.x properties', () => {
+		it('only emits `layered` presets, with no leftover 1.x properties', () => {
 			for (const [presetId, preset] of Object.entries(presets)) {
-				expect(preset.type, presetId).toBe('simple')
+				expect(preset.type, presetId).toBe('layered')
+				// `style` is the legacy shape: Companion would rescale its `size` on import, which is what
+				// moving to elements got rid of. A preset carrying both would be half-converted.
+				expect(preset, presetId).not.toHaveProperty('style')
+				expect(preset, presetId).not.toHaveProperty('previewStyle')
 				expect(preset, presetId).not.toHaveProperty('category')
 				expect(preset, presetId).not.toHaveProperty('template')
 				for (const prop of REMOVED_PRESET_OPTIONS) {
 					expect(preset.options ?? {}, `${presetId}.options.${prop}`).not.toHaveProperty(prop)
 				}
+			}
+		})
+
+		it('draws every button from the same three elements', () => {
+			for (const [presetId, preset] of Object.entries(presets)) {
+				expect(
+					preset.elements?.map((el) => el.id),
+					presetId,
+				).toEqual(['box0', 'image0', 'text0'])
+			}
+		})
+
+		// The whole point of the move: fontsize is a percentage of the element, 3-200 per Companion's own
+		// field. A legacy pixel size (7/14/18/…) would land in range and read as a tiny font instead of
+		// being rejected, so the lower bound is the module's own smallest, not Companion's.
+		it('sizes text in percent, not in the pixel heights the host used to rescale', () => {
+			for (const [presetId, preset] of Object.entries(presets)) {
+				const text = preset.elements.find((el) => el.type === 'text')
+
+				expect(typeof text.fontsize, `${presetId}.fontsize`).toBe('number')
+				expect(text.fontsize, `${presetId}.fontsize`).toBeGreaterThanOrEqual(20)
+				expect(text.fontsize, `${presetId}.fontsize`).toBeLessThanOrEqual(200)
+			}
+		})
+
+		// A picture reaches a layered element as a data URL. Only the legacy path wrapped bare base64 for
+		// us, so an icon handed over raw would silently draw nothing.
+		it('hands every picture over as a data URL', () => {
+			const images = Object.entries(presets).flatMap(([presetId, preset]) => [
+				...preset.elements
+					.filter((el) => el.type === 'image' && el.base64Image)
+					.map((el) => [presetId, el.base64Image]),
+				...(preset.feedbacks ?? []).flatMap((fb) =>
+					(fb.styleOverrides ?? [])
+						.filter((o) => o.elementProperty === 'base64Image' && o.override.value !== 'png64')
+						.map((o) => [presetId, o.override.value]),
+				),
+			])
+
+			for (const [presetId, image] of images) {
+				expect(image, `${presetId} image`).toMatch(/^data:image\/\w+;base64,/)
 			}
 		})
 
@@ -394,6 +439,41 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 			for (const section of structure) {
 				const kinds = new Set(section.definitions.map((d) => typeof d === 'string'))
 				expect(kinds.size, `section ${section.id}`).toBeLessThanOrEqual(1)
+			}
+		})
+	})
+
+	// A layered feedback carries no style, it names the element properties it overrides. Companion is
+	// unforgiving about the shape and silent about rejecting it: an override that is not an
+	// ExpressionOrValue is dropped, and a feedback left with none of them is dropped along with it. A
+	// feedback that quietly stops lighting the button is exactly the kind of thing that only shows up on
+	// hardware, so it is checked here.
+	describe('preset feedback style overrides', () => {
+		const feedbackOverrides = Object.entries(presets).flatMap(([presetId, preset]) =>
+			(preset.feedbacks ?? []).map((fb) => ({ presetId, feedbackId: fb.feedbackId, preset, fb })),
+		)
+
+		it('is a set worth checking', () => {
+			expect(feedbackOverrides.length).toBeGreaterThan(3)
+		})
+
+		it.each(feedbackOverrides)('$presetId: $feedbackId overrides something', ({ fb }) => {
+			expect(fb).not.toHaveProperty('style')
+			expect(fb.styleOverrides?.length ?? 0).toBeGreaterThan(0)
+		})
+
+		it.each(feedbackOverrides)('$presetId: $feedbackId wraps every override value', ({ fb }) => {
+			for (const override of fb.styleOverrides) {
+				expect(override.override, override.elementProperty).toHaveProperty('isExpression')
+				expect(typeof override.override.isExpression, override.elementProperty).toBe('boolean')
+			}
+		})
+
+		it.each(feedbackOverrides)('$presetId: $feedbackId points at elements that exist', ({ preset, fb }) => {
+			const ids = preset.elements.map((el) => el.id)
+
+			for (const override of fb.styleOverrides) {
+				expect(ids, `${fb.feedbackId}.${override.elementProperty}`).toContain(override.elementId)
 			}
 		})
 	})
@@ -567,12 +647,14 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 	// text - a model that does not publish it just renders an empty line. So the name it picks has to
 	// follow the capability: Iris Follow where the camera reports the lens's own position, the
 	// commanded one everywhere else.
-	// A variable name in a button's style text is free text — Companion validates nothing and a name
+	// A variable name in a button's text element is free text — Companion validates nothing and a name
 	// this model does not publish simply renders as an empty line. That is how the Iris preset's bar
 	// sat blank on every box camera for years: those fill a field the preset did not name.
+	const buttonText = (preset) => preset.elements.find((el) => el.type === 'text').text
+
 	describe('preset button text', () => {
 		const named = Object.entries(presets).flatMap(([presetId, preset]) =>
-			[...(preset.style?.text ?? '').matchAll(/\$\(generic-module:(\w+)\)/g)].map((m) => ({
+			[...buttonText(preset).matchAll(/\$\(generic-module:(\w+)\)/g)].map((m) => ({
 				presetId,
 				variable: m[1],
 			})),
@@ -593,7 +675,7 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 		it.runIf(iris)('shows the lens position itself wherever the camera reports it', () => {
 			const wanted = caps.irisFollowPosition ? 'irisFollowPosition' : 'irisPosition'
 
-			expect(iris.style.text).toContain(`$(generic-module:${wanted}Bar)`)
+			expect(buttonText(iris)).toContain(`$(generic-module:${wanted}Bar)`)
 		})
 	})
 })
