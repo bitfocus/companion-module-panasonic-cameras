@@ -59,11 +59,15 @@ describe('rescaleColorTemperatureStep', () => {
 		expect(result.updatedActions).toEqual([])
 	})
 
-	it('leaves an expression alone, in whichever unit the operator meant it', () => {
+	// An expression is not the exception it looks like: the old callback threw the step away whatever
+	// produced it, so an expression never moved more than the one notch a literal did. Left in place,
+	// one returning 500 would clamp to ten notches - the leap this migration exists to prevent.
+	it('resets an expression too, to the one notch it always sent', () => {
 		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: expr('$(x)') } }]
-		rescale({ actions })
+		const result = rescale({ actions })
 
-		expect(actions[0].options.step).toEqual(expr('$(x)'))
+		expect(actions[0].options.step).toEqual(val(1))
+		expect(result.updatedActions).toEqual(actions)
 	})
 
 	it('leaves the step of every other action alone', () => {

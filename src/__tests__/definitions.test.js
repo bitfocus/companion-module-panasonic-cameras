@@ -155,11 +155,6 @@ describe('pull coverage', () => {
 		// full would mean ~40 queries per cycle against a camera that may support none of them. It gets
 		// the small set almost any Panasonic PTZ answers; anyone needing more picks their actual model.
 		Other: '*',
-		// Box camera, no PT head: #O and #RER do not exist for it, and the compatible model table has no
-		// power command for the UB300 at all. `power: true` and `error: true` are inherited from
-		// BASE_CAPABILITIES and are wrong here — the Power action sends #O to a camera that cannot
-		// answer it. Its error info is QER/OER:[Data], which the parser has no branch for.
-		UB300: ['power', 'error'],
 	}
 	const exempt = (series, name) => EXEMPT[series] === '*' || EXEMPT[series]?.includes(name)
 
@@ -183,7 +178,7 @@ describe('pull coverage', () => {
 	// The PT command table lists no box camera: without a pan/tilt head they answer nothing on aw_ptz,
 	// so a `#` command in their list is a request that can only ever fail. This does not extend to the
 	// CX350 camcorders — their own spec documents #GZ/#GF/#GI for the lens positions.
-	it.each(['UB300', 'UB50'])('%s sends no PT command, having no PT head', (id) => {
+	it.each(['UB300', 'UB50', 'UBX100'])('%s sends no PT command, having no PT head', (id) => {
 		const caps = SERIES_SPECS.find((s) => s.id === id).capabilities
 
 		expect(caps.pull && caps.pull.ptz).toBeFalsy()

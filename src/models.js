@@ -409,7 +409,6 @@ export const SERIES_SPECS = [
 					'QSD:3A',
 					'QSD:4F',
 					'QSD:B0',
-					'QSD:4F',
 					'QSD:B1',
 					'QSE:33',
 					'QSE:71',
@@ -467,7 +466,6 @@ export const SERIES_SPECS = [
 					'QSD:3A',
 					'QSD:4F',
 					'QSD:B0',
-					'QSD:4F',
 					'QSD:B1',
 					'QSE:33',
 					'QSE:71',
@@ -585,6 +583,7 @@ export const SERIES_SPECS = [
 			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F', maxStep: 1 } }, // one notch per command
 			dnr: { dropdown: e.ENUM_OFF_ON },
 			drs: false,
+			error: false, // reports errors on QER/OER, which the parser has no branch for
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			focus: false,
 			focusAuto: false,
@@ -598,6 +597,7 @@ export const SERIES_SPECS = [
 			ois: false,
 			panTilt: false,
 			pedestal: { cmd: 'OSG:4A', offset: 0x80, limit: 99, step: 1, hexlen: 2 },
+			power: false,
 			preset: false,
 			presetSpeed: false,
 			presetTime: false,
