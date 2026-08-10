@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'fs'
 import { MODELS, SERIES_SPECS } from '../models.js'
 import { getPresetDefinitions } from '../presets.js'
 import { getActionDefinitions } from '../actions.js'
@@ -43,6 +44,24 @@ function mockInstance(model) {
 function seriesSpec(series) {
 	return SERIES_SPECS.find((s) => s.id === series)
 }
+
+// The manifest's product list is what Companion searches when someone adds a connection, so a camera
+// missing from it is a camera nobody finds by name — which is how the AW-UE5 and AK-UBX100 sat in the
+// model table for a while without being listed.
+describe('manifest products', () => {
+	const products = JSON.parse(readFileSync(new URL('../../companion/manifest.json', import.meta.url)))?.products
+
+	// 'Other' is the unknown-camera fallback, not a product; 'Cameras' is the catch-all heading.
+	const named = MODELS.map((m) => m.id).filter((id) => id !== 'Auto' && id !== 'Other')
+
+	it('lists every model the module knows', () => {
+		expect(products).toEqual(expect.arrayContaining(named))
+	})
+
+	it('names no camera the model table does not know', () => {
+		expect(products.filter((p) => p !== 'Cameras' && !named.includes(p))).toEqual([])
+	})
+})
 
 // A level capability drives optSetIncDecStep() and cmdValue(): `step` becomes the Step size field's
 // default *and* its min, `hexlen` the width of the value on the wire. Miss either and the field ships
