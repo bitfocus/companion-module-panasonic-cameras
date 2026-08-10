@@ -7,7 +7,7 @@ export function setVariables(self) {
 
 	// [capability guard, variables it unlocks]. Guard is a capability key or a predicate.
 	const VARIABLES = [
-		[null, { model: 'Model of camera', title: 'Title of camera' }],
+		[null, { model: 'Model of camera', title: 'Title of camera', ip: 'IP Address' }],
 		['version', { version: 'Firmware Version' }],
 		['error', { error: 'Error Code' }],
 		['install', { installMode: 'Install Position' }],
@@ -192,6 +192,7 @@ export function checkVariables(self) {
 		model: self.data.model,
 		title: self.data.title,
 		version: self.data.version,
+		ip: self.config.host,
 
 		presetSelected: self.data.presetSelectedIdx !== null ? (self.data.presetSelectedIdx + 1).toString() : null,
 		presetCompleted: self.data.presetCompletedIdx !== null ? (self.data.presetCompletedIdx + 1).toString() : null,
