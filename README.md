@@ -203,7 +203,9 @@ and the model specific "Supplement for Web Control" specifications.
 | `$(model)` | Model of camera |
 | `$(title)` | Title of camera |
 | `$(version)` | Firmware Version |
+| `$(customResponse)` | Last Custom Command Response |
 | `$(error)` | Error Code |
+| `$(errorCamera)` | Camera Error |
 | `$(installMode)` | Install Position |
 | `$(power)` | Power Status |
 | `$(colorbar)` | Color Bar Status |
@@ -227,6 +229,10 @@ and the model specific "Supplement for Web Control" specifications.
 | `$(tiltPosition)` | Tilt Position |
 | `$(panPositionDeg)` | Pan Position ° |
 | `$(tiltPositionDeg)` | Tilt Position ° |
+| `$(limitUp)` | Movement Range Limit Tilt Up |
+| `$(limitDown)` | Movement Range Limit Tilt Down |
+| `$(limitLeft)` | Movement Range Limit Pan Left |
+| `$(limitRight)` | Movement Range Limit Pan Right |
 | `$(zoomPosition)` | Zoom Position |
 | `$(zoomPositionPct)` | Zoom Position % |
 | `$(zoomPositionBar)` | Zoom Position (bar graph) |
