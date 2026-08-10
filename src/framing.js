@@ -1,6 +1,8 @@
 // Update notifications arrive over TCP (a byte stream), so frames are cut from accumulated bytes, not per-chunk.
 // Frame per Interface Spec §4.2: [Reserve 22][Size 2][Reserve 4][info][Reserve 24]; info = [CR][LF]<command>[CR][LF], <=504 bytes.
 // Length-prefixed: info length = Size - 8. Size is big-endian. Do not CRLF-hunt: the "reserved" header bytes (IP, timestamp) can contain CR/LF.
+// The spec does not mention it, but the information field is zero-padded to a multiple of four, so Size gives its
+// padded length — see readFrame.
 
 const HEADER = 28 // Reserve(22) + Size(2) + Reserve(4)
 const SIZE_AT = 22
@@ -15,6 +17,7 @@ export const MAX_BUFFER = 64 * 1024
 
 const CR = 0x0d
 const LF = 0x0a
+const CRLF = Buffer.from([CR, LF])
 
 // The 22 "Reserve" bytes, read off captured frames (debug only, no decision made on them):
 // IP(4) port(2) timestamp(6) + 10 unaccounted bytes. Timestamp is the camera's own clock, not Companion's.
@@ -49,13 +52,17 @@ function readFrame(buffer, pos) {
 	if (available < length) return { incomplete: true }
 
 	const info = pos + HEADER
-	const endOfCommand = info + infoLen - 2
+	if (buffer[info] !== CR || buffer[info + 1] !== LF) return { desync: true }
 
-	// CRLF at both ends confirms the read, turning a misread into an honest desync rather than command from noise.
-	const framed =
-		buffer[info] === CR && buffer[info + 1] === LF && buffer[endOfCommand] === CR && buffer[endOfCommand + 1] === LF
+	// Size counts the padding, so the closing CRLF is not at the end of the information field: a camera
+	// sends 'OAW:0' as [CR][LF]OAW:0[CR][LF] 00 00 00 with Size = 20, i.e. 12 information bytes for 9 real
+	// ones.
+	const endOfCommand = buffer.indexOf(CRLF, info + 2)
+	const padding = endOfCommand === -1 ? -1 : info + infoLen - (endOfCommand + 2)
 
-	if (!framed) return { desync: true }
+	// Padding to the next multiple of four is 0..3 bytes; a CRLF anywhere else means this is not the frame we
+	// take it for. Confirming both ends turns a misread into an honest desync.
+	if (padding < 0 || padding > 3) return { desync: true }
 
 	return {
 		command: buffer.toString('latin1', info + 2, endOfCommand),

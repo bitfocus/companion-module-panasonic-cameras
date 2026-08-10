@@ -549,6 +549,133 @@ describe('the status poll loop', () => {
 	})
 })
 
+// `poll` is state the camera never reports on its own; `pull` stands in for a disabled subscription.
+// The loop used to start on `poll` alone, so a camera that has only a pull list (AK-UB300, AK-UB50,
+// AW-HR140) read its state once at connect and then went stale for the rest of the session.
+describe('starting the status poll loop', () => {
+	beforeEach(() => vi.useFakeTimers())
+	afterEach(() => vi.useRealTimers())
+
+	// The real model tables, so the test breaks if a series' poll/pull shape changes underneath it.
+	async function connect(model, subscriptionEnable) {
+		const self = makeInstance({ model, subscriptionEnable })
+		await self.reInitAll()
+		const started = self.poll
+		self.poll = false // park the loop before the timers go away
+		return { self, started }
+	}
+
+	it('runs for a pull-only camera once the subscription is off', async () => {
+		const { self, started } = await connect('AK-UB300', false)
+
+		expect(self.SERIES.capabilities.poll).toBe(false)
+		expect(self.SERIES.capabilities.pull).toBeTruthy()
+		expect(started).toBe(true)
+	})
+
+	it('stays off for that same camera while the subscription is on', async () => {
+		// Not just wasteful: with poll false the loop has nothing to await and would spin the event loop.
+		const { started } = await connect('AK-UB300', true)
+
+		expect(started).toBe(false)
+	})
+
+	it('still runs for a camera with a poll list, subscription or not', async () => {
+		expect((await connect('AW-UE80', true)).started).toBe(true)
+		expect((await connect('AW-UE80', false)).started).toBe(true)
+	})
+
+	it('respects the pollAllow switch either way', async () => {
+		const self = makeInstance({ model: 'AK-UB300', subscriptionEnable: false, pollAllow: false })
+		await self.reInitAll()
+
+		expect(self.poll).toBe(false)
+	})
+})
+
+// Not every camera serves its still image from view.cgi: the AW-HE130 and AW-HR140 have no view.cgi
+// at all and put their one-shot on /cgi-bin/camera. getImage() therefore builds the URL from the
+// capability rather than from a constant. The stubbed httpGet answers with an empty body, so the Jimp
+// decode fails and the error path runs - by then the URL is already recorded.
+describe('the live image URL', () => {
+	const imaging = (capabilities) => {
+		const self = makeInstance({ imageEnable: true }, { capabilities })
+		self.checkFeedbacks = vi.fn()
+		return self
+	}
+
+	const images = (self) => self.requests.filter((u) => u.includes('/cgi-bin/'))
+
+	it('leaves the endpoint that has always worked exactly as it was', async () => {
+		const self = imaging({ imageTransmission: { cmd: 'view.cgi?action=snapshot' } })
+		await self.getImage()
+
+		expect(images(self)).toEqual(['http://10.0.0.1:80/cgi-bin/view.cgi?action=snapshot'])
+	})
+
+	it('asks the models without view.cgi for their one-shot instead', async () => {
+		const self = imaging({ imageTransmission: { cmd: 'camera?resolution=320' } })
+		await self.getImage()
+
+		expect(images(self)).toEqual(['http://10.0.0.1:80/cgi-bin/camera?resolution=320'])
+	})
+
+	// The specs offer a "Dummy for disabling cache" parameter on both endpoints, but that is a browser
+	// concern: got is given no cache store, so nothing between here and the camera holds a response.
+	it('sends the same URL every time, carrying no cache-buster', async () => {
+		const self = imaging({ imageTransmission: { cmd: 'camera?resolution=320' } })
+
+		await self.getImage()
+		await self.getImage()
+
+		const [first, second] = images(self)
+		expect(first).toBe(second)
+		expect(first).not.toContain('page=')
+	})
+
+	it('asks for nothing at all where the camera has no still image', async () => {
+		const self = imaging({ imageTransmission: false })
+		await self.getImage()
+
+		expect(images(self)).toEqual([])
+	})
+})
+
+// The Custom Command action is the only caller that cares what came back: a query the module does not
+// model parses to nothing, so the raw reply is all an operator has. The transports used to return
+// undefined to everyone.
+describe('the reply a transport hands back', () => {
+	const answering = (body) => {
+		const self = makeInstance()
+		self.httpGet = vi.fn(async (url) => {
+			self.requests.push(url)
+			return { body, statusCode: 200 }
+		})
+		return self
+	}
+
+	it('gives the camera command reply to its caller', async () => {
+		expect(await answering('OID:AW-UE150\r\n').getCam('QID')).toBe('OID:AW-UE150')
+	})
+
+	it('gives the pan/tilt reply to its caller', async () => {
+		expect(await answering('lC11').getPTZ('LC1')).toBe('lC11')
+	})
+
+	it('reports the status code where the web reply carries no body', async () => {
+		expect(await answering('').getWeb('initial?cmd=reset')).toBe('Response code 200')
+	})
+
+	it('hands back nothing when the request fails, so the variable clears', async () => {
+		const self = makeInstance()
+		self.httpGet = vi.fn(async () => {
+			throw Object.assign(new Error('gone'), { code: 'ECONNREFUSED' })
+		})
+
+		expect(await self.getCam('QID')).toBeUndefined()
+	})
+})
+
 describe('configUpdated', () => {
 	it('wipes the old camera state before the new camera speaks', async () => {
 		const self = makeInstance({ host: '10.0.0.1' })

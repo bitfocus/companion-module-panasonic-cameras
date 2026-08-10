@@ -19,6 +19,7 @@ and the model specific "Supplement for Web Control" specifications.
 - **HE40 series:** AW-HE35, AW-HE38, AW-HE40, AW-HE48, AW-HE58, AW-HE65, AW-HE70, AW-HN38, AW-HN40, AW-HN65
 - **UE70 series:** AW-HE42, AW-HE68, AW-HE75, AW-UE63, AW-UE65, AW-UE70, AW-UN70
 - **UE4:** AW-UE4
+- **UE5:** AW-UE5
 - **UE20 series:** AW-HE20, AW-UE20
 - **UE50 series:** AW-UE30, AW-UE40, AW-UE50
 - **UE80:** AW-UE80
@@ -36,6 +37,7 @@ and the model specific "Supplement for Web Control" specifications.
 
 - **UB50:** AK-UB10, AK-UB50
 - **UB300:** AK-UB300
+- **UBX100:** AK-UBX100
 
 **Camcorders**
 
@@ -52,6 +54,7 @@ and the model specific "Supplement for Web Control" specifications.
 - Pan/Tilt - Move
 - Pan/Tilt - Home Position
 - Pan/Tilt - Speed
+- Pan/Tilt - Movement Range Limit
 
 **Lens**
 
@@ -144,6 +147,10 @@ and the model specific "Supplement for Web Control" specifications.
 - System - Install Position
 - System - Live Image
 
+**Pan/Tilt**
+
+- Pan/Tilt - Movement Range Limit
+
 **Lens**
 
 - Lens - Focus Mode Auto
@@ -201,7 +208,9 @@ and the model specific "Supplement for Web Control" specifications.
 | `$(model)` | Model of camera |
 | `$(title)` | Title of camera |
 | `$(version)` | Firmware Version |
+| `$(customResponse)` | Last Custom Command Response |
 | `$(error)` | Error Code |
+| `$(errorCamera)` | Camera Error |
 | `$(installMode)` | Install Position |
 | `$(power)` | Power Status |
 | `$(colorbar)` | Color Bar Status |
@@ -225,6 +234,10 @@ and the model specific "Supplement for Web Control" specifications.
 | `$(tiltPosition)` | Tilt Position |
 | `$(panPositionDeg)` | Pan Position ° |
 | `$(tiltPositionDeg)` | Tilt Position ° |
+| `$(limitUp)` | Movement Range Limit Tilt Up |
+| `$(limitDown)` | Movement Range Limit Tilt Down |
+| `$(limitLeft)` | Movement Range Limit Pan Left |
+| `$(limitRight)` | Movement Range Limit Pan Right |
 | `$(zoomPosition)` | Zoom Position |
 | `$(zoomPositionPct)` | Zoom Position % |
 | `$(zoomPositionBar)` | Zoom Position (bar graph) |
@@ -238,9 +251,11 @@ and the model specific "Supplement for Web Control" specifications.
 | `$(irisPosition)` | Iris Position |
 | `$(irisPositionPct)` | Iris Position % |
 | `$(irisPositionBar)` | Iris Position (bar graph) |
-| `$(irisVolume)` | Iris Volume |
 | `$(irisMode)` | Iris Mode |
 | `$(irisF)` | Iris F No. |
+| `$(irisFollowPosition)` | Iris Follow Position |
+| `$(irisFollowPositionPct)` | Iris Follow Position % |
+| `$(irisFollowPositionBar)` | Iris Follow Position (bar graph) |
 | `$(masterPed)` | Master Pedestal |
 | `$(chromaLevel)` | Chroma Level |
 | `$(chromaPhase)` | Chroma Phase |

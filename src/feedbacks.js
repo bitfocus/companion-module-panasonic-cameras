@@ -74,11 +74,14 @@ export function getFeedbackDefinitions(self) {
 
 	// ---- System ----
 
-	if (caps.error) {
+	if (caps.error || caps.errorCamera) {
 		feedbacks.error = stateFeedback(
 			'System - Error Condition',
 			'Indicates if an error condition currently exists',
-			() => self.data.error !== '00',
+			() =>
+				(self.data.error !== null && self.data.error !== '00') ||
+				self.data.errorCamera > 0 ||
+				self.data.errorCameraDetail > 0,
 		)
 	}
 
@@ -151,6 +154,17 @@ export function getFeedbackDefinitions(self) {
 				self.imageSubscribers.delete(feedback.id)
 			},
 		}
+	}
+
+	if (caps.panTiltLimit) {
+		feedbacks.ptLimit = selectionFeedback(
+			'Pan/Tilt - Movement Range Limit',
+			'Indicates if the movement range is currently limited in the selected direction',
+			'Direction',
+			e.ENUM_PT_LIMIT,
+			(feedback) =>
+				self.data.panTiltLimits[parseInt(feedback.options.option, 10) - 1] === '1' ? feedback.options.option : null,
+		)
 	}
 
 	// ---- Lens ----
@@ -228,13 +242,15 @@ export function getFeedbackDefinitions(self) {
 			() => self.data.presetSpeed,
 		)
 
-		feedbacks.presetRecallScope = selectionFeedback(
-			'Preset - Recall Scope',
-			'Indicates if the selected preset recall scope is currently active',
-			'Scope',
-			e.ENUM_PRESET_SCOPE,
-			() => self.data.presetScope,
-		)
+		if (caps.presetScope) {
+			feedbacks.presetRecallScope = selectionFeedback(
+				'Preset - Recall Scope',
+				'Indicates if the selected preset recall scope is currently active',
+				'Scope',
+				e.ENUM_PRESET_SCOPE,
+				() => self.data.presetScope,
+			)
+		}
 
 		feedbacks.presetSelected = {
 			type: 'boolean',

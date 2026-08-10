@@ -12,6 +12,7 @@ const addSetStepSize = upgradeScripts[1]
 const fillOmittedOptions = upgradeScripts[2]
 const dropUseVarToggles = upgradeScripts[3]
 const repairPre201Writes = upgradeScripts[4]
+const rescaleColorTemperatureStep = upgradeScripts[5]
 
 // An upgrade script both reads and writes CompanionMigrationOptionValues, so every option in these
 // fixtures — and every option a script writes — is an ExpressionOrValue wrapper, never a bare value.
@@ -30,8 +31,69 @@ const migrate = (props, context = {}) =>
 // re-runs the wrong migration on every existing connection.
 describe('upgradeScripts', () => {
 	it('only ever grows, and blanks a retired script in place', () => {
-		expect(upgradeScripts).toHaveLength(5)
+		expect(upgradeScripts).toHaveLength(6)
 		expect(upgradeScripts[0]).toBe(EmptyUpgradeScript)
+	})
+})
+
+// The Steps field changed unit: it was offered as a Kelvin delta (min 20) and thrown away, and now
+// carries the notch count OSI:1E/OSI:1F actually take (1-10). A stored Kelvin value left alone would
+// be clamped to 10 notches and turn a rotary nudge into a leap.
+describe('rescaleColorTemperatureStep', () => {
+	const rescale = (props, context = {}) =>
+		rescaleColorTemperatureStep(context, { config: { model: 'AW-UE150A' }, actions: [], feedbacks: [], ...props })
+
+	it('replaces a stored Kelvin step with a single notch', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: val(20) } }]
+		const result = rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	// A small stored number is not a notch count that survived from somewhere: the old field's minimum
+	// was 20, so anything below it got in through allowInvalidValues, and it still moved the single
+	// notch every other value moved. Left alone, a stored 5 would suddenly step five.
+	it('replaces a stored value below the old minimum too', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: val(5) } }]
+		const result = rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	// Idempotent, so a button that already carries the one notch is not reported as changed.
+	it('leaves a step of one alone', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: val(1) } }]
+		const result = rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
+		expect(result.updatedActions).toEqual([])
+	})
+
+	// An expression is not the exception it looks like: the old callback threw the step away whatever
+	// produced it, so an expression never moved more than the one notch a literal did. Left in place,
+	// one returning 500 would clamp to ten notches - the leap this migration exists to prevent.
+	it('resets an expression too, to the one notch it always sent', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val(1), step: expr('$(x)') } }]
+		const result = rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(val(1))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	it('leaves the step of every other action alone', () => {
+		const actions = [{ actionId: 'ped', options: { op: val(1), step: val(20) } }]
+		const result = rescale({ actions })
+
+		expect(actions[0].options.step).toEqual(val(20))
+		expect(result.updatedActions).toEqual([])
+	})
+
+	it('skips a button that has no step at all', () => {
+		const actions = [{ actionId: 'colorTemperature', options: { op: val('s'), set: val(3200) } }]
+
+		expect(rescale({ actions }).updatedActions).toEqual([])
 	})
 })
 

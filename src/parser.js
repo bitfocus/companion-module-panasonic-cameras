@@ -41,6 +41,11 @@ export function parseUpdate(self, str) {
 		}
 	}
 
+	if (str[0].substring(0, 2) === 'lC') {
+		const direction = parseInt(str[0].substring(2, 3), 10)
+		if (direction >= 1 && direction <= 4) self.data.panTiltLimits[direction - 1] = str[0].substring(3, 4)
+	}
+
 	if (str[0].substring(0, 3) === 'lPI') {
 		self.data.zoomPosition = parseInt(str[0].substring(3, 6), 16) - 0x555
 		self.data.focusPosition = parseInt(str[0].substring(6, 9), 16) - 0x555
@@ -228,6 +233,9 @@ export function parseUpdate(self, str) {
 		case 'OAF':
 			self.data.focusMode = str[1]
 			break
+		case 'OER':
+			self.data.errorCamera = parseInt(str[1], 16)
+			break
 		case 'OAW':
 			self.data.whiteBalance = str[1]
 			break
@@ -252,6 +260,9 @@ export function parseUpdate(self, str) {
 				case '3A':
 					self.data.dnr = str[2].replace('0x', '')
 					break
+				case '4F':
+					self.data.irisFollowPosition = parseInt(str[2], 16)
+					break
 				case 'B0':
 					self.data.chromaLevel = str[2].replace('0x', '')
 					break
@@ -268,10 +279,13 @@ export function parseUpdate(self, str) {
 					self.data.irisPosition = parseInt(str[4], 16) - 0x555
 					break
 				case '20':
-					self.data.colorTempLabel = parseInt(str[2].substring(0, 5), 16).toString() + 'K'
+					self.data.colorTempLabel = parseInt(str[2], 16).toString() + 'K'
 					break // VAR
 				case '30':
 					self.data.shootingMode = str[2]
+					break
+				case '46':
+					self.data.errorCameraDetail = parseInt(str[2], 16)
 					break
 				// case 'D2': self.data.filter = str[2]; break // UB300's additional "Intelligent ND Filter"
 			}
@@ -340,9 +354,7 @@ export function parseUpdate(self, str) {
 					self.data.presetSpeedUnit = str[2]
 					break
 				//case '3C': break; // Preset Name / Preset Thumbnail Counter
-				case '4A':
-					self.data.colorTempLabel = parseInt(str[2], 16).toString() + 'K'
-					break
+				//case '4A': break // AWB Color Temperature
 				case 'D2':
 					self.data.filter = str[2]
 					break
@@ -382,7 +394,7 @@ export function parseUpdate(self, str) {
 			self.data.irisMode = str[1]
 			break
 		case 'ORV':
-			self.data.irisVolume = parseInt(str[1], 16)
+			self.data.irisPosition = parseInt(str[1], 16)
 			break
 		case 'OTD':
 			self.data.masterPedValue = parseInt(str[1], 16) - 0x1e

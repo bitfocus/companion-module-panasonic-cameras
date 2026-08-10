@@ -7,9 +7,10 @@ export function setVariables(self) {
 
 	// [capability guard, variables it unlocks]. Guard is a capability key or a predicate.
 	const VARIABLES = [
-		[null, { model: 'Model of camera', title: 'Title of camera' }],
+		[null, { model: 'Model of camera', title: 'Title of camera', customResponse: 'Last Custom Command Response' }],
 		['version', { version: 'Firmware Version' }],
 		['error', { error: 'Error Code' }],
+		['errorCamera', { errorCamera: 'Camera Error' }],
 		['install', { installMode: 'Install Position' }],
 		['power', { power: 'Power Status' }],
 		['colorbar', { colorbar: 'Color Bar Status' }],
@@ -26,14 +27,14 @@ export function setVariables(self) {
 		[
 			'preset',
 			{
-				presetScope: 'Preset Recall Scope',
 				presetCompleted: 'Preset # Completed',
 				presetSelected: 'Preset # Selected',
 				presetMemory: 'Used Preset Memory slots',
 			},
 		],
+		[(c) => c.preset && c.presetScope, { presetScope: 'Preset Recall Scope' }],
 		['shutter', { shutter: 'Shutter Mode' }],
-		[(c) => c.shutter && c.shutter.dropdown === e.ENUM_SHUTTER_ADV, { shutterStep: 'Shutter Step' }],
+		[(c) => c.shutter && c.shutter.cmd === 'OSJ:03', { shutterStep: 'Shutter Step' }],
 		['ois', { ois: 'O.I.S.' }],
 		[
 			'panTilt',
@@ -41,6 +42,11 @@ export function setVariables(self) {
 				ptSpeed: 'Pan/Tilt Speed',
 				pSpeed: 'Pan Speed',
 				tSpeed: 'Tilt Speed',
+			},
+		],
+		[
+			'panTiltPosition',
+			{
 				panPosition: 'Pan Position',
 				tiltPosition: 'Tilt Position',
 				panPositionDeg: 'Pan Position °',
@@ -73,11 +79,27 @@ export function setVariables(self) {
 				irisPosition: 'Iris Position',
 				irisPositionPct: 'Iris Position %',
 				irisPositionBar: 'Iris Position',
-				irisVolume: 'Iris Volume',
+			},
+		],
+		[
+			'panTiltLimit',
+			{
+				limitUp: 'Tilt Up Limit',
+				limitDown: 'Tilt Down Limit',
+				limitLeft: 'Pan Left Limit',
+				limitRight: 'Pan Right Limit',
 			},
 		],
 		['irisAuto', { irisMode: 'Iris Mode' }],
 		['irisF', { irisF: 'Iris F No.' }],
+		[
+			'irisFollowPosition',
+			{
+				irisFollowPosition: 'Iris Follow',
+				irisFollowPositionPct: 'Iris Follow %',
+				irisFollowPositionBar: 'Iris Follow',
+			},
+		],
 		['pedestal', { masterPed: 'Master Pedestal' }],
 		['chromaLevel', { chromaLevel: 'Chroma Level' }],
 		['chromaPhase', { chromaPhase: 'Chroma Phase' }],
@@ -143,7 +165,7 @@ export function checkVariables(self) {
 		['nightMode', 'night', e.ENUM_OFF_ON],
 		['ois', 'ois', (cap) => cap.dropdown],
 		['power', 'power', e.ENUM_OFF_ON],
-		['presetScope', 'preset', e.ENUM_PRESET_SCOPE],
+		['presetScope', 'presetScope', e.ENUM_PRESET_SCOPE],
 		['presetSpeed', 'presetSpeed', e.ENUM_PRESET_SPEED_TIME],
 		['presetSpeedTable', 'presetSpeed', (cap) => cap.dropdown],
 		['presetSpeedUnit', 'presetTime', e.ENUM_PRESET_SPEED_UNIT],
@@ -188,7 +210,30 @@ export function checkVariables(self) {
 		return val < low || val > high ? null : (((val - low) / (high - low)) * 100).toFixed(fractionDigits)
 	}
 
+	const irisMax = SERIES.capabilities.iris?.max ?? 0xaaa
+
+	// The camera's fault state is a bitmask, not one of the id/label tables the other enums use: several
+	// faults can stand at once. Empty string rather than "No Error", so a button can carry it bare and
+	// stay blank while all is well. A bit above the model's own list is dropped, not rendered undefined.
+	const errorBits = SERIES.capabilities.errorCamera?.bits ?? []
+	const errorCameraValue =
+		SERIES.capabilities.errorCamera?.cmd === 'QER' ? self.data.errorCamera : self.data.errorCameraDetail
+
 	self.setVariableValues({
+		errorCamera:
+			errorCameraValue === null || errorCameraValue === undefined
+				? null
+				: errorBits.filter((_, i) => errorCameraValue & (1 << i)).join(', '),
+
+		customResponse: self.data.customResponse,
+		// null, not undefined, for a direction the camera has not reported: setVariableValues treats an
+		// undefined value as "leave as it was", which would keep a stale label after a reconnect.
+		...Object.fromEntries(
+			['limitUp', 'limitDown', 'limitLeft', 'limitRight'].map((name, i) => [
+				name,
+				getLabel(e.ENUM_OFF_ON, self.data.panTiltLimits[i]) ?? null,
+			]),
+		),
 		model: self.data.model,
 		title: self.data.title,
 		version: self.data.version,
@@ -204,14 +249,15 @@ export function checkVariables(self) {
 		focusPosition: self.data.focusPosition,
 		irisPosition: self.data.irisPosition,
 		zoomPosition: self.data.zoomPosition,
+		irisFollowPosition: self.data.irisFollowPosition,
 		focusPositionPct: normalizePct(self.data.focusPosition, 0x0, 0xaaa, false),
-		irisPositionPct: normalizePct(self.data.irisPosition, 0x0, 0xaaa, false),
+		irisPositionPct: normalizePct(self.data.irisPosition, 0x0, irisMax, false),
 		zoomPositionPct: normalizePct(self.data.zoomPosition, 0x0, 0xaaa, false, 1),
-		zoomPositionBar: progressBar(normalizePct(self.data.zoomPosition, 0x0, 0xaaa), 10, 'W', 'T'),
+		irisFollowPositionPct: normalizePct(self.data.irisFollowPosition, 0x0, 0xff, false),
 		focusPositionBar: progressBar(normalizePct(self.data.focusPosition, 0x0, 0xaaa), 10, 'N', 'F'),
-		irisPositionBar: progressBar(normalizePct(self.data.irisPosition, 0x0, 0xaaa), 10, 'C', 'O'),
-
-		irisVolume: self.data.irisVolume,
+		irisPositionBar: progressBar(normalizePct(self.data.irisPosition, 0x0, irisMax), 10, 'C', 'O'),
+		zoomPositionBar: progressBar(normalizePct(self.data.zoomPosition, 0x0, 0xaaa), 10, 'W', 'T'),
+		irisFollowPositionBar: progressBar(normalizePct(self.data.irisFollowPosition, 0x0, 0xff), 10, 'C', 'O'),
 
 		chromaPhase: self.data.chromaPhaseValue,
 		focusSpeed: self.data.focusSpeedValue,

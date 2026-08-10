@@ -12,13 +12,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@companion-module/base@npm:~2.0.4":
-  version: 2.0.4
-  resolution: "@companion-module/base@npm:2.0.4"
+"@companion-module/base@npm:~2.1.2":
+  version: 2.1.2
+  resolution: "@companion-module/base@npm:2.1.2"
   dependencies:
     colord: "npm:^2.9.3"
-    tslib: "npm:^2.8.1"
-  checksum: 10c0/f7499efe73b9e409dec553d86a95c9832caafbbc4a2b40f053736f8a34b126ef94aeb8fee38456550d8696a9251fdc56aaddcea3f07ee5125db8befc7fba1def
+  checksum: 10c0/3c77e872026d0191f741ba7c95fdf58c749ffcfb0c1d4cc65f0eca95f3375453e24da78dca5a78bc9b6c6e0924e6b549d2f30b350679c496666d43b7232885a2
   languageName: node
   linkType: hard
 
@@ -2459,7 +2458,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "panasonic-cameras@workspace:."
   dependencies:
-    "@companion-module/base": "npm:~2.0.4"
+    "@companion-module/base": "npm:~2.1.2"
     "@companion-module/tools": "npm:^3.0.2"
     eslint: "npm:^9.39.3"
     got: "npm:^15.1.0"
@@ -2893,7 +2892,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^2.4.0, tslib@npm:^2.8.1":
+"tslib@npm:^2.4.0":
   version: 2.8.1
   resolution: "tslib@npm:2.8.1"
   checksum: 10c0/9c4759110a19c53f992d9aae23aac5ced636e99887b51b9e61def52611732872ff7668757d4e4c61f19691e36f4da981cd9485e869b4a7408d689f6bf1f14e62

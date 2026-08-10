@@ -137,8 +137,14 @@ function optSetToggleNextPrev(choices, label = 'Setting', def = 0) {
 }
 
 // allowInvalidValues lets an out-of-range expression result through; resolveSetStep constrains it below.
-function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
+// The step field normally shares the value's unit and range. A camera that steps in fixed notches
+// (colour temperature: OSI:1E/OSI:1F take a count, not a Kelvin delta) passes its own via stepRange.
+function optSetStepped(incLabel, decLabel, label, def, min, max, step, stepRange = {}) {
 	const outOfRange = 'Values outside this range are constrained to it; an unreadable value takes no action.'
+	const stepLabel = stepRange.label ?? 'Step size'
+	const stepDef = stepRange.default ?? step
+	const stepMin = stepRange.min ?? step
+	const stepMax = stepRange.max ?? max - min
 
 	return [
 		{
@@ -170,20 +176,20 @@ function optSetStepped(incLabel, decLabel, label, def, min, max, step) {
 		{
 			id: 'step',
 			type: 'number',
-			label: 'Step size',
-			default: step,
-			min: step,
-			max: max - min,
+			label: stepLabel,
+			default: stepDef,
+			min: stepMin,
+			max: stepMax,
 			asInteger: true,
 			allowInvalidValues: true,
-			expressionDescription: `This expression should return a number in the range ${step} to ${max - min}. ${outOfRange}`,
+			expressionDescription: `This expression should return a number in the range ${stepMin} to ${stepMax}. ${outOfRange}`,
 			isVisibleExpression: '$(options:op) != "s"',
 		},
 	]
 }
 
-function optSetIncDecStep(label = 'Value', def, min, max, step = 1) {
-	return optSetStepped('Increase', 'Decrease', label, def, min, max, step)
+function optSetIncDecStep(label = 'Value', def, min, max, step = 1, stepRange = {}) {
+	return optSetStepped('Increase', 'Decrease', label, def, min, max, step, stepRange)
 }
 
 // Cameras that can only step (no absolute Set) get the relative options only.
@@ -223,13 +229,15 @@ function abortSetStep(self, action, field) {
 }
 
 // Constrains set/step into range; returns false on a non-numeric value to abort the action.
-function resolveSetStep(self, action, min, max, step) {
+// stepRange must match the one the options were built with, or the field would offer values the
+// callback then clamps away.
+function resolveSetStep(self, action, min, max, step, stepRange = {}) {
 	if (action.options.op === ACTION_SET) {
 		const set = constrainRange(parseInt(action.options.set, 10), min, max)
 		if (isNaN(set)) return abortSetStep(self, action, 'set')
 		action.options.set = set
 	} else {
-		const size = constrainRange(parseInt(action.options.step, 10), step, max - min)
+		const size = constrainRange(parseInt(action.options.step, 10), stepRange.min ?? step, stepRange.max ?? max - min)
 		if (isNaN(size)) return abortSetStep(self, action, 'step')
 		action.options.step = size
 	}
@@ -403,6 +411,28 @@ export function getActionDefinitions(self) {
 
 		actions.home = simpleAction('Pan/Tilt - Home Position', ptz, 'APC80008000')
 
+		if (caps.panTiltLimit) {
+			actions.ptLimit = {
+				name: 'Pan/Tilt - Movement Range Limit',
+				description:
+					'Switches the movement range limit for one direction. Each direction is independent, and the camera reports every change back.',
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Direction',
+						id: 'dir',
+						default: e.ENUM_PT_LIMIT[0].id,
+						choices: e.ENUM_PT_LIMIT,
+					},
+					...optSetToggle(e.ENUM_OFF_ON, 'Limit', 0),
+				],
+				callback: async (action) => {
+					const current = self.data.panTiltLimits[parseInt(action.options.dir, 10) - 1]
+					await ptz('LC' + action.options.dir + cmdEnum(action, e.ENUM_OFF_ON, current))
+				},
+			}
+		}
+
 		actions.ptSpeed = {
 			name: 'Pan/Tilt - Speed',
 			options: [
@@ -500,25 +530,17 @@ export function getActionDefinitions(self) {
 	// ##########################
 
 	if (caps.iris) {
-		// Box cameras drive the lens iris directly (ORV, 0x0-0x3FF).
-		actions.iris =
-			caps.iris.cmd === 'ORV'
-				? {
-						name: 'Exposure - Iris',
-						options: optSetIncDecStep('Iris setting', 0x1ff, 0x0, 0x3ff, 0xa),
-						callback: async (action) => {
-							if (!resolveSetStep(self, action, 0x0, 0x3ff, 0xa)) return
-							await cam('ORV:' + cmdValue(action, 0x0, 0x0, 0x3ff, action.options.step, 3, self.data.irisVolume))
-						},
-					}
-				: {
-						name: 'Exposure - Iris',
-						options: optSetIncDecStep('Iris setting', 0x555, 0x0, 0xaaa, 0x1e),
-						callback: async (action) => {
-							if (!resolveSetStep(self, action, 0x0, 0xaaa, 0x1e)) return
-							await ptz('AXI' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.irisPosition))
-						},
-					}
+		const { cmd, transport, offset, max, step } = caps.iris
+		const send = transport === 'cam' ? (value) => cam(`${cmd}:${value}`) : (value) => ptz(cmd + value)
+
+		actions.iris = {
+			name: 'Exposure - Iris',
+			options: optSetIncDecStep('Iris setting', max >> 1, 0x0, max, step),
+			callback: async (action) => {
+				if (!resolveSetStep(self, action, 0x0, max, step)) return
+				await send(cmdValue(action, offset, 0x0, max, action.options.step, 3, self.data.irisPosition))
+			},
+		}
 	}
 
 	if (caps.irisAuto) {
@@ -668,22 +690,30 @@ export function getActionDefinitions(self) {
 	// UB300 can only step colour temperature, not set it.
 	if (caps.colorTemperature && caps.colorTemperature.advanced) {
 		const advanced = caps.colorTemperature.advanced
+		// OSI:1E/OSI:1F take a count of the camera's own notches (1h-Ah), so the step field is measured
+		// in notches while `set` stays in Kelvin.
+		const stepRange = { label: 'Steps', default: 1, min: 1, max: advanced.maxStep }
+
 		actions.colorTemperature = {
 			name: 'Image - Color Temperature',
 			options: advanced.set
-				? optSetIncDecStep('Color Temperature [K]', 3200, advanced.min, advanced.max, 20)
+				? optSetIncDecStep('Color Temperature [K]', 3200, advanced.min, advanced.max, 20, stepRange)
 				: optIncDec(),
 			callback: async (action) => {
-				if (advanced.set && !resolveSetStep(self, action, advanced.min, advanced.max, 20)) return
+				if (advanced.set && !resolveSetStep(self, action, advanced.min, advanced.max, 20, stepRange)) return
+
+				// Without `set` there is no step field (UB300), and that camera takes one notch anyway.
+				const notches = advanced.set ? toHexString(action.options.step, 1) : '1'
+
 				switch (action.options.op) {
 					case ACTION_SET:
 						await cam(advanced.set + ':' + toHexString(action.options.set, 5) + ':0')
 						break
 					case ACTION_INC:
-						await cam(advanced.inc + ':1')
+						await cam(`${advanced.inc}:${notches}`)
 						break
 					case ACTION_DEC:
-						await cam(advanced.dec + ':1')
+						await cam(`${advanced.dec}:${notches}`)
 						break
 				}
 			},
@@ -741,14 +771,16 @@ export function getActionDefinitions(self) {
 			},
 		}
 
-		actions.presetRecallScope = enumAction(
-			'Preset - Recall Scope',
-			cam,
-			'OSE:71:',
-			e.ENUM_PRESET_SCOPE,
-			() => self.data.presetScope,
-			{ nextPrev: true, label: 'Preset Recall Scope' },
-		)
+		if (caps.presetScope) {
+			actions.presetRecallScope = enumAction(
+				'Preset - Recall Scope',
+				cam,
+				'OSE:71:',
+				e.ENUM_PRESET_SCOPE,
+				() => self.data.presetScope,
+				{ nextPrev: true, label: 'Preset Recall Scope' },
+			)
+		}
 
 		actions.presetClearAll = {
 			name: 'Preset - Clear All',
@@ -996,17 +1028,18 @@ export function getActionDefinitions(self) {
 			},
 		],
 		callback: async (action) => {
-			switch (action.options.dest) {
-				case 0:
-					await cam(action.options.cmd)
-					break
-				case 1:
-					await ptz(action.options.cmd)
-					break
-				case 2:
-					await web(action.options.cmd)
-					break
-			}
+			const send = { 0: cam, 1: ptz, 2: web }[action.options.dest]
+			if (!send) return
+
+			// The variable is the answer to the command sent last, so a slow earlier request must not
+			// land on top of a faster later one. Requests are not serialised - two buttons may well be
+			// meant to fire at once - only the writing of the answer is.
+			const sequence = (self.customCommandSequence = (self.customCommandSequence ?? 0) + 1)
+			const response = (await send(action.options.cmd)) ?? null
+			if (sequence !== self.customCommandSequence) return
+
+			self.data.customResponse = response
+			self.checkVariables()
 		},
 	}
 

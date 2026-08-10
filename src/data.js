@@ -24,6 +24,8 @@ export function initialData() {
 		dnr: null,
 		drs: null,
 		error: null,
+		errorCamera: null,
+		errorCameraDetail: null,
 		filter: null,
 		focusMode: null,
 		gain: null,
@@ -31,6 +33,7 @@ export function initialData() {
 		irisMode: null,
 		nightMode: null,
 		ois: null,
+		panTiltLimits: [null, null, null, null],
 		power: null,
 		presetScope: null,
 		presetSpeed: null,
@@ -55,8 +58,8 @@ export function initialData() {
 
 		// numeric unsigned values
 		focusPosition: null,
+		irisFollowPosition: null,
 		irisPosition: null,
-		irisVolume: null,
 		panPosition: null,
 		tiltPosition: null,
 		zoomPosition: null,
@@ -77,6 +80,7 @@ export function initialData() {
 		colorTempLabel: null,
 		irisLabel: null,
 		shutterStepLabel: null,
+		customResponse: null,
 
 		// arrays
 		audioVolumeLevels: Array(4),

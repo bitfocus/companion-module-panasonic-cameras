@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { parseUpdate } from '../parser.js'
 import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
+import { initialData } from '../data.js'
 
-// parseUpdate mutates self.data in place from the camera's notification strings.
+// parseUpdate mutates self.data in place from the camera's notification strings. The real shape, so a
+// branch writing into a container the module initialises (presetThumbnails, panTiltLimits) is exercised
+// rather than hand-waved past.
 function parse(...args) {
-	const self = {
-		data: { presetThumbnails: [], presetEntries: [], presetEntries0: [], presetEntries1: [], presetEntries2: [] },
-		getThumbnail: () => {},
-	}
+	const self = { data: initialData(), getThumbnail: () => {} }
 	parseUpdate(self, args)
 	return self.data
 }
@@ -84,6 +84,91 @@ describe('parseUpdate', () => {
 
 		expect(self.data.zoomSpeedValue).toBe(7)
 		expect(self.data.focusSpeedValue).toBe(7)
+	})
+
+	// The camera writes "OSI:20:0x00FA0:0". getCameraStatus strips that prefix before parsing, so the
+	// camdata.html path always arrives clean — but it does so with replace(':0x', ':'), which takes
+	// only the first match (compare "OSI:18:0xFFF:0x555:0xD24", where the last two keep theirs). The
+	// getCam path behind the QSI:20 pull strips nothing at all, so both forms have to read the same.
+	it.each([
+		['00FA0', '4000K'],
+		['0x00FA0', '4000K'],
+	])('reads the colour temperature from %s whether or not the 0x was stripped', (data, expected) => {
+		expect(parse('OSI', '20', data, '0').colorTempLabel).toBe(expected)
+	})
+
+	// OSJ:4A is the AWB A/AWB B "Color TEMP. Setting"; OSI:20 is the VAR colour temperature this module
+	// controls. A camera reports both and camdata.html puts OSJ:4A last, so parsing it into the same field
+	// replaced the temperature in effect with the one that is not: an AW-UE150 in VAR at 4060K showed the
+	// 3200K of its AWB setting after every restart.
+	it('does not let the AWB colour temperature overwrite the one in effect', () => {
+		const data = initialData()
+
+		parseUpdate({ data }, ['OSI', '20', '00FDC', '0'])
+		parseUpdate({ data }, ['OSJ', '4A', '00C80', '0'])
+
+		expect(data.colorTempLabel).toBe('4060K')
+	})
+
+	// Iris Follow is the lens's own position, 00h closed to FFh open. It shipped in three poll lists
+	// from the very first commit with no branch to receive it, so the answer was thrown away every
+	// cycle until this case existed.
+	it.each([
+		['00', 0],
+		['7F', 127],
+		['0x7F', 127], // only the camdata path strips the prefix; parseInt takes it either way
+		['FF', 255],
+	])('reads the iris follow position from %s', (data, expected) => {
+		expect(parse('OSD', '4F', data).irisFollowPosition).toBe(expected)
+	})
+
+	// lC[direction][state], four independent booleans. It has to be matched before lPI or it would never
+	// be reached - both replies start with a lowercase l.
+	it.each([
+		['lC11', ['1', null, null, null]],
+		['lC20', [null, '0', null, null]],
+		['lC31', [null, null, '1', null]],
+		['lC40', [null, null, null, '0']],
+	])('reads the movement range limit from %s', (token, expected) => {
+		expect(parse(token).panTiltLimits).toEqual(expected)
+	})
+
+	it('leaves the limits alone for the lens position report, which also starts with l', () => {
+		const data = parse('lPI555555555')
+
+		expect(data.panTiltLimits).toEqual([null, null, null, null])
+		expect(data.zoomPosition).toBe(0)
+	})
+
+	// The camera's own fault state, as a bitmask: several faults can stand at once. OER carries two
+	// bits, OSI:46 five, and they are kept apart because a model that speaks both would otherwise
+	// flip the value - bit 1 means "Other" to OER and "High Temperature" to OSI:46.
+	it('reads the coarse camera error from OER', () => {
+		expect(parse('OER', '0').errorCamera).toBe(0)
+		expect(parse('OER', '1').errorCamera).toBe(1)
+		expect(parse('OER', '2').errorCamera).toBe(2)
+	})
+
+	it.each([
+		['00000000', 0],
+		['00000012', 0x12], // fan and pan/tilt
+		['0x00000012', 0x12], // the camdata spelling, which carries the prefix
+		['00000010', 0x10],
+	])('reads the detailed camera error from OSI:46:%s', (data, expected) => {
+		expect(parse('OSI', '46', data).errorCameraDetail).toBe(expected)
+	})
+
+	// One PTG stands in for five separate queries, so the pull lists of the models that support it
+	// depend on all five fields coming out of a single token.
+	it('decodes gain, colour temperature, shutter and ND from one PTG report', () => {
+		// gain 12 | 00FA0 K | shutter mode 1 | step 2710 | synchro 00000 | ND 0
+		const data = parse('pTG1200FA012710000000')
+
+		expect(data.gain).toBe('12')
+		expect(data.colorTempLabel).toBe('4000K')
+		expect(data.shutter).toBe('1')
+		expect(data.shutterStepLabel).toBe('1/10000')
+		expect(data.filter).toBe('0')
 	})
 })
 
