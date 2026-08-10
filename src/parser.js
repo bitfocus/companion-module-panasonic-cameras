@@ -354,9 +354,7 @@ export function parseUpdate(self, str) {
 					self.data.presetSpeedUnit = str[2]
 					break
 				//case '3C': break; // Preset Name / Preset Thumbnail Counter
-				case '4A':
-					self.data.colorTempLabel = parseInt(str[2], 16).toString() + 'K'
-					break
+				//case '4A': break // AWB Color Temperature
 				case 'D2':
 					self.data.filter = str[2]
 					break

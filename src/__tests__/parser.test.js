@@ -97,6 +97,19 @@ describe('parseUpdate', () => {
 		expect(parse('OSI', '20', data, '0').colorTempLabel).toBe(expected)
 	})
 
+	// OSJ:4A is the AWB A/AWB B "Color TEMP. Setting"; OSI:20 is the VAR colour temperature this module
+	// controls. A camera reports both and camdata.html puts OSJ:4A last, so parsing it into the same field
+	// replaced the temperature in effect with the one that is not: an AW-UE150 in VAR at 4060K showed the
+	// 3200K of its AWB setting after every restart.
+	it('does not let the AWB colour temperature overwrite the one in effect', () => {
+		const data = initialData()
+
+		parseUpdate({ data }, ['OSI', '20', '00FDC', '0'])
+		parseUpdate({ data }, ['OSJ', '4A', '00C80', '0'])
+
+		expect(data.colorTempLabel).toBe('4060K')
+	})
+
 	// Iris Follow is the lens's own position, 00h closed to FFh open. It shipped in three poll lists
 	// from the very first commit with no branch to receive it, so the answer was thrown away every
 	// cycle until this case existed.
