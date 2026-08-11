@@ -494,7 +494,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 				// rawBody is a plain Uint8Array, which Jimp would mistake for a URL
 				const img = await Jimp.read(Buffer.from(response.rawBody))
-				const png64 = await fitImage(img, this.config.imageScaling).getBase64(JimpMime.png)
+				const png64 = await fitImage(img).getBase64(JimpMime.png)
 
 				// Re-checked after the slow decode: a config change may have landed while Jimp worked.
 				if (!this.current(generation)) return
@@ -536,7 +536,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			// Re-checked after the decode: old camera's frame must not paint the new one's buttons.
 			if (!this.current(generation)) return
 
-			this.data.image = await fitImage(img, this.config.imageScaling).getBase64(JimpMime.png)
+			this.data.image = await fitImage(img).getBase64(JimpMime.png)
 			this.imageErrors = 0
 
 			this.checkFeedbacks('liveImage')

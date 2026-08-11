@@ -686,6 +686,23 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 				expect(def, feedbackId).not.toHaveProperty('subscribe')
 			}
 		})
+
+		// An advanced feedback returns its style at runtime, so Companion cannot infer what it touches.
+		// Left undeclared it warns at every init and then offers the user an override for every style
+		// property there is, most of which this feedback will never set.
+		const STYLE_PROPERTIES = ['text', 'size', 'color', 'bgcolor', 'alignment', 'pngalignment', 'png64', 'imageBuffer']
+
+		it('tells Companion which style properties each advanced feedback overrides', () => {
+			for (const [feedbackId, def] of Object.entries(feedbacks)) {
+				if (def.type !== 'advanced') continue
+
+				expect(def.affectedProperties, feedbackId).toBeInstanceOf(Array)
+				expect(def.affectedProperties, feedbackId).not.toHaveLength(0)
+				for (const property of def.affectedProperties) {
+					expect(STYLE_PROPERTIES, feedbackId).toContain(property)
+				}
+			}
+		})
 	})
 
 	describe('variables', () => {

@@ -73,7 +73,7 @@ describe('config fields', () => {
 			sectionModel: ['model', 'modelDetected'],
 			sectionUpdates: ['subscriptionEnable', 'portManual', 'tcpPort', 'pollAllow', 'pollDelay'],
 			// Scaling comes first and is unconditional: it governs the preset thumbnails too, not just the live image.
-			sectionImage: ['imageScaling', 'imageEnable', 'imageInterval'],
+			sectionImage: ['imageEnable', 'imageInterval'],
 			sectionDiagnostics: ['trace'],
 		})
 	})
@@ -114,7 +114,6 @@ describe('applyConfigDefaults', () => {
 
 		expect(filled.imageEnable).toBe(true)
 		expect(filled.imageInterval).toBe(1000)
-		expect(filled.imageScaling).toBe('letterbox')
 	})
 
 	it('leaves every field defined, even for a connection that has never been saved', () => {

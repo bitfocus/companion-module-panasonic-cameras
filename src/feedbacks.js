@@ -98,7 +98,7 @@ export function getFeedbackDefinitions(self) {
 			'System - Color Bar State',
 			'Indicates if the color bar is currently enabled',
 			() => self.data.colorbar === '1',
-			{ ...STYLE_RED, png64: ICONS.COLORBAR, pngalignment: 'center:center' },
+			{ ...STYLE_RED, png64: ICONS.COLORBAR },
 		)
 	}
 
@@ -143,12 +143,13 @@ export function getFeedbackDefinitions(self) {
 			type: 'advanced',
 			name: 'System - Live Image',
 			description: 'Provides the current camera image as the button background, refreshed periodically',
+			affectedProperties: ['png64'],
 			options: [],
 			callback: (feedback) => {
 				self.imageSubscribers.set(feedback.id, Date.now())
 				startLiveImagePoll(self)
 
-				return self.data.image ? { png64: self.data.image, pngalignment: 'center:center' } : {}
+				return self.data.image ? { png64: self.data.image } : {}
 			},
 			unsubscribe: (feedback) => {
 				self.imageSubscribers.delete(feedback.id)
@@ -296,6 +297,7 @@ export function getFeedbackDefinitions(self) {
 				type: 'advanced',
 				name: 'Preset - Thumbnail',
 				description: 'Provides the thumbnail of the selected preset as the button background image',
+				affectedProperties: ['png64'],
 				options: optPreset(caps.preset),
 				callback: (feedback) => {
 					const idx = parsePresetIdx(feedback, caps.preset)

@@ -1,4 +1,3 @@
-import { IMAGE_SCALING } from './common.js'
 import { MODELS } from './models.js'
 
 const section = (id, label) => ({ type: 'static-text', id, label, value: '<hr>', width: 12 })
@@ -111,16 +110,6 @@ export const ConfigFields = [
 	},
 
 	section('sectionImage', ''),
-	{
-		type: 'dropdown',
-		id: 'imageScaling',
-		label: 'Thumbnail Scaling',
-		description:
-			'How a camera image is fitted onto a square button. This governs every image the module draws — the preset thumbnails as much as the live one.',
-		width: 6,
-		default: 'letterbox',
-		choices: IMAGE_SCALING,
-	},
 	{
 		type: 'checkbox',
 		id: 'imageEnable',
