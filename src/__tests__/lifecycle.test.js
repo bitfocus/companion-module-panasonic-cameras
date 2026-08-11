@@ -222,9 +222,10 @@ describe('handleConnectionError', () => {
 		// One of these is a blip; a streak of them is a lost camera (see FAILURE_THRESHOLD).
 		self.handleConnectionError({ code })
 		self.handleConnectionError({ code })
-		expect(self.handleConnectionError({ code })).toBe(true)
+		expect(self.handleConnectionError({ code })).toBe('error')
 
-		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
+		// Amber while the streak is still sub-threshold, red once it is not.
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['unknown_warning', 'connection_failure'])
 		expect(vi.getTimerCount()).toBe(1) // a reconnect is scheduled
 	})
 
@@ -239,7 +240,7 @@ describe('handleConnectionError', () => {
 		const self = makeInstance()
 
 		// Retrying an undiagnosed fault turns a bug into a request storm; the user is told and the module stops.
-		expect(self.handleConnectionError({ code: 'ERR_BODY_PARSE_FAILURE' })).toBe(true)
+		expect(self.handleConnectionError({ code: 'ERR_BODY_PARSE_FAILURE' })).toBe('error')
 
 		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['unknown_error'])
 		expect(vi.getTimerCount()).toBe(0)
@@ -261,7 +262,7 @@ describe('handleConnectionError', () => {
 
 		// teardown() aborts in-flight requests; got surfaces that as ERR_ABORTED. Read as a camera
 		// failure it would report a healthy camera as broken and schedule a pointless retry.
-		expect(self.handleConnectionError({ code: 'ERR_ABORTED' })).toBe(false)
+		expect(self.handleConnectionError({ code: 'ERR_ABORTED' })).toBe('debug')
 
 		expect(self.updateStatus).not.toHaveBeenCalled()
 		expect(vi.getTimerCount()).toBe(0)
@@ -279,14 +280,16 @@ describe('handleConnectionError', () => {
 	})
 
 	it('rides out a single dropped connection instead of rebuilding the whole instance', async () => {
-		// ECONNRESET on a keep-alive is routine with these cameras. Read as a lost connection it stopped
-		// polling, flipped the status and re-published ~200 presets — a full panel redraw for a blip.
+		// A single ECONNRESET on a keep-alive is still reported — but read as a *lost* connection it
+		// stopped polling, flipped the status and re-published ~200 presets: a full panel redraw for a
+		// blip. Reporting it and reconnecting over it are two different decisions.
 		const self = makeInstance()
 		self.poll = true
 
-		expect(self.handleConnectionError({ code: 'ECONNRESET' })).toBe(false) // not worth logging yet
+		expect(self.handleConnectionError({ code: 'ECONNRESET' })).toBe('error')
 
-		expect(self.updateStatus).not.toHaveBeenCalled()
+		// Amber, not red: the failure is told, but nothing has been given up on yet.
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['unknown_warning'])
 		expect(self.poll).toBe(true) // polling is what recovers it
 	})
 
@@ -301,11 +304,47 @@ describe('handleConnectionError', () => {
 		await self.getCam('QID') // the very next poll succeeds
 
 		expect(vi.getTimerCount()).toBe(0)
-		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['ok'])
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['unknown_warning', 'ok'])
 
 		// Nothing must resurrect the reconnect once the connection has proven itself.
 		await vi.advanceTimersByTimeAsync(60_000)
 		expect(self.reInitAll).not.toHaveBeenCalled()
+	})
+
+	// Companion writes a "Status: ok - null" line to the connection log for every set-status message,
+	// deduplicating only the status it stores. A poll loop calls onRequestSucceeded() per command, so
+	// without this the log was one status line per request and nothing else stayed visible in it.
+	it('reports a status once and stays quiet while it holds', async () => {
+		const self = makeInstance()
+		self.httpGet = vi.fn(async () => ({ body: 'OID:AW-UE100\r\n', statusCode: 200 }))
+
+		for (let i = 0; i < 20; i++) await self.getCam('QID')
+
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['ok'])
+	})
+
+	it('reports a status again once something else has been reported in between', async () => {
+		const self = makeInstance()
+		self.reInitAll = vi.fn()
+		self.httpGet = vi.fn(async () => ({ body: 'OID:AW-UE100\r\n', statusCode: 200 }))
+
+		await self.getCam('QID')
+		self.scheduleReInit('ECONNRESET')
+		self.reconnecting = false // the retry fired; the camera answers again
+		await self.getCam('QID')
+
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['ok', 'connection_failure', 'ok'])
+	})
+
+	// The message is half the status: two failures for different reasons are two different reports.
+	it('reports a repeated status whose detail changed', async () => {
+		const self = makeInstance()
+		self.reInitAll = vi.fn()
+
+		self.scheduleReInit('ECONNREFUSED')
+		self.scheduleReInit('EHOSTUNREACH')
+
+		expect(self.updateStatus.mock.calls.map(([, detail]) => detail)).toEqual(['ECONNREFUSED', 'EHOSTUNREACH'])
 	})
 
 	it('still gives up on a camera that goes quiet without another request to notice', async () => {
@@ -317,7 +356,8 @@ describe('handleConnectionError', () => {
 		self.handleConnectionError({ code: 'EHOSTUNREACH' })
 		await vi.advanceTimersByTimeAsync(self.config.timeout + self.config.pollDelay)
 
-		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
+		// Amber the moment the first request failed, red once the fallback gave up on it.
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['unknown_warning', 'connection_failure'])
 	})
 
 	it('does not let a late answer cancel a reconnect that is already committed', async () => {
@@ -334,7 +374,8 @@ describe('handleConnectionError', () => {
 		self.httpGet = vi.fn(async () => ({ body: 'OID:AW-UE100\r\n', statusCode: 200 }))
 		await self.getCam('QID') // the in-flight request lands a moment too late
 
-		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
+		// The late answer must not report Ok over the failure; the amber is from the sub-threshold streak.
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['unknown_warning', 'connection_failure'])
 
 		await vi.advanceTimersByTimeAsync(self.config.timeout + self.config.pollDelay)
 		expect(self.reInitAll).toHaveBeenCalled() // the reconnect still runs, and restarts polling
@@ -351,6 +392,44 @@ describe('handleConnectionError', () => {
 
 		expect(self.failures).toBe(0)
 		expect(vi.getTimerCount()).toBe(0)
+	})
+
+	// A rejected command used to be silent and statusless, so a camera refusing every request for want
+	// of credentials looked identical to one answering them.
+	it.each([
+		[401, 'authentication_failure'],
+		[403, 'insufficient_permissions'],
+	])('names HTTP %i as something the operator can fix', (statusCode, status) => {
+		const self = makeInstance()
+
+		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode } })
+
+		expect(level).toBe('error')
+		expect(self.updateStatus.mock.calls).toEqual([[status, `HTTP ${statusCode}`]])
+	})
+
+	it('stays quiet about a command this model simply does not implement', () => {
+		// Querying a capability the camera lacks answers 4xx. That is how a model outside its own
+		// capability list replies, not a fault, so it must not reach the operator as one.
+		const self = makeInstance()
+
+		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 404 } })
+
+		expect(level).toBe('debug')
+		expect(self.updateStatus).not.toHaveBeenCalled()
+	})
+
+	// The level decides how loud a failure is; the caller only supplies the words.
+	it('logs a failed request at the level its classification earned', async () => {
+		const self = makeInstance()
+
+		self.logConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 404 } }, 'Cam request failed')
+		self.logConnectionError({ code: 'ECONNRESET' }, 'PTZ request failed')
+
+		expect(self.log.mock.calls).toEqual([
+			['debug', 'Cam request failed'],
+			['error', 'PTZ request failed'],
+		])
 	})
 
 	it('keeps Disconnected for the one thing the user did on purpose', async () => {
