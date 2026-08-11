@@ -92,6 +92,7 @@ export async function getAllCameraStatus(self) {
 			'PE00', // Preset Entry 0
 			'PE01', // Preset Entry 1
 			'PE02', // Preset Entry 2
+			'APC', // Pan/Tilt Position
 			'AXF', // Focus Position Control
 			'AXI', // Iris Position Control
 			'AXZ', // Zoom Position Control
@@ -104,6 +105,10 @@ export async function getAllCameraStatus(self) {
 			'D6', // Night Mode
 			'DA', // Tally
 			'INS', // Installation Position
+			'LC1', // Movement Range Limitation, Up
+			'LC2', // Movement Range Limitation, Down
+			'LC3', // Movement Range Limitation, Pan Left
+			'LC4', // Movement Range Limitation, Pan Right
 			//'LPC', // Lens Position Information Control
 			'LPI', // Lens Position
 			'PST', // Preset Speed Table
@@ -124,6 +129,7 @@ export async function getAllCameraStatus(self) {
 			'QGB', // B Gain
 			'QBD', // B Pedestal
 			'QCG', // Chroma Level
+			'QER', // Error Information
 			'QFT', // ND Filter
 			'QGS', // Gain Select (UB300 only)
 			'QGU', // Gain
@@ -166,6 +172,8 @@ export async function getAllCameraStatus(self) {
 			'QSI:18', // Request Zoom/Focus/Iris Position
 			'QSI:19:0', // Software Version, System Version (UB300 only)
 			'QSI:20', // Color Temperature
+			'QSI:30', // Shooting Mode
+			'QSI:46', // Error Information (bitmask)
 			'QSJ:03', // Shutter Mode
 			'QSJ:06', // Shutter Step Value
 			'QSJ:09', // Shutter Synchro Value
@@ -175,8 +183,12 @@ export async function getAllCameraStatus(self) {
 			'QSJ:29', // Preset Speed Unit
 			'QSJ:5C', // Camera Title
 			'QSJ:D2', // ND Filter Status
+			'QSL:25', // Gain (UB50 only)
 			'QSL:2A', // ATW
 			'QSL:2B', // White Balance Mode
+			'QSL:36', // RGB Gain Preset R Gain
+			'QSL:37', // RGB Gain Preset G Gain
+			'QSL:38', // RGB Gain Preset B Gain
 			'QSL:8B', // O.I.S.
 			'QSL:8C', // O.I.S. Mode
 			'QSL:99', // System Version
