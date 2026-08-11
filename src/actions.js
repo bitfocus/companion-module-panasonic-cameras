@@ -950,7 +950,10 @@ export function getActionDefinitions(self) {
 				},
 			],
 			callback: async (action) => {
-				await self.getWeb('initial?cmd=reset&Randomnum=12345', action.options.username, action.options.password)
+				await self.getWeb('initial?cmd=reset&Randomnum=12345', {
+					username: action.options.username,
+					password: action.options.password,
+				})
 			},
 		}
 	}

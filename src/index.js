@@ -95,6 +95,13 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
+	// Protocol detail, logged at debug so Companion filters it: nothing here belongs in an operator's
+	// log, but all of it belongs in a support bundle. `trace` marks the lines a repeating loop emits —
+	// those are suppressed unless asked for.
+	traced(trace, message) {
+		if (!trace || this.config.trace) this.log('debug', message)
+	}
+
 	// All requests go through here so teardown()'s abort signal is never missed.
 	httpGet(url, options = {}) {
 		return got.get(url, {
@@ -145,14 +152,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 	async unsubscribeTCPEvents(port, config = this.config) {
 		const url = `http://${config.host}:${config.httpPort}/cgi-bin/event?connect=stop&my_port=${port}&uid=0`
 
-		if (config.debug) {
-			this.log('debug', 'TCP unsubscription request: ' + url)
-		}
+		this.log('debug', 'TCP unsubscription request: ' + url)
 
 		try {
 			await this.httpGet(url, { timeout: { request: config.timeout } })
 
-			this.log('info', 'un-subscribed: ' + url)
+			this.log('debug', 'un-subscribed: ' + url)
 		} catch (err) {
 			// Not handleConnectionError(): a failed goodbye to a dismantled connection looks like an absent
 			// camera, and treating it as reconnectable would re-init an instance already being deleted.
@@ -164,15 +169,13 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/event?connect=start&my_port=${port}&uid=0`
 
-		if (this.config.debug) {
-			this.log('debug', 'TCP subscription request: ' + url)
-		}
+		this.log('debug', 'TCP subscription request: ' + url)
 
 		try {
 			await this.httpGet(url)
 			if (!this.current(generation)) return // old camera's hello must not mark the new one Ok
 
-			this.log('info', 'subscribed: ' + url)
+			this.log('debug', 'subscribed: ' + url)
 
 			this.onRequestSucceeded()
 
@@ -228,9 +231,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					}
 
 					for (const { command, source } of updates) {
-						if (this.config.debug) {
-							// `source` (sender address + clock) is logged only to help place a stray notification.
-							this.log('info', `Received Update: ${command}  (${source})`)
+						// Trace: the camera pushes these continuously, at the rate it changes state.
+						// `source` (sender address + clock) is logged only to help place a stray notification.
+						if (this.config.trace) {
+							this.log('debug', `Received Update: ${command}  (${source})`)
 						}
 
 						this.parseSafely(command, () => parseUpdate(this, command.split(':')))
@@ -277,7 +281,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				tcpPortSelected = this.server.address().port
 				this.tcpPortSelected = tcpPortSelected
 
-				this.log('info', 'Listening for camera updates on localhost:' + tcpPortSelected)
+				this.log('debug', 'Listening for camera updates on localhost:' + tcpPortSelected)
 
 				this.subscribeTCPEvents(tcpPortSelected)
 			} catch (err) {
@@ -294,9 +298,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			const generation = this.generation
 			const url = `http://${this.config.host}:${this.config.httpPort}/live/camdata.html`
 
-			if (this.config.debug) {
-				this.log('info', 'camdata request: ' + url)
-			}
+			this.log('debug', 'camdata request: ' + url)
 
 			try {
 				const response = await this.httpGet(url)
@@ -309,8 +311,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					for (let line of lines) {
 						const str = line.replace(':0x', ':').trim()
 
-						if (this.config.debug) {
-							this.log('info', 'camdata response: ' + str)
+						// Trace: one line per reading, and the bulk dump is a few hundred of them.
+						if (this.config.trace) {
+							this.log('debug', 'camdata response: ' + str)
 						}
 
 						this.parseSafely(str, () => parseUpdate(this, str.split(':')))
@@ -329,12 +332,13 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	async getPTZ(cmd) {
+	// `trace` marks a call the poll loop makes on repeat; those are logged only in trace mode, while
+	// the same command sent by an action stays at plain debug (see traced()).
+	async getPTZ(cmd, { trace = false } = {}) {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_ptz?cmd=%23${cmd}&res=1`
-		if (this.config.debug) {
-			this.log('info', 'PTZ request: ' + url)
-		}
+
+		this.traced(trace, 'PTZ request: ' + url)
 
 		try {
 			const response = await this.httpGet(url)
@@ -343,9 +347,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			if (response.body) {
 				const str = response.body.trim()
 
-				if (this.config.debug) {
-					this.log('info', 'PTZ response: ' + str)
-				}
+				this.traced(trace, 'PTZ response: ' + str)
 
 				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
@@ -362,13 +364,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	async getCam(cmd) {
+	async getCam(cmd, { trace = false } = {}) {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_cam?cmd=${cmd}&res=1`
 
-		if (this.config.debug) {
-			this.log('info', 'Cam request: ' + url)
-		}
+		this.traced(trace, 'Cam request: ' + url)
 
 		try {
 			const response = await this.httpGet(url)
@@ -377,9 +377,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			if (response.body) {
 				const str = response.body.trim()
 
-				if (this.config.debug) {
-					this.log('info', 'Cam response: ' + str)
-				}
+				this.traced(trace, 'Cam response: ' + str)
 
 				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
@@ -397,13 +395,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 	}
 
 	// Only for web commands that don't require admin rights.
-	async getWeb(cmd, username = '', password = '') {
+	async getWeb(cmd, { username = '', password = '', trace = false } = {}) {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${cmd}`
 
-		if (this.config.debug) {
-			this.log('info', 'Web request: ' + url)
-		}
+		this.traced(trace, 'Web request: ' + url)
 
 		try {
 			const response = await this.httpGet(url, { username, password })
@@ -415,16 +411,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				for (let line of lines) {
 					const str = line.trim()
 
-					if (this.config.debug) {
-						this.log('info', 'Web response [' + cmd + ']: ' + str)
-					}
+					this.traced(trace, 'Web response [' + cmd + ']: ' + str)
 
 					this.parseSafely(str, () => parseWeb(this, str.split('='), cmd))
 				}
 			} else {
-				if (this.config.debug) {
-					this.log('info', 'Web response [' + cmd + ']: Response code ' + response.statusCode.toString())
-				}
+				this.traced(trace, 'Web response [' + cmd + ']: Response code ' + response.statusCode.toString())
 
 				this.parseSafely(response.statusCode, () => parseWebCode(this, response.statusCode, cmd))
 			}
@@ -448,9 +440,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			const n = id + 1
 			const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/get_preset_thumbnail?preset_number=${n}`
 
-			if (this.config.debug) {
-				this.log('info', 'Thumbnail request: ' + url)
-			}
+			// Not traced: fetched once per preset when the camera reports the thumbnail changed, not on repeat.
+			this.log('debug', 'Thumbnail request: ' + url)
 
 			try {
 				const response = await this.httpGet(url)
@@ -483,9 +474,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${image.cmd}`
 
-		if (this.config.debug) {
-			this.log('info', 'Image request: ' + url)
-		}
+		// Always traced: the only caller is pollLiveImage, once per imageInterval for as long as a
+		// button shows the feed.
+		this.traced(true, 'Image request: ' + url)
 
 		try {
 			// A full frame is budgeted by the refresh interval, but never below the configured timeout.
@@ -599,14 +590,14 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			// polling has no next request, so arm a fallback that re-checks once the streak has had time
 			// to either clear itself or grow.
 			this.armFallbackRetry(String(err.code))
-			return this.config.debug // hide error
+			return this.config.trace // hide error
 		}
 
 		// Camera answered but rejected the request; not a connection problem — and an answer is proof
 		// the camera is there, so it ends any streak a reachability error had started.
 		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') {
 			this.markReachable()
-			return this.config.debug // hide error
+			return this.config.trace // hide error
 		}
 
 		// No code at all is one of ours, not the camera's: got labels everything it raises. Saying so

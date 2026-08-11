@@ -2,8 +2,6 @@
 // not inherit the old one's) and its own arrays (a shared literal would alias them across instances).
 export function initialData() {
 	return {
-		debug: false,
-
 		modelAuto: null,
 		model: 'Auto',
 		series: null,

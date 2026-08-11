@@ -234,6 +234,21 @@ function rescaleColorTemperatureStep(_context, props) {
 	return result
 }
 
+// `debug` gated every log line the module produced, at info level, so it was all-or-nothing and none
+// of it reached Companion's own filtering. The lines are debug level now and always emitted; the flag
+// that survives only decides whether the repeating poll traffic joins them. Same meaning for a user
+// who had it on - "show me the protocol" - so the stored value carries over rather than resetting.
+function renameDebugToTrace(_context, props) {
+	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
+
+	if (props.config && 'debug' in props.config) {
+		const { debug, ...rest } = props.config
+		result.updatedConfig = { ...rest, trace: debug === true }
+	}
+
+	return result
+}
+
 export const upgradeScripts = [
 	// Was addSetIncDecVariables. Blanked, not deleted: upgrade progress is tracked by index.
 	EmptyUpgradeScript,
@@ -261,4 +276,5 @@ export const upgradeScripts = [
 	dropUseVarToggles,
 	repairPre201Writes,
 	rescaleColorTemperatureStep,
+	renameDebugToTrace,
 ]

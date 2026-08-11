@@ -31,7 +31,7 @@ const migrate = (props, context = {}) =>
 // re-runs the wrong migration on every existing connection.
 describe('upgradeScripts', () => {
 	it('only ever grows, and blanks a retired script in place', () => {
-		expect(upgradeScripts).toHaveLength(6)
+		expect(upgradeScripts).toHaveLength(7)
 		expect(upgradeScripts[0]).toBe(EmptyUpgradeScript)
 	})
 })

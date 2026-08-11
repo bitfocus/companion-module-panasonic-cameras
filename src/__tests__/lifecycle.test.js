@@ -39,7 +39,7 @@ function makeInstance(config = {}, { series = 'UE80', capabilities } = {}) {
 		subscriptionEnable: true,
 		imageEnable: false,
 		imageInterval: 1000,
-		debug: false,
+		trace: false,
 		model: 'Auto',
 		...config,
 	}

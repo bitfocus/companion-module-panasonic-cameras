@@ -146,10 +146,10 @@ export const ConfigFields = [
 	section('sectionDiagnostics', ''),
 	{
 		type: 'checkbox',
-		id: 'debug',
-		label: 'Debug Mode',
+		id: 'trace',
+		label: 'Trace Polling',
 		description:
-			'Log every exchange between this instance and the camera in detail. Only turn this on to investigate a protocol-level problem: it floods the log, and it can slow the whole system down. DO NOT ENABLE THIS IN PRODUCTION!',
+			'Log every request and response of the repeating status, update and image polling. Everything else this instance does is logged at debug level regardless, and Companion filters that for you. Only turn this on to investigate a protocol-level problem: the polling traffic is continuous, so it evicts the rest of the log history within minutes. DO NOT ENABLE THIS IN PRODUCTION!',
 		width: 6,
 		default: false,
 	},

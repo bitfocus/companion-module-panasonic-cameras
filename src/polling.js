@@ -20,7 +20,7 @@ export async function pollCameraStatus(self) {
 			for (const [key, method] of Object.entries(transports)) {
 				for (const cmd of caps[key] || []) {
 					if (!alive()) return
-					await self[method](cmd)
+					await self[method](cmd, { trace: true })
 					if (!alive()) return
 					await sleep(self.config.pollDelay)
 				}

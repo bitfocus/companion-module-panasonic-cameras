@@ -74,7 +74,7 @@ describe('config fields', () => {
 			sectionUpdates: ['subscriptionEnable', 'portManual', 'tcpPort', 'pollAllow', 'pollDelay'],
 			// Scaling comes first and is unconditional: it governs the preset thumbnails too, not just the live image.
 			sectionImage: ['imageScaling', 'imageEnable', 'imageInterval'],
-			sectionDiagnostics: ['debug'],
+			sectionDiagnostics: ['trace'],
 		})
 	})
 
