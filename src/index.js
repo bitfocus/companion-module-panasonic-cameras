@@ -12,7 +12,7 @@ import EventEmitter from 'events'
 import { getAndUpdateSeries, fitImage, raceTimeout } from './common.js'
 import { initialData } from './data.js'
 import { extractUpdates, MAX_BUFFER } from './framing.js'
-import { parseUpdate, parseWeb, parseWebCode } from './parser.js'
+import { parseRefusal, parseUpdate, parseWeb, parseWebCode } from './parser.js'
 import { pollCameraStatus, getCameraStatusOnce } from './polling.js'
 
 // ########################
@@ -46,6 +46,12 @@ const AUTH_REJECTIONS = {
 	401: InstanceStatus.AuthenticationFailure,
 	403: InstanceStatus.InsufficientPermissions,
 }
+
+// A refusal the camera returns in the body of a 200 (see parseRefusal). Meanings are from the
+// protocol spec's "Error return" chapter; the module reacts to each differently (see reportRefusal).
+const REFUSAL_UNSUPPORTED = 1
+const REFUSAL_BUSY = 2
+const REFUSAL_RANGE = 3
 
 // Lead with the code: got carries it in `code` and does not always repeat it in the message. The
 // String() fallback keeps a thrown non-Error from reading as "[object Object]".
@@ -112,10 +118,28 @@ export default class PanasonicCameraInstance extends InstanceBase {
 	}
 
 	// Protocol detail, logged at debug so Companion filters it: nothing here belongs in an operator's
-	// log, but all of it belongs in a support bundle. `trace` marks the lines a repeating loop emits —
+	// log, but all of it belongs in a support bundle. `polled` marks the lines a repeating loop emits —
 	// those are suppressed unless asked for.
-	traced(trace, message) {
-		if (!trace || this.config.trace) this.log('debug', message)
+	traced(polled, message) {
+		if (!polled || this.config.trace) this.log('debug', message)
+	}
+
+	// aw_ptz and aw_cam answer 200 whatever happens and put a refusal in the body, so without this the
+	// module's evidence that a command went nowhere was discarded — parseUpdate matches nothing in
+	// "ER1:QSL" and passes over it in silence. Reported the same however the command was sent: the poll
+	// loop only ever asks a model for what its capabilities list, so a refusal there is not routine
+	// either — it means the model table is wrong, which is worth the same words as a refused button.
+	reportRefusal({ code, command }) {
+		switch (code) {
+			case REFUSAL_BUSY:
+				return this.log('warn', `Camera busy, "${command}" not executed`)
+
+			case REFUSAL_UNSUPPORTED:
+				return this.log('warn', `Camera does not support "${command}"`)
+
+			case REFUSAL_RANGE:
+				return this.log('error', `Camera rejected "${command}": value outside the acceptable range`)
+		}
 	}
 
 	// All requests go through here so teardown()'s abort signal is never missed.
@@ -350,11 +374,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 	// `trace` marks a call the poll loop makes on repeat; those are logged only in trace mode, while
 	// the same command sent by an action stays at plain debug (see traced()).
-	async getPTZ(cmd, { trace = false } = {}) {
+	async getPTZ(cmd, { polled = false } = {}) {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_ptz?cmd=%23${cmd}&res=1`
 
-		this.traced(trace, 'PTZ request: ' + url)
+		this.traced(polled, 'PTZ request: ' + url)
 
 		try {
 			const response = await this.httpGet(url)
@@ -363,9 +387,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			if (response.body) {
 				const str = response.body.trim()
 
-				this.traced(trace, 'PTZ response: ' + str)
+				this.traced(polled, 'PTZ response: ' + str)
 
-				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
+				// A refusal is not an update; it answers 200 all the same.
+				const refusal = parseRefusal(str)
+				if (refusal) this.reportRefusal(refusal)
+				else this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
 				this.checkVariables()
 				this.checkAllFeedbacks()
@@ -380,11 +407,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	async getCam(cmd, { trace = false } = {}) {
+	async getCam(cmd, { polled = false } = {}) {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_cam?cmd=${cmd}&res=1`
 
-		this.traced(trace, 'Cam request: ' + url)
+		this.traced(polled, 'Cam request: ' + url)
 
 		try {
 			const response = await this.httpGet(url)
@@ -393,9 +420,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			if (response.body) {
 				const str = response.body.trim()
 
-				this.traced(trace, 'Cam response: ' + str)
+				this.traced(polled, 'Cam response: ' + str)
 
-				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
+				// A refusal is not an update; it answers 200 all the same.
+				const refusal = parseRefusal(str)
+				if (refusal) this.reportRefusal(refusal)
+				else this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
 				this.checkVariables()
 				this.checkAllFeedbacks()
@@ -411,11 +441,11 @@ export default class PanasonicCameraInstance extends InstanceBase {
 	}
 
 	// Only for web commands that don't require admin rights.
-	async getWeb(cmd, { username = '', password = '', trace = false } = {}) {
+	async getWeb(cmd, { username = '', password = '', polled = false } = {}) {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${cmd}`
 
-		this.traced(trace, 'Web request: ' + url)
+		this.traced(polled, 'Web request: ' + url)
 
 		try {
 			const response = await this.httpGet(url, { username, password })
@@ -427,12 +457,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				for (let line of lines) {
 					const str = line.trim()
 
-					this.traced(trace, 'Web response [' + cmd + ']: ' + str)
+					this.traced(polled, 'Web response [' + cmd + ']: ' + str)
 
 					this.parseSafely(str, () => parseWeb(this, str.split('='), cmd))
 				}
 			} else {
-				this.traced(trace, 'Web response [' + cmd + ']: Response code ' + response.statusCode.toString())
+				this.traced(polled, 'Web response [' + cmd + ']: Response code ' + response.statusCode.toString())
 
 				this.parseSafely(response.statusCode, () => parseWebCode(this, response.statusCode, cmd))
 			}
@@ -637,9 +667,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			}
 
 			// The rest is the camera declining a command in the ordinary course of operating: 404 for a
-			// CGI this generation does not carry (get_state on a UE150), 503 for one whose precondition
+			// CGI this model does not support, 503 for one whose precondition
 			// does not hold — SRT control while RTMP is the selected protocol, recording with no card
-			// ready. Measured on an AW-UE150 V3.20. Neither is a fault, so neither is raised as one.
+			// ready.
 			return 'debug'
 		}
 

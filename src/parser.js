@@ -2,6 +2,15 @@ import { createModuleLogger } from '@companion-module/base'
 
 const logger = createModuleLogger('parser')
 
+const REFUSAL = /^[eE]R([123]):(.*)$/
+
+// Reads a camera reply as a refusal, or returns null if it is an ordinary answer.
+export function parseRefusal(str) {
+	const match = REFUSAL.exec(str)
+
+	return match ? { code: Number(match[1]), command: match[2] } : null
+}
+
 export function parseUpdate(self, str) {
 	if (str[0].substring(0, 3) === 'rER') {
 		self.data.error = str[0].substring(3)

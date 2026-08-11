@@ -795,3 +795,67 @@ describe('configUpdated', () => {
 		expect(stops(self)[0]).not.toContain('10.0.0.2') // never the one being joined
 	})
 })
+
+// aw_ptz and aw_cam answer 200 whatever happens and put a refusal in the body, so the module's only
+// evidence that a command went nowhere used to be dropped on the floor by parseUpdate.
+describe('a command the camera refuses', () => {
+	const answering = (body) => {
+		const self = makeInstance()
+		self.httpGet = vi.fn(async () => ({ body, statusCode: 200 }))
+		return self
+	}
+
+	// getPTZ/getCam also trace the request and the response; those are not what these tests are about.
+	const logs = (self) => self.log.mock.calls.filter(([, message]) => !/^(PTZ|Cam) (request|response)/.test(message))
+
+	it('is not fed to the update parser, which would silently match nothing in it', async () => {
+		const self = answering('ER1:QSL\r\n')
+		await self.getCam('QSL:36')
+
+		expect(self.data.model).toBe('Auto') // untouched
+	})
+
+	// Still an answer, so the connection is demonstrably alive and any failure streak is over.
+	it('still counts as the camera being reachable', async () => {
+		const self = answering('eR1:XF\r\n')
+		self.handleConnectionError({ code: 'ECONNRESET' })
+
+		await self.getPTZ('XF')
+
+		expect(self.failures).toBe(0)
+		expect(self.updateStatus.mock.calls.at(-1)).toEqual(['ok', null])
+	})
+
+	it('tells the operator when it was their button that went nowhere', async () => {
+		const self = answering('ER1:QSH\r\n')
+		await self.getCam('QSH')
+
+		expect(logs(self)).toEqual([['warn', 'Camera does not support "QSH"']])
+	})
+
+	// Busy is the camera's own business and clears itself, so polling it is not worth a word — but a
+	// button press that vanished into a busy camera is.
+	it('tells the operator when a busy camera swallowed their button press', async () => {
+		const self = answering('eR2:AXZ\r\n')
+		await self.getPTZ('AXZ')
+
+		expect(logs(self)).toEqual([['warn', 'Camera busy, "AXZ" not executed']])
+	})
+
+	// The poll loop only ever asks a model for what its own capabilities list, so a refusal there is
+	// no more routine than a refused button — it says the model table is wrong. Same words either way.
+	it('says the same thing when it was the poll loop that was refused', async () => {
+		const self = answering('ER1:QSH\r\n')
+		await self.getCam('QSH', { polled: true })
+
+		expect(logs(self)).toEqual([['warn', 'Camera does not support "QSH"']])
+	})
+
+	// Out of range is the module's own fault: it built a value the command does not accept.
+	it('treats a value the command will not take as the module bug it is', async () => {
+		const self = answering('ER3:OGU\r\n')
+		await self.getCam('OGU:90')
+
+		expect(logs(self)).toEqual([['error', 'Camera rejected "OGU": value outside the acceptable range']])
+	})
+})

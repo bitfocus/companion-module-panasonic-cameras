@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseUpdate, parseWebCode } from '../parser.js'
+import { parseRefusal, parseUpdate, parseWebCode } from '../parser.js'
 import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
 import { initialData } from '../data.js'
 
@@ -265,4 +265,36 @@ describe('parseWebCode', () => {
 	it('leaves state alone for a command it does not know', () => {
 		expect(code(204, 'get_basic')).toEqual(initialData())
 	})
+})
+
+// Strings measured on an AW-UE150 V3.20: aw_ptz answers lower-case, aw_cam upper-case.
+describe('parseRefusal', () => {
+	it.each([
+		['eR1:XF', 1, 'XF'],
+		['ER1:QXF', 1, 'QXF'],
+		['eR2:S', 2, 'S'],
+		['ER2:OWS', 2, 'OWS'],
+		['eR3:AXZ', 3, 'AXZ'],
+		['ER3:OGU', 3, 'OGU'],
+	])('reads %s as a refusal', (str, code, command) => {
+		expect(parseRefusal(str)).toEqual({ code, command })
+	})
+
+	// The camera names the command only, cut at three characters, with everything the module sent
+	// after it dropped. So the echo is not what was sent, and nothing downstream may assume it is.
+	it.each([
+		['eR1:AXZ', 'AXZ'], // sent #AXZFFFF
+		['ER1:QSL', 'QSL'], // sent QSL:36:99
+		['eR1:XYZ', 'XYZ'], // sent #XYZ123
+	])('hands back %s as the camera wrote it', (str, command) => {
+		expect(parseRefusal(str).command).toBe(command)
+	})
+
+	// Ordinary answers must not be mistaken for refusals — several start with the same letters.
+	it.each(['s00', 'aPCA1C67FE2', 'rER00', 'OER:0', 'OSI:46:00000000', 'ER4:XX', 'ER:XX', 'lC10'])(
+		'reads %s as an ordinary answer',
+		(str) => {
+			expect(parseRefusal(str)).toBeNull()
+		},
+	)
 })
