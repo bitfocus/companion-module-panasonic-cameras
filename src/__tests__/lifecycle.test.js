@@ -419,6 +419,17 @@ describe('handleConnectionError', () => {
 		expect(self.updateStatus).not.toHaveBeenCalled()
 	})
 
+	// 503 is how these cameras say a command's precondition does not hold — an operating state they
+	// reach in normal use, not a fault, so it is as quiet as a command the model never had.
+	it('stays quiet about a command whose precondition does not hold', () => {
+		const self = makeInstance()
+
+		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 503 } })
+
+		expect(level).toBe('debug')
+		expect(self.updateStatus).not.toHaveBeenCalled()
+	})
+
 	// The level decides how loud a failure is; the caller only supplies the words.
 	it('logs a failed request at the level its classification earned', async () => {
 		const self = makeInstance()

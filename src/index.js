@@ -622,6 +622,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 		// Camera answered but rejected the request; not a connection problem — and an answer is proof
 		// the camera is there, so it ends any streak a reachability error had started.
+		//
+		// Only the web CGIs reach here at all: aw_ptz and aw_cam answer 200 whatever happens and put
+		// their refusal in the body ("ER1:QSL" for a command the model does not have), which parseUpdate
+		// passes over. So an HTTP code from these cameras is always a /cgi-bin/<name> verdict.
 		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') {
 			this.markReachable()
 
@@ -632,7 +636,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				return 'error'
 			}
 
-			// Everything else here is the camera declining a command it does not implement
+			// The rest is the camera declining a command in the ordinary course of operating: 404 for a
+			// CGI this generation does not carry (get_state on a UE150), 503 for one whose precondition
+			// does not hold — SRT control while RTMP is the selected protocol, recording with no card
+			// ready. Measured on an AW-UE150 V3.20. Neither is a fault, so neither is raised as one.
 			return 'debug'
 		}
 

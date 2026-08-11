@@ -477,8 +477,14 @@ export function parseWeb(self, str, cmd) {
 	}
 }
 
+// These control CGIs answer with a status code and no body, so the code is the whole reply. Only 204
+// says the camera did it. 503 used to be accepted here too, as if it were a second flavour of "no
+// content", but it is the opposite: these cameras answer 503 when the command's precondition does not
+// hold — SRT control while RTMP is the selected protocol, a record command with the card not ready.
+// An ordinary operating state, and not one to write down as a stream that started. (The branch could
+// never fire in any case: got rejects a 503 before this is called, and always has.)
 export function parseWebCode(self, code, cmd) {
-	if (code === 204 || code === 503) {
+	if (code === 204) {
 		switch (cmd) {
 			case 'srt_ctrl?cmd=start':
 				self.data.srt = '1'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseUpdate } from '../parser.js'
+import { parseUpdate, parseWebCode } from '../parser.js'
 import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
 import { initialData } from '../data.js'
 
@@ -228,5 +228,41 @@ describe('common helpers', () => {
 	it('returns undefined for a label that does not exist', () => {
 		expect(getLabel([{ id: '1', label: 'One' }], '1')).toBe('One')
 		expect(getLabel([{ id: '1', label: 'One' }], '2')).toBeUndefined()
+	})
+})
+
+// These CGIs answer with a status code and no body, so the code is the entire reply.
+describe('parseWebCode', () => {
+	function code(statusCode, cmd) {
+		const self = { data: initialData() }
+		parseWebCode(self, statusCode, cmd)
+		return self.data
+	}
+
+	it.each([
+		['srt_ctrl?cmd=start', 'srt', '1'],
+		['srt_ctrl?cmd=stop', 'srt', '0'],
+		['ts_ctrl?cmd=start', 'ts', '1'],
+		['ts_ctrl?cmd=stop', 'ts', '0'],
+		['rtmp_ctrl?cmd=start', 'rtmp', '1'],
+		['rtmp_ctrl?cmd=stop', 'rtmp', '0'],
+		['sdctrl?save=start', 'recording', '1'],
+		['sdctrl?save=end', 'recording', '0'],
+		['initial?cmd=reset&Randomnum=12345', 'power', '0'],
+	])('takes 204 on %s as the camera having done it', (cmd, field, expected) => {
+		expect(code(204, cmd)[field]).toBe(expected)
+	})
+
+	// 503 was accepted here alongside 204, as a second flavour of "no content" — but these cameras send
+	// it when the command's precondition does not hold (SRT not the selected protocol, card not ready),
+	// so it says the opposite of what it was read as. Recording it as a started stream would put the
+	// module's state at odds with the camera's until the next poll disagreed.
+	it('does not take 503 as the camera having done it', () => {
+		expect(code(503, 'srt_ctrl?cmd=start').srt).toBeNull()
+		expect(code(503, 'sdctrl?save=start').recording).toBeNull()
+	})
+
+	it('leaves state alone for a command it does not know', () => {
+		expect(code(204, 'get_basic')).toEqual(initialData())
 	})
 })
