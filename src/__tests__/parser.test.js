@@ -298,3 +298,60 @@ describe('parseRefusal', () => {
 		},
 	)
 })
+
+// The compatible-model table's ▼OAW section: a White Balance query answers in a different encoding
+// than the control command takes. 1 is never returned, and 2 and 3 come back one step below what
+// sets them — so an unmapped reply named the wrong mode (2) or none at all (3).
+//
+// The '3' case is measured, not read off a table: an AW-HE40 standing in AWC B answers OAW:3. The
+// other spec calls 3 a second ATW for this family, so the two disagree and only the camera settles it.
+describe('the white balance confirmation encoding', () => {
+	const he40 = () => ({
+		data: initialData(),
+		getThumbnail: () => {},
+		SERIES: { capabilities: { whiteBalance: { confirm: { 2: '1', 3: '2' } } } },
+	})
+
+	it.each([
+		['0', '0'], // ATW, same either way
+		['2', '1'], // the camera means AWC A, which is 1 in the control encoding
+		['3', '2'], // the camera means AWC B — the reply that used to leave the variable empty
+		['4', '4'], // Preset 3200K, same either way
+		['5', '5'],
+		['9', '9'], // VAR
+	])('reads OAW:%s back as %s', (answered, expected) => {
+		const self = he40()
+		parseUpdate(self, ['OAW', answered])
+
+		expect(self.data.whiteBalance).toBe(expected)
+	})
+
+	// The same "OAW:3" means ATW when it is a control command being handed back, and AWC B when the
+	// camera is reporting its own state. Only the caller knows which, so only the caller can say.
+	it.each([
+		['3', '3'], // the ATW an action just set, repeated back
+		['1', '1'], // AWC A
+		['2', '2'], // AWC B
+	])('leaves OAW:%s alone when it is an action reading its own value back', (answered, expected) => {
+		const self = he40()
+		parseUpdate(self, ['OAW', answered], { echo: true })
+
+		expect(self.data.whiteBalance).toBe(expected)
+	})
+
+	// The CX350 and HE2 answer in the encoding they take, and carry no map.
+	it('leaves the answer alone for a series that needs no mapping', () => {
+		const self = { data: initialData(), getThumbnail: () => {}, SERIES: { capabilities: { whiteBalance: {} } } }
+		parseUpdate(self, ['OAW', '3'])
+
+		expect(self.data.whiteBalance).toBe('3')
+	})
+
+	// parseUpdate also runs from the upgrade scripts and the tests, on a `self` with no series at all.
+	it('does not require a resolved series', () => {
+		const self = { data: initialData(), getThumbnail: () => {} }
+		parseUpdate(self, ['OAW', '3'])
+
+		expect(self.data.whiteBalance).toBe('3')
+	})
+})

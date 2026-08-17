@@ -114,7 +114,7 @@ const BASE_CAPABILITIES = {
 	trackingAuto: true, // Has internal Autotracking features (OSL:B6 - OSL:C2)
 	version: true, // Camera provides software version (from initial getinfo or QSV, OSV)
 	videoFormat: true, // Camera reports current video format (OSA:87)
-	whiteBalance: { dropdown: e.ENUM_WHITEBALANCE }, // Has White Balance Modes (OAW)
+	whiteBalance: { dropdown: e.ENUM_WHITEBALANCE, confirm: { 2: '1', 3: '2' } }, // Has White Balance Modes (OAW)
 	zoom: true, // Has Zoom control and position (Zxx and AXZxxx)
 }
 
@@ -250,7 +250,7 @@ export const SERIES_SPECS = [
 			colorPedestal: false,
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_LINEAR } },
 			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
-			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
+			errorCamera: false,
 			filter: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE40 },
 			pedestal: { cmd: 'OTD', offset: 0x1e, limit: 30, step: 3, hexlen: 2 },
@@ -281,7 +281,6 @@ export const SERIES_SPECS = [
 					'QAW',
 					'QBR',
 					'QCG',
-					'QER',
 					'QGB',
 					'QGR',
 					'QGU',
@@ -383,7 +382,7 @@ export const SERIES_SPECS = [
 			audioVolumeLevel: false,
 			chromaPhase: false,
 			colorTemperature: false,
-			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
+			errorCamera: { cmd: 'QER', bits: ['Fan'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE120 },
 			imageTransmission: false,
@@ -454,7 +453,7 @@ export const SERIES_SPECS = [
 			chromaPhase: false,
 			colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 100, step: 1, hexlen: 3 },
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
-			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
+			errorCamera: false,
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE130 },
 			imageTransmission: { cmd: 'camera?resolution=320' },
@@ -486,7 +485,6 @@ export const SERIES_SPECS = [
 					'QBI',
 					'QBP',
 					'QBR',
-					'QER',
 					'QFT',
 					'QGU',
 					'QIS',
@@ -526,7 +524,7 @@ export const SERIES_SPECS = [
 			chromaPhase: false,
 			colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 100, step: 1, hexlen: 3 },
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
-			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
+			errorCamera: { cmd: 'QER', bits: ['Fan'] },
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HR140 },
 			imageTransmission: { cmd: 'camera?resolution=320' }, // no view.cgi, see HE130
@@ -696,7 +694,7 @@ export const SERIES_SPECS = [
 			dnr: { dropdown: e.ENUM_OFF_ON },
 			drs: false,
 			error: false,
-			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
+			errorCamera: { cmd: 'QER', bits: ['Fan'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			focus: false,
 			focusAuto: false,
@@ -821,6 +819,9 @@ export const SERIES_SPECS = [
 			tally3: false, // TLY is query only
 			trackingAuto: false,
 			version: false,
+			// Its own ▼OAW sub-table: one extra mode ('F'), and 3 is reported but not settable. The
+			// confirmation shift is the same as everywhere else, so only the dropdown differs.
+			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_UB50, confirm: { 2: '1', 3: '2' } },
 			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZP:xxx', 'LZS:x'
 		},
 	},
@@ -1042,7 +1043,7 @@ export const SERIES_SPECS = [
 			colorPedestal: false,
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_LINEAR } },
 			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
-			errorCamera: { cmd: 'QER', bits: ['Fan', 'Other'] },
+			errorCamera: false,
 			filter: { dropdown: e.ENUM_FILTER_3A },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE40 },
 			pedestal: { cmd: 'OTD', offset: 0x1e, limit: 30, step: 3, hexlen: 2 },
@@ -1073,7 +1074,6 @@ export const SERIES_SPECS = [
 					'QAW',
 					'QBR',
 					'QCG',
-					'QER',
 					'QFT',
 					'QGB',
 					'QGR',

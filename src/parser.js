@@ -11,7 +11,7 @@ export function parseRefusal(str) {
 	return match ? { code: Number(match[1]), command: match[2] } : null
 }
 
-export function parseUpdate(self, str) {
+export function parseUpdate(self, str, { echo = false } = {}) {
 	if (str[0].substring(0, 3) === 'rER') {
 		self.data.error = str[0].substring(3)
 	}
@@ -245,8 +245,15 @@ export function parseUpdate(self, str) {
 		case 'OER':
 			self.data.errorCamera = parseInt(str[1], 16)
 			break
+		// The camera reports White Balance in a confirmation encoding that is not the one it takes for
+		// control (see the capability), so a reported mode is mapped back onto the settable ids. Mapped
+		// here, at the one place the value enters, so the variable label, the feedback and the
+		// Toggle/Next actions all read the same mode rather than each needing to know.
+		//
+		// Except on an echo: there the camera is repeating what an action just set, already in the
+		// control encoding, and mapping it again would turn the ATW that was sent into an AWC B.
 		case 'OAW':
-			self.data.whiteBalance = str[1]
+			self.data.whiteBalance = echo ? str[1] : (self.SERIES?.capabilities.whiteBalance?.confirm?.[str[1]] ?? str[1])
 			break
 		case 'OIF':
 			self.data.irisLabel = str[1] === 'FF' ? 'CLOSE' : 'f/' + (parseInt(str[1], 16) / 10).toFixed(1)

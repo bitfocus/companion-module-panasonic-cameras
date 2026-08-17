@@ -411,6 +411,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/aw_cam?cmd=${cmd}&res=1`
 
+		// aw_cam splits its commands by first letter: 'O' sets, 'Q' asks. A set is answered by handing
+		// the value back, a query by the camera reporting its own state — and for White Balance on HE 40
+		// those are two different encodings of the same mode. The reply looks identical either way ("OAW:3"),
+		// so nothing downstream can tell them apart; only the command that provoked it can.
+		const echo = cmd.startsWith('O')
+
 		this.traced(polled, 'Cam request: ' + url)
 
 		try {
@@ -425,7 +431,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				// A refusal is not an update; it answers 200 all the same.
 				const refusal = parseRefusal(str)
 				if (refusal) this.reportRefusal(refusal)
-				else this.parseSafely(str, () => parseUpdate(this, str.split(':')))
+				else this.parseSafely(str, () => parseUpdate(this, str.split(':'), { echo }))
 
 				this.checkVariables()
 				this.checkAllFeedbacks()

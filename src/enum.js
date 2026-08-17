@@ -393,6 +393,14 @@ export const e = {
 		{ id: '5', label: 'Preset 5600K' },
 		{ id: '9', label: 'VAR' },
 	],
+	ENUM_WHITEBALANCE_CX350: [
+		{ id: '0', label: 'ATW' },
+		{ id: '1', label: 'AWC A' },
+		{ id: '2', label: 'AWC B' },
+		{ id: '3', label: 'VAR' },
+		{ id: '4', label: 'Preset 3200K' },
+		{ id: '5', label: 'Preset 5600K' },
+	],
 	ENUM_WHITEBALANCE_HE2: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
@@ -403,13 +411,14 @@ export const e = {
 		{ id: '7', label: 'Preset 6000K' },
 		{ id: '8', label: 'Preset 2800K' },
 	],
-	ENUM_WHITEBALANCE_CX350: [
+	ENUM_WHITEBALANCE_UB50: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
 		{ id: '2', label: 'AWC B' },
-		{ id: '3', label: 'VAR' },
 		{ id: '4', label: 'Preset 3200K' },
 		{ id: '5', label: 'Preset 5600K' },
+		{ id: '9', label: 'VAR' },
+		{ id: 'F', label: 'Other' },
 	],
 	// #########################
 	// #### Preset Look Ups ####

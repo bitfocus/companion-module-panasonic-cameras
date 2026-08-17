@@ -859,3 +859,29 @@ describe('a command the camera refuses', () => {
 		expect(logs(self)).toEqual([['error', 'Camera rejected "OGU": value outside the acceptable range']])
 	})
 })
+
+// aw_cam answers a control command by handing the value back, a query by reporting the camera's own
+// state. For White Balance those are two encodings of the same mode and the reply is identical
+// either way, so getCam has to say which it asked for — nothing downstream can work it out.
+describe('reading a value back versus being told one', () => {
+	const camera = (body) => {
+		const self = makeInstance()
+		self.SERIES = { id: 'HE40', capabilities: { whiteBalance: { confirm: { 2: '1', 3: '2' } } } }
+		self.httpGet = vi.fn(async () => ({ body, statusCode: 200 }))
+		return self
+	}
+
+	it('maps what a query reports onto the settable mode', async () => {
+		const self = camera('OAW:3\r\n')
+		await self.getCam('QAW')
+
+		expect(self.data.whiteBalance).toBe('2') // the camera means AWC B
+	})
+
+	it("takes an action's own value back unchanged", async () => {
+		const self = camera('OAW:3\r\n')
+		await self.getCam('OAW:3') // set ATW
+
+		expect(self.data.whiteBalance).toBe('3') // still the ATW that was sent
+	})
+})
