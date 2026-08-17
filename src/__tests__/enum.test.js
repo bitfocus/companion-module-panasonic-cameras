@@ -25,7 +25,8 @@ describe('generated enums', () => {
 	it('sizes each gain table to its camera range', () => {
 		expect(e.ENUM_GAIN_HE50).toHaveLength(8) // auto + 0..18 dB in steps of 3
 		expect(e.ENUM_GAIN_HE120).toHaveLength(20) // auto + 0..18 dB
-		expect(e.ENUM_GAIN_UE160).toHaveLength(18) // auto + -4..12 dB
+		expect(e.ENUM_GAIN_UE160).toHaveLength(20) // auto + -6..12 dB
+		expect(e.ENUM_GAIN_UBX100).toHaveLength(10) // auto + -6..18 dB in steps of 3
 		expect(e.ENUM_GAIN_CX350).toHaveLength(51) // auto + -6..42 dB + manual
 	})
 

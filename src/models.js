@@ -75,7 +75,7 @@ const BASE_CAPABILITIES = {
 	focus: true, // Has Focus control and position (Fxx and AXFxxx)
 	focusAuto: true, // Has (switchable) Auto Focus (OAF)
 	focusPushAuto: true, // Has Push Auto Focus feature (OSE:69:1)
-	gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_CX350 }, // Has Gain (OGS/OGU)
+	gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_CX350 }, // Has Gain (OGU or OGS)
 	imageTransmission: { cmd: 'view.cgi?action=snapshot' }, // Has a JPEG one-shot image request (view.cgi)
 	install: true, // Has support for Desktop or Hanging Install Position (iNSx)
 	iris: { cmd: 'AXI', transport: 'ptz', offset: 0x555, max: 0xaaa, step: 0x1e }, // Has Iris control and position (#AXI or ORV)
