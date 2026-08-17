@@ -819,8 +819,6 @@ export const SERIES_SPECS = [
 			tally3: false, // TLY is query only
 			trackingAuto: false,
 			version: false,
-			// Its own ▼OAW sub-table: one extra mode ('F'), and 3 is reported but not settable. The
-			// confirmation shift is the same as everywhere else, so only the dropdown differs.
 			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_UB50, confirm: { 2: '1', 3: '2' } },
 			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZP:xxx', 'LZS:x'
 		},
