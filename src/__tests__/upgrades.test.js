@@ -13,6 +13,7 @@ const fillOmittedOptions = upgradeScripts[2]
 const dropUseVarToggles = upgradeScripts[3]
 const repairPre201Writes = upgradeScripts[4]
 const rescaleColorTemperatureStep = upgradeScripts[5]
+const renameDebugToTrace = upgradeScripts[6]
 
 // An upgrade script both reads and writes CompanionMigrationOptionValues, so every option in these
 // fixtures — and every option a script writes — is an ExpressionOrValue wrapper, never a bare value.
@@ -409,5 +410,61 @@ describe('dropUseVarToggles', () => {
 		const actions = [{ actionId: 'presetMem', options: { useVar: val(true), valVar: val('5') } }, { actionId: 'iris' }]
 
 		expect(() => migrate({ config, actions })).not.toThrow()
+	})
+})
+
+// The `debug` flag gated every log line the module produced, at info level. The lines are debug level
+// and unconditional now, and the flag that survives only decides whether the repeating poll traffic
+// joins them — so the stored value carries over rather than resetting. Getting this wrong either
+// resets a user's diagnostics or, worse, silently switches high-volume tracing on for connections
+// that never asked for it.
+describe('renameDebugToTrace', () => {
+	const upgrade = (config) => renameDebugToTrace({}, { config, actions: [], feedbacks: [] })
+
+	it.each([
+		[true, true],
+		[false, false],
+	])('carries a stored debug: %s over to trace', (debug, expected) => {
+		const { updatedConfig } = upgrade({ host: '10.0.0.1', debug })
+
+		expect(updatedConfig.trace).toBe(expected)
+	})
+
+	it('drops the key it replaced, so nothing reads the old name back', () => {
+		const { updatedConfig } = upgrade({ host: '10.0.0.1', debug: true })
+
+		expect(updatedConfig).not.toHaveProperty('debug')
+	})
+
+	it('leaves every other setting exactly as it found it', () => {
+		const stored = { host: '10.0.0.1', httpPort: 8080, pollDelay: 250, imageEnable: false, debug: false }
+
+		const { updatedConfig } = upgrade(stored)
+
+		expect(updatedConfig).toEqual({
+			host: '10.0.0.1',
+			httpPort: 8080,
+			pollDelay: 250,
+			imageEnable: false,
+			trace: false,
+		})
+	})
+
+	// A truthy leftover is not a `true` a user chose; only the boolean turns tracing on.
+	it.each([['1'], [1], ['yes']])('does not read a stray %o as a request for tracing', (debug) => {
+		expect(upgrade({ debug }).updatedConfig.trace).toBe(false)
+	})
+
+	// Buttons are upgraded with props.config null, and a connection saved after the rename has no
+	// `debug` at all. Writing a config in either case would hand Companion a spurious change.
+	it.each([[undefined], [null], [{ host: '10.0.0.1', trace: true }]])('writes no config for %o', (config) => {
+		expect(upgrade(config).updatedConfig).toBeNull()
+	})
+
+	it('touches no actions or feedbacks', () => {
+		const result = upgrade({ debug: true })
+
+		expect(result.updatedActions).toEqual([])
+		expect(result.updatedFeedbacks).toEqual([])
 	})
 })

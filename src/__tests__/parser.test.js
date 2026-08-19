@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { parseRefusal, parseUpdate, parseWebCode } from '../parser.js'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { parseRefusal, parseUpdate, parseWeb, parseWebCode } from '../parser.js'
 import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
 import { initialData } from '../data.js'
 
@@ -353,5 +353,42 @@ describe('the white balance confirmation encoding', () => {
 		parseUpdate(self, ['OAW', '3'])
 
 		expect(self.data.whiteBalance).toBe('3')
+	})
+})
+
+// The parser logs through the base package's module logger rather than the instance, so it was
+// missed when everything else moved off info. A detected model is protocol detail like the rest: it
+// belongs in the log Companion filters, not in the one an operator reads on a healthy connection.
+describe("the parser's own logging", () => {
+	const captured = []
+
+	beforeEach(() => {
+		captured.length = 0
+		globalThis.COMPANION_LOGGER = (_source, level, message) => captured.push([level, message])
+	})
+	afterEach(() => {
+		delete globalThis.COMPANION_LOGGER
+	})
+
+	it('reports the model detected over aw_cam at debug', () => {
+		parseUpdate({ data: initialData(), getThumbnail: () => {} }, ['OID', 'AW-UE150'])
+
+		expect(captured).toEqual([['debug', 'Detected Camera Model: AW-UE150']])
+	})
+
+	it('reports the model detected over the web CGI at debug', () => {
+		parseWeb({ data: initialData() }, ['NAME', 'AW-UE150'], 'getinfo?FILE=1')
+
+		expect(captured).toEqual([['debug', 'Detected Camera Model: AW-UE150']])
+	})
+
+	// Every init resolves the model; only a change is worth a line.
+	it('says nothing when the model is the one already resolved', () => {
+		const data = initialData()
+		data.model = 'AW-UE150'
+
+		parseUpdate({ data, getThumbnail: () => {} }, ['OID', 'AW-UE150'])
+
+		expect(captured).toEqual([])
 	})
 })

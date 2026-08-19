@@ -408,26 +408,48 @@ describe('handleConnectionError', () => {
 		expect(self.updateStatus.mock.calls).toEqual([[status, `HTTP ${statusCode}`]])
 	})
 
-	it('stays quiet about a command this model simply does not implement', () => {
-		// Querying a capability the camera lacks answers 4xx. That is how a model outside its own
-		// capability list replies, not a fault, so it must not reach the operator as one.
+	// Each of these is a way these cameras decline a command while working perfectly well: 400 for one
+	// they carry no configuration for, 404 for a CGI this generation never had, 503 for one whose
+	// precondition does not hold. None reaches the operator as a fault.
+	it.each([400, 404, 503])('stays quiet about the ordinary rejection %i', (statusCode) => {
 		const self = makeInstance()
 
-		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 404 } })
+		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode } })
 
 		expect(level).toBe('debug')
-		expect(self.updateStatus).not.toHaveBeenCalled()
 	})
 
-	// 503 is how these cameras say a command's precondition does not hold — an operating state they
-	// reach in normal use, not a fault, so it is as quiet as a command the model never had.
-	it('stays quiet about a command whose precondition does not hold', () => {
+	// Declining a command is ordinary; failing to answer one is not. The quiet set is small and known,
+	// the set of faults is open-ended, so anything outside the first is reported rather than assumed.
+	it.each([429, 500, 502, 504])('does not extend that silence to the unexpected %i', (statusCode) => {
 		const self = makeInstance()
 
-		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 503 } })
+		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode } })
 
-		expect(level).toBe('debug')
-		expect(self.updateStatus).not.toHaveBeenCalled()
+		expect(level).toBe('error')
+	})
+
+	// markReachable() withdraws the fallback retry along with the streak. Without restoring the status
+	// here, a connection left amber by a sub-threshold failure had nothing left to clear it — and with
+	// polling off, nothing would ever ask again.
+	it('takes an ordinary rejection as proof the camera came back', () => {
+		const self = makeInstance()
+
+		self.handleConnectionError({ code: 'ECONNRESET' }) // sub-threshold: amber
+		self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 404 } })
+
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['unknown_warning', 'ok'])
+		expect(vi.getTimerCount()).toBe(0) // and the retry it withdrew is not owed any more
+	})
+
+	// The camera answered, but with the one rejection an operator has to act on — reporting Ok over it
+	// would erase the only sign of it.
+	it('does not report Ok over an authentication failure', () => {
+		const self = makeInstance()
+
+		self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 401 } })
+
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['authentication_failure'])
 	})
 
 	// The level decides how loud a failure is; the caller only supplies the words.

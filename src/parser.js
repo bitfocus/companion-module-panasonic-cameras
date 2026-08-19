@@ -221,10 +221,8 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 			break
 		case 'OID':
 			self.data.modelAuto = str[1]
-			// re-init all if model changed
 			if (self.data.modelAuto !== self.data.model) {
-				logger.info('Detected Camera Model: ' + self.data.modelAuto)
-				//self.reInitAll()
+				logger.debug('Detected Camera Model: ' + self.data.modelAuto)
 			}
 			break
 		case 'OLR':
@@ -480,10 +478,8 @@ export function parseWeb(self, str, cmd) {
 					break
 				case 'NAME':
 					self.data.modelAuto = str[1]
-					// re-init all if model changed
 					if (self.data.modelAuto !== self.data.model) {
-						logger.info('Detected Camera Model: ' + self.data.modelAuto)
-						//self.reInitAll()
+						logger.debug('Detected Camera Model: ' + self.data.modelAuto)
 					}
 					break
 			}

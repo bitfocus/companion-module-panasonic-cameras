@@ -47,6 +47,13 @@ const AUTH_REJECTIONS = {
 	403: InstanceStatus.InsufficientPermissions,
 }
 
+// Ordinary HTTP error codes that are not caused by a connection problem and therefore do not need to be logged as errors.
+const ORDINARY_REJECTION_CODES = new Set([
+	400, // Bad Request: Incomplete request (e.g. ts_ctrl with MPEG-TS unconfigured)
+	404, // Not Found: Not implemented on this model (e.g. get_state on an AW-UE150)
+	503, // Service Unavailable: Precondition not met (e.g. SRT control while RTMP is the selected protocol)
+])
+
 // A refusal the camera returns in the body of a 200 (see parseRefusal). Meanings are from the
 // protocol spec's "Error return" chapter; the module reacts to each differently (see reportRefusal).
 const REFUSAL_UNSUPPORTED = 1
@@ -663,7 +670,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		// their refusal in the body ("ER1:QSL" for a command the model does not have), which parseUpdate
 		// passes over. So an HTTP code from these cameras is always a /cgi-bin/<name> verdict.
 		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') {
-			this.markReachable()
+			const reachable = this.markReachable()
 
 			// Credentials are the one rejection an operator can do something about
 			const status = AUTH_REJECTIONS[err.response?.statusCode]
@@ -672,11 +679,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				return 'error'
 			}
 
-			// The rest is the camera declining a command in the ordinary course of operating: 404 for a
-			// CGI this model does not support, 503 for one whose precondition
-			// does not hold — SRT control while RTMP is the selected protocol, recording with no card
-			// ready.
-			return 'debug'
+			if (reachable) this.setStatus(InstanceStatus.Ok)
+
+			return ORDINARY_REJECTION_CODES.has(err.response?.statusCode) ? 'debug' : 'error'
 		}
 
 		// No code at all is one of ours, not the camera's: got labels everything it raises. Saying so
