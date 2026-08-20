@@ -25,6 +25,7 @@ export function initialData() {
 		errorCamera: null,
 		errorCameraDetail: null,
 		filter: null,
+		filterFollow: null,
 		focusMode: null,
 		gain: null,
 		installMode: null,

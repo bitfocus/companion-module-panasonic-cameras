@@ -72,6 +72,7 @@ const BASE_CAPABILITIES = {
 	error: true, // Camera can return enumerated error messages (rER)
 	errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature', 'Lens', 'Pan/Tilt', 'Sensor'] }, // Has error state bitmask (QSI:46 or QER)
 	filter: { dropdown: e.ENUM_FILTER_OTHER }, // Has ND Filter Support (OFT)
+	filterFollow: false, // Has ND Filter Status (QSJ:D2)
 	focus: true, // Has Focus control and position (Fxx and AXFxxx)
 	focusAuto: true, // Has (switchable) Auto Focus (OAF)
 	focusPushAuto: true, // Has Push Auto Focus feature (OSE:69:1)
@@ -1108,6 +1109,7 @@ export const SERIES_SPECS = [
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: false,
 			filter: { dropdown: e.ENUM_FILTER_3A },
+			filterFollow: { dropdown: e.ENUM_FILTER_3 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
 			irisF: true,
 			ois: { dropdown: e.ENUM_OIS_UE80 },
@@ -1154,6 +1156,7 @@ export const SERIES_SPECS = [
 					'QSJ:0B',
 					'QSJ:0F',
 					'QSJ:29',
+					'QSJ:D2',
 					'QSL:B6',
 					'QSL:B7',
 					'QSL:BB',
@@ -1257,6 +1260,7 @@ export const SERIES_SPECS = [
 				hexlen: 3,
 			},
 			filter: { dropdown: e.ENUM_FILTER_3A },
+			filterFollow: { dropdown: e.ENUM_FILTER_3 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
 			irisF: true,
 			ois: { dropdown: e.ENUM_OIS_UE100 },
@@ -1309,6 +1313,7 @@ export const SERIES_SPECS = [
 					'QSJ:0F',
 					'QSJ:10',
 					'QSJ:29',
+					'QSJ:D2',
 				],
 				web: false,
 			},

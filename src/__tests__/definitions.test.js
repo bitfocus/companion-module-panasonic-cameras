@@ -678,6 +678,35 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 		})
 	})
 
+	// OSJ:D2 is read-only — the camera has no control command for it — and reports the filter in place,
+	// which is never "Auto". Only the two models whose specs carry it may publish it at all.
+	describe('the ND filter follow status', () => {
+		it('is offered only where the camera reports it, and always beside the setting', () => {
+			if (!caps.filterFollow) return
+
+			expect(['UE80', 'UR100'], series).toContain(series)
+			expect(caps.filter, series).toBeTruthy()
+			expect(
+				caps.filterFollow.dropdown.map((c) => c.id),
+				series,
+			).toEqual(['0', '1', '2', '3'])
+		})
+
+		it('is queried wherever it is declared, or the variable would never fill', () => {
+			if (!caps.filterFollow) return
+
+			const cam = [...(caps.pull?.cam || []), ...(caps.poll?.cam || [])] // `cam` is false, not absent, where unused
+			expect(cam, series).toContain('QSJ:D2')
+		})
+
+		it('is not queried where it is not declared', () => {
+			if (caps.filterFollow) return
+
+			const cam = [...(caps.pull?.cam || []), ...(caps.poll?.cam || [])] // `cam` is false, not absent, where unused
+			expect(cam, series).not.toContain('QSJ:D2')
+		})
+	})
+
 	describe('feedbacks', () => {
 		it('gives every boolean feedback a defaultStyle and drops the removed subscribe hook', () => {
 			for (const [feedbackId, def] of Object.entries(feedbacks)) {

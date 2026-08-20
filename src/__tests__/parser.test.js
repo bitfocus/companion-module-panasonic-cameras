@@ -392,3 +392,31 @@ describe("the parser's own logging", () => {
 		expect(captured).toEqual([])
 	})
 })
+
+// OSJ:D2 is the filter actually in place; OFT is the setting, and the setting can be Auto ND. They
+// shared `data.filter` until they were split, so whichever arrived last decided what the ND Filter
+// variable said — a camera in Auto ND could read as a fixed filter, or a fixed one as Auto.
+describe('the ND filter follow status', () => {
+	it('reads OSJ:D2 into its own field', () => {
+		expect(parse('OSJ', 'D2', '2').filterFollow).toBe('2')
+	})
+
+	it('leaves the filter setting alone', () => {
+		const data = initialData()
+
+		parseUpdate({ data }, ['OFT', '8']) // Auto ND
+		parseUpdate({ data }, ['OSJ', 'D2', '2']) // ...which settled on 1/16 ND
+
+		expect(data.filter).toBe('8')
+		expect(data.filterFollow).toBe('2')
+	})
+
+	it('is not touched by the filter setting either', () => {
+		const data = initialData()
+
+		parseUpdate({ data }, ['OSJ', 'D2', '3'])
+		parseUpdate({ data }, ['OFT', '0'])
+
+		expect(data.filterFollow).toBe('3')
+	})
+})

@@ -369,7 +369,9 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 					break
 				//case '3C': break; // Preset Name / Preset Thumbnail Counter
 				//case '4A': break // AWB Color Temperature
-				//case 'D2': break // ND Filter Status (Follow)
+				case 'D2':
+					self.data.filterFollow = str[2]
+					break
 			}
 			break
 		case 'OSL':
