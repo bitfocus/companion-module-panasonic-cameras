@@ -408,10 +408,10 @@ describe('handleConnectionError', () => {
 		expect(self.updateStatus.mock.calls).toEqual([[status, `HTTP ${statusCode}`]])
 	})
 
-	// Each of these is a way these cameras decline a command while working perfectly well: 400 for one
-	// they carry no configuration for, 404 for a CGI this generation never had, 503 for one whose
-	// precondition does not hold. None reaches the operator as a fault.
-	it.each([400, 404, 503])('stays quiet about the ordinary rejection %i', (statusCode) => {
+	// Each of these is a way these cameras decline a command while working perfectly well: 404 for a CGI
+	// this generation never had, 503 for one whose precondition does not hold. Neither reaches the
+	// operator as a fault.
+	it.each([404, 503])('stays quiet about the ordinary rejection %i', (statusCode) => {
 		const self = makeInstance()
 
 		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode } })
@@ -421,7 +421,9 @@ describe('handleConnectionError', () => {
 
 	// Declining a command is ordinary; failing to answer one is not. The quiet set is small and known,
 	// the set of faults is open-ended, so anything outside the first is reported rather than assumed.
-	it.each([429, 500, 502, 504])('does not extend that silence to the unexpected %i', (statusCode) => {
+	// 400 is in the loud set on purpose: an AW-UE150 answers ts_ctrl with it while MPEG-TS is
+	// unconfigured, and "the camera could not make sense of that" is the operator's call, not ours.
+	it.each([400, 429, 500, 502, 504])('does not extend that silence to the unexpected %i', (statusCode) => {
 		const self = makeInstance()
 
 		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode } })

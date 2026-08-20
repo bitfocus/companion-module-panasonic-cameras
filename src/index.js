@@ -49,7 +49,6 @@ const AUTH_REJECTIONS = {
 
 // Ordinary HTTP error codes that are not caused by a connection problem and therefore do not need to be logged as errors.
 const ORDINARY_REJECTION_CODES = new Set([
-	400, // Bad Request: Incomplete request (e.g. ts_ctrl with MPEG-TS unconfigured)
 	404, // Not Found: Not implemented on this model (e.g. get_state on an AW-UE150)
 	503, // Service Unavailable: Precondition not met (e.g. SRT control while RTMP is the selected protocol)
 ])
