@@ -212,6 +212,10 @@ describe('pull coverage', () => {
 		// full would mean ~40 queries per cycle against a camera that may support none of them. It gets
 		// the small set almost any Panasonic PTZ answers; anyone needing more picks their actual model.
 		Other: '*',
+		// The AW-HE2 is the only camera that pushes OSD:4F and offers no query for it — "QSD:4F" appears
+		// nowhere in its specification. Its notification table carries Iris Follow, so the variable fills
+		// itself; asking would earn an ER1.
+		HE2: ['irisFollowPosition'],
 	}
 	const exempt = (series, name) => EXEMPT[series] === '*' || EXEMPT[series]?.includes(name)
 
@@ -675,6 +679,25 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 					}
 				}
 			}
+		})
+	})
+
+	// `pull` is only read when the subscription is off, so it may only carry what the camera pushes.
+	// Iris Follow is the counter-example: its Update notification column is empty in every spec that
+	// carries it, and it shipped in `pull` — so a subscribed connection read it once from camdata.html
+	// at init and reported that same value for the life of the connection.
+	describe('the iris follow position', () => {
+		it('is polled rather than pulled, because the camera never reports it again', () => {
+			if (!caps.irisFollowPosition) return
+
+			expect(caps.pull?.cam || [], series).not.toContain('QSD:4F')
+		})
+
+		// The AW-HE2 has no QSD:4F at all; it pushes OSD:4F instead, so it neither polls nor pulls.
+		it('is queried on every model that answers a query for it', () => {
+			if (!caps.irisFollowPosition || series === 'HE2' || series === 'Other') return
+
+			expect(caps.poll?.cam || [], series).toContain('QSD:4F')
 		})
 	})
 
