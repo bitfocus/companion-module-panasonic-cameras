@@ -4,7 +4,7 @@ import { getActionDefinitions } from './actions.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
 import { getPresetDefinitions } from './presets.js'
 import { setVariables, checkVariables } from './variables.js'
-import { ConfigFields, applyConfigDefaults, describeDetectedModel } from './config.js'
+import { ConfigFields, applyConfigDefaults, describeAuth, describeDetectedModel } from './config.js'
 import * as net from 'net'
 import got from 'got'
 import { Jimp, JimpMime } from 'jimp'
@@ -13,6 +13,7 @@ import { getAndUpdateSeries, fitImage, raceTimeout } from './common.js'
 import { initialData } from './data.js'
 import { extractUpdates, MAX_BUFFER } from './framing.js'
 import { parseRefusal, parseUpdate, parseWeb, parseWebCode } from './parser.js'
+import { createAuthSession, requestWithAuth } from './auth.js'
 import { pollCameraStatus, getCameraStatusOnce } from './polling.js'
 
 // ########################
@@ -37,9 +38,6 @@ export const REACHABILITY_ERRORS = new Set([
 	'EAI_AGAIN', // DNS is temporarily unreachable
 ])
 
-// Consecutive reachability failures before the connection counts as lost
-const FAILURE_THRESHOLD = 3
-
 // HTTP rejections that say the request will never work as sent, as opposed to "not on this model".
 // Both are conditions an operator can fix, so both get a status of their own.
 const AUTH_REJECTIONS = {
@@ -49,7 +47,6 @@ const AUTH_REJECTIONS = {
 
 // Ordinary HTTP error codes that are not caused by a connection problem and therefore do not need to be logged as errors.
 const ORDINARY_REJECTION_CODES = new Set([
-	404, // Not Found: Not implemented on this model (e.g. get_state on an AW-UE150)
 	503, // Service Unavailable: Precondition not met (e.g. SRT control while RTMP is the selected protocol)
 ])
 
@@ -87,17 +84,17 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.pollImage = false
 		this.pollImageGen = 0
 
-		// Consecutive reachability failures; a success resets it (see onRequestSucceeded()).
-		this.failures = 0
-
 		// True from the moment a reconnect is committed until it starts, so nothing withdraws it.
 		this.reconnecting = false
 
 		// Last status handed to Companion, so setStatus() can drop a repeat (see there).
 		this.reportedStatus = undefined
+
+		this.secrets = {}
+		this.auth = createAuthSession()
+		this.reportedAuth = new Set()
 	}
 
-	// De-duplicates the status
 	setStatus(status, message = null) {
 		const reported = JSON.stringify([status, message])
 		if (reported === this.reportedStatus) return
@@ -106,15 +103,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.updateStatus(status, message)
 	}
 
-	// True while `generation` is still the running connection.
 	current(generation) {
 		return generation === this.generation
 	}
 
-	// One camera line is one parse. Contained here, a line the parser chokes on costs that line and
-	// not the 390 behind it in a bulk dump — and, more importantly, never leaves the parse inside the
-	// request's try, where a TypeError carrying no `err.code` reached handleConnectionError and was
-	// reported to the operator as a camera fault, with the connection deadened and no retry armed.
 	parseSafely(line, parse) {
 		try {
 			parse()
@@ -123,18 +115,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	// Protocol detail, logged at debug so Companion filters it: nothing here belongs in an operator's
-	// log, but all of it belongs in a support bundle. `polled` marks the lines a repeating loop emits —
-	// those are suppressed unless asked for.
 	traced(polled, message) {
 		if (!polled || this.config.trace) this.log('debug', message)
 	}
 
-	// aw_ptz and aw_cam answer 200 whatever happens and put a refusal in the body, so without this the
-	// module's evidence that a command went nowhere was discarded — parseUpdate matches nothing in
-	// "ER1:QSL" and passes over it in silence. Reported the same however the command was sent: the poll
-	// loop only ever asks a model for what its capabilities list, so a refusal there is not routine
-	// either — it means the model table is wrong, which is worth the same words as a refused button.
 	reportRefusal({ code, command }) {
 		switch (code) {
 			case REFUSAL_BUSY:
@@ -150,15 +134,103 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 	// All requests go through here so teardown()'s abort signal is never missed.
 	httpGet(url, options = {}) {
-		return got.get(url, {
-			timeout: { request: this.config.timeout },
-			...options,
-			signal: this.aborter.signal, // last, so callers cannot override
-		})
+		const { auth = this.auth, polled = false, ...gotOptions } = options
+		const { pathname, search } = new URL(url)
+
+		return requestWithAuth(
+			(headers) =>
+				got.get(url, {
+					timeout: { request: this.config.timeout },
+					...gotOptions,
+					headers: { ...gotOptions.headers, ...headers },
+					signal: this.aborter.signal, // last, so callers cannot override
+				}),
+			{
+				session: auth,
+				uri: pathname + search,
+				report: (event) => this.reportAuthEvent(event, url, polled),
+			},
+		)
 	}
 
-	// Undo everything that can reach the camera. Takes config because the caller may be replacing this.config.
-	async teardown(config = this.config) {
+	reportAuthEvent({ type, scheme, realm, algorithm, offered }, url, polled = false) {
+		const refused = type === 'credentialsRequired' || type === 'rejected' || type === 'unsupported'
+		const connection = !refused || polled || !this.auth?.ok
+
+		// Blocking is a verdict about the connection, not about the request that happened to trigger it.
+		// A restart button refused at Admin level must not stop a connection whose every other request
+		// the camera answers without a login.
+		if (refused && connection && this.auth) {
+			this.auth.blocked = true
+			this.poll = false
+			this.pollImage = false
+		}
+
+		if (!connection) {
+			if (this.reportedAuth.has('command:' + type)) return
+			this.reportedAuth.add('command:' + type)
+
+			return this.log(
+				'error',
+				'The camera rejected the command because the login credentials are invalid ' +
+					`or the user account does not have sufficient permissions: ${url}`,
+			)
+		}
+
+		this.data.auth = {
+			state:
+				{ none: 'none', credentialsRequired: 'required', rejected: 'rejected', unsupported: 'unsupported' }[type] ??
+				'authenticated',
+			scheme: scheme ?? this.data.auth?.scheme ?? null,
+			realm: realm ?? this.data.auth?.realm ?? null,
+		}
+
+		if (this.reportedAuth.has(type)) return
+		this.reportedAuth.add(type)
+
+		const forRealm = realm ? ` (realm "${realm}")` : ''
+
+		switch (type) {
+			// The camera answered without asking for auth.
+			case 'none':
+				return
+
+			case 'credentialsRequired':
+				this.setStatus(InstanceStatus.AuthenticationFailure, 'Login required')
+				return this.log(
+					'error',
+					`The camera requires a login${forRealm}: ${url} answered HTTP 401. Enter its user name and ` +
+						"password in this connection's settings. A camera only asks once its 'User auth.' has been " +
+						'switched on in the web menu; any camera-control or administrator account will do.',
+				)
+
+			case 'rejected':
+				this.setStatus(InstanceStatus.AuthenticationFailure, 'Login rejected')
+				return this.log(
+					'error',
+					`The camera rejected the user name and password${forRealm}. Check them in this connection's settings.`,
+				)
+
+			case 'unsupported':
+				this.setStatus(InstanceStatus.AuthenticationFailure, 'Unsupported login method')
+				return this.log(
+					'error',
+					`The camera asked for ${offered ?? 'a login method'}, which this module cannot answer. Set its ` +
+						"'Auth. method' to 'Digest' or 'Basic' in the camera's web menu.",
+				)
+
+			case 'stale':
+				return this.log('debug', `Camera issued a fresh authentication nonce${forRealm}; re-authenticated.`)
+
+			default:
+				return this.log(
+					'debug',
+					`Camera asked for ${scheme} authentication${forRealm}${algorithm ? `, algorithm ${algorithm}` : ''}; authenticated.`,
+				)
+		}
+	}
+
+	async teardown(config = this.config, auth = this.auth) {
 		// 1. Stop new work; bumping loop tokens wakes loops parked in a sleep.
 		this.poll = false
 		this.pollImage = false
@@ -175,7 +247,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		// 3. Tell the old camera to stop pushing (only if subscribed; this.server proves it). Awaited but
 		//    bounded: the stop must land before the next start, yet a gone camera must not stall the panel.
 		if (this.server) {
-			const goodbye = this.unsubscribeTCPEvents(this.tcpPortSelected, config)
+			const goodbye = this.unsubscribeTCPEvents(this.tcpPortSelected, config, auth)
 			await raceTimeout(goodbye, Math.min(config.timeout, UNSUBSCRIBE_GRACE))
 		}
 
@@ -194,14 +266,16 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		await this.teardown()
 	}
 
-	// Takes config explicitly: this goodbye targets the connection being left behind, not this.config.
-	async unsubscribeTCPEvents(port, config = this.config) {
+	// Takes config and login explicitly: this goodbye targets the connection being left behind, not
+	// this.config. Handing it the live session also means it reuses the nonce already established, so
+	// it needs no handshake inside the grace window teardown() allows it.
+	async unsubscribeTCPEvents(port, config = this.config, auth = this.auth) {
 		const url = `http://${config.host}:${config.httpPort}/cgi-bin/event?connect=stop&my_port=${port}&uid=0`
 
 		this.log('debug', 'TCP unsubscription request: ' + url)
 
 		try {
-			await this.httpGet(url, { timeout: { request: config.timeout } })
+			await this.httpGet(url, { timeout: { request: config.timeout }, auth })
 
 			this.log('debug', 'un-subscribed: ' + url)
 		} catch (err) {
@@ -288,10 +362,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 					// Once for the whole batch: a coalesced burst is one redraw.
 					if (updates.length) {
-						// A subscription-only camera may make no HTTP requests for minutes, so without this
-						// one failed request would sit at failures > 0 until the fallback declared a
-						// connection lost that has been pushing updates the whole time.
-						this.markReachable()
+						// A push is an answer too. A subscription-only camera may make no HTTP request for
+						// minutes, so without this its connection would have nothing to report Ok from.
+						this.onRequestSucceeded()
 
 						this.checkVariables()
 						this.checkAllFeedbacks()
@@ -387,7 +460,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.traced(polled, 'PTZ request: ' + url)
 
 		try {
-			const response = await this.httpGet(url)
+			const response = await this.httpGet(url, { polled })
 			if (!this.current(generation)) return
 
 			if (response.body) {
@@ -426,7 +499,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.traced(polled, 'Cam request: ' + url)
 
 		try {
-			const response = await this.httpGet(url)
+			const response = await this.httpGet(url, { polled })
 			if (!this.current(generation)) return
 
 			if (response.body) {
@@ -452,15 +525,14 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	// Only for web commands that don't require admin rights.
-	async getWeb(cmd, { username = '', password = '', polled = false } = {}) {
+	async getWeb(cmd, { polled = false } = {}) {
 		const generation = this.generation
 		const url = `http://${this.config.host}:${this.config.httpPort}/cgi-bin/${cmd}`
 
 		this.traced(polled, 'Web request: ' + url)
 
 		try {
-			const response = await this.httpGet(url, { username, password })
+			const response = await this.httpGet(url, { polled })
 			if (!this.current(generation)) return
 
 			if (response.body) {
@@ -518,6 +590,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				this.onRequestSucceeded()
 			} catch (err) {
 				if (!this.current(generation)) return
+				if (err.response?.statusCode === 401)
+					return this.logConnectionError(err, 'Thumbnail request ' + url + ' failed')
 				if (err.code !== 'ERR_ABORTED') this.log('error', 'Thumbnail request ' + url + ' failed: ' + String(err))
 			}
 		}
@@ -554,12 +628,13 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			this.checkFeedbacks('liveImage')
 		} catch (err) {
 			if (!this.current(generation)) return
+			if (err.response?.statusCode === 401) return this.logConnectionError(err, 'Image request ' + url + ' failed')
 
 			// Not handleConnectionError(): a dropped frame is no evidence the control connection is gone.
 			// Log only the first of a streak, else a frame/second failure floods the log.
 			if (this.imageErrors++ === 0) this.log('error', 'Image request ' + url + ' failed: ' + String(err))
 
-			// Drop the frozen frame once the failure is more than a blip.
+			// Drop the frozen frame once the failures have persisted, rather than showing a stale picture.
 			if (this.imageErrors === 3) {
 				this.data.image = null
 				this.checkFeedbacks('liveImage')
@@ -568,9 +643,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 	}
 
 	// Initalize module
-	async init(config) {
+	async init(config, isFirstInit, secrets) {
 		// Fill fields absent from stored config with panel defaults, so downstream needs no fallback.
 		this.config = applyConfigDefaults(config)
+		this.secrets = secrets ?? {}
 
 		this.data = initialData()
 
@@ -592,46 +668,36 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		await this.reInitAll()
 	}
 
-	async configUpdated(config) {
+	async configUpdated(config, secrets) {
 		const updated = applyConfigDefaults(config)
 
 		this.setStatus(InstanceStatus.Disconnected, 'Config changed')
 
-		// The OLD config: the camera being left behind must be told to stop pushing, at its own address.
-		await this.teardown(this.config)
+		// The OLD config and the OLD login: the camera being left behind must be told to stop pushing,
+		// at its own address and with the credentials it knows. Changing host and password together is
+		// an ordinary thing to do, and the goodbye must not authenticate against the new camera.
+		await this.teardown(this.config, this.auth)
 
 		// Nothing the old camera reported is true of the new one; wipe it or its readings would persist.
 		this.data = initialData()
 		this.config = updated
+		this.secrets = secrets ?? {}
 
 		// No delay needed: teardown() is a real barrier, so nothing is left to wait out.
 		await this.reInitAll()
 	}
 
-	// Evidence the camera is reachable, from anything short of a completed request: an HTTP error the
-	// camera itself produced, or a framed batch arriving over the subscription. Ends the failure
-	// streak and withdraws the fallback retry armed for it, but says nothing about the status.
-	//
-	// Refuses once a reconnect is committed: scheduleReInit() has already stopped the poll loops and
-	// only reInitAll() starts them again, so cancelling its timer here would leave the connection
-	// reporting Ok with its monitoring permanently dead. Returns whether it took effect.
+	// Whether an answer still belongs to the connection that is running. Once scheduleReInit() has
+	// committed to a reconnect the poll loops are down and only reInitAll() starts them again, so a
+	// late arrival must not be allowed to report Ok over a connection whose monitoring has stopped.
 	markReachable() {
-		if (this.reconnecting) return false
-
-		this.failures = 0
-		this.timeoutID = clearTimeout(this.timeoutID)
-		return true
+		return !this.reconnecting
 	}
 
-	// Every request that reached the camera ends here: the connection is up, so the failure streak is
-	// over and any retry owed to it is withdrawn. Without this a single dropped keep-alive left a
-	// re-init armed that fired minutes later against a connection that had long since recovered.
 	onRequestSucceeded() {
 		if (this.markReachable()) this.setStatus(InstanceStatus.Ok)
 	}
 
-	// What every failed request goes through: the classifier below decides how bad it is, the caller
-	// supplies the message because only it knows which request failed.
 	logConnectionError(err, message) {
 		const level = this.handleConnectionError(err)
 		if (level) this.log(level, message)
@@ -643,27 +709,14 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		// Cancelled by teardown(), not a camera failure; got raises it as ERR_ABORTED.
 		if (err.code === 'ERR_ABORTED') return 'debug'
 
-		// Unreachable: keep re-initialising until it comes back, but only once it is more than a blip.
+		// Unreachable: keep re-initialising until it comes back.
 		if (REACHABILITY_ERRORS.has(err.code)) {
-			this.failures++
-
-			if (this.failures >= FAILURE_THRESHOLD) {
-				this.scheduleReInit(String(err.code))
-				return 'error'
-			}
-
-			// Not yet evidence the camera is gone
-			this.armFallbackRetry(String(err.code))
-
-			// Amber for as long as the streak lasts
-			this.setStatus(InstanceStatus.UnknownWarning, String(err.code))
-
-			// A request that never reached the camera is a fault
+			this.scheduleReInit(String(err.code))
 			return 'error'
 		}
 
-		// Camera answered but rejected the request; not a connection problem — and an answer is proof
-		// the camera is there, so it ends any streak a reachability error had started.
+		// Camera answered but rejected the request; not a connection problem, and an answer is proof the
+		// camera is there.
 		//
 		// Only the web CGIs reach here at all: aw_ptz and aw_cam answer 200 whatever happens and put
 		// their refusal in the body ("ER1:QSL" for a command the model does not have), which parseUpdate
@@ -671,10 +724,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		if (err.code === 'ERR_NON_2XX_3XX_RESPONSE') {
 			const reachable = this.markReachable()
 
-			// Credentials are the one rejection an operator can do something about
+			// Credentials are the one rejection an operator can do something about. The auth layer says it
+			// better when it has already spoken — "Login required" against "HTTP 401" — so this is the
+			// backstop for a 401 that reached us without going through it.
 			const status = AUTH_REJECTIONS[err.response?.statusCode]
 			if (status) {
-				this.setStatus(status, `HTTP ${err.response.statusCode}`)
+				if (!this.reportedAuth?.size) this.setStatus(status, `HTTP ${err.response.statusCode}`)
 				return 'error'
 			}
 
@@ -683,8 +738,6 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			return ORDINARY_REJECTION_CODES.has(err.response?.statusCode) ? 'debug' : 'error'
 		}
 
-		// No code at all is one of ours, not the camera's: got labels everything it raises. Saying so
-		// is the difference between the operator chasing a network fault and reporting a module bug.
 		if (err?.code === undefined) {
 			this.setStatus(InstanceStatus.UnknownError, 'Module error: ' + describeError(err))
 			return 'error'
@@ -695,20 +748,6 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		return 'error'
 	}
 
-	// Sub-threshold failures leave the connection alone but must not leave it unattended: if nothing
-	// drives another request, this is what eventually notices the camera never came back.
-	armFallbackRetry(reason) {
-		if (this.timeoutID) return // one failure already armed it; a success clears it
-
-		this.timeoutID = setTimeout(() => {
-			this.timeoutID = undefined
-			if (this.failures > 0) this.scheduleReInit(reason)
-		}, this.config.timeout + this.config.pollDelay)
-	}
-
-	// The instance's one retry timer: a burst of failures must schedule a single re-init, not one each.
-	// Past this point the reconnect is committed — the poll loops are down and nothing but reInitAll()
-	// brings them back, so no late arrival may cancel it (see markReachable()).
 	scheduleReInit(reason) {
 		this.reconnecting = true
 		this.poll = false
@@ -735,11 +774,16 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.SERIES = undefined
 
 		this.imageErrors = 0
-		this.failures = 0 // the streak belonged to the connection just torn down
+
+		// One session per connection: it caches the camera's challenge, so the handshake happens once
+		// rather than per request. The latch resets with it, so a new connection may say its piece again.
+		this.auth = createAuthSession({ username: this.config.username, password: this.secrets.password })
+		this.reportedAuth = new Set()
 		this.setStatus(InstanceStatus.Connecting, this.config.host + ':' + this.config.httpPort)
 
 		await this.getCam('QID') // pull model
 		if (!this.current(generation)) return // torn down while we waited
+		if (this.auth.blocked) return
 
 		this.SERIES = getAndUpdateSeries(this)
 
@@ -774,9 +818,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 	getConfigFields() {
 		// Called each time the panel opens, so a static field can report a runtime-learned value.
-		return ConfigFields.map((field) =>
-			field.id === 'modelDetected' ? { ...field, value: describeDetectedModel(this.config, this.data) } : field,
-		)
+		const runtime = {
+			modelDetected: () => describeDetectedModel(this.config, this.data),
+			authDetected: () => describeAuth(this.data),
+		}
+
+		return ConfigFields.map((field) => (runtime[field.id] ? { ...field, value: runtime[field.id]() } : field))
 	}
 
 	// ##########################

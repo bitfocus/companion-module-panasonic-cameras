@@ -1006,10 +1006,7 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.restart) {
-		presets['system-restart'] = momentaryPreset('System', 'Restart', 'Restart\\n🗘', 'restart', {
-			username: 'admin',
-			password: '12345',
-		})
+		presets['system-restart'] = momentaryPreset('System', 'Restart', 'Restart\\n🗘', 'restart')
 	}
 
 	if (SERIES.capabilities.colorbar) {

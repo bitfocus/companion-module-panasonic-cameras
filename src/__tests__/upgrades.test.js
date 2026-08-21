@@ -14,6 +14,7 @@ const dropUseVarToggles = upgradeScripts[3]
 const repairPre201Writes = upgradeScripts[4]
 const rescaleColorTemperatureStep = upgradeScripts[5]
 const renameDebugToTrace = upgradeScripts[6]
+const dropRestartCredentials = upgradeScripts[7]
 
 // An upgrade script both reads and writes CompanionMigrationOptionValues, so every option in these
 // fixtures — and every option a script writes — is an ExpressionOrValue wrapper, never a bare value.
@@ -32,7 +33,7 @@ const migrate = (props, context = {}) =>
 // re-runs the wrong migration on every existing connection.
 describe('upgradeScripts', () => {
 	it('only ever grows, and blanks a retired script in place', () => {
-		expect(upgradeScripts).toHaveLength(7)
+		expect(upgradeScripts).toHaveLength(8)
 		expect(upgradeScripts[0]).toBe(EmptyUpgradeScript)
 	})
 })
@@ -466,5 +467,124 @@ describe('renameDebugToTrace', () => {
 
 		expect(result.updatedActions).toEqual([])
 		expect(result.updatedFeedbacks).toEqual([])
+	})
+})
+
+// The restart action used to carry its own administrator credentials, because Admin is the one level
+// the camera guards even while "User auth." is off. Everything uses the connection's login now, so
+// those two options are no longer declared and a stored button should stop carrying them.
+describe('dropRestartCredentials', () => {
+	const button = (options) => ({ actionId: 'restart', options })
+	const upgrade = (actions, config = null, secrets = null) =>
+		dropRestartCredentials({}, { config, secrets, actions, feedbacks: [] })
+
+	const admin = () => button({ username: val('admin'), password: val('12345') })
+
+	it('takes both options off a button that has them', () => {
+		const b = admin()
+
+		const { updatedActions } = upgrade([b])
+
+		expect(updatedActions).toEqual([b])
+		expect(b.options).toEqual({})
+	})
+
+	it('takes a lone leftover too', () => {
+		const b = button({ password: val('12345') })
+
+		upgrade([b])
+
+		expect(b.options).toEqual({})
+	})
+
+	it('leaves a button that has already been through it alone', () => {
+		expect(upgrade([button({})]).updatedActions).toEqual([])
+	})
+
+	it('touches no other action, even one with a password-shaped option', () => {
+		const other = { actionId: 'customCommand', options: { username: val('admin') } }
+
+		expect(upgrade([other]).updatedActions).toEqual([])
+		expect(other.options).toEqual({ username: val('admin') })
+	})
+
+	// The credentials are what made this user's restart button work. Dropping them would break it
+	// silently, so they move to the connection everything now logs in with.
+	it('lifts the credentials onto a connection that has none', () => {
+		const { updatedConfig, updatedSecrets } = upgrade([admin()], { host: '10.0.0.1' }, null)
+
+		expect(updatedConfig).toEqual({ host: '10.0.0.1', username: 'admin' })
+		expect(updatedSecrets).toEqual({ password: '12345' })
+	})
+
+	it('carries a login the user had changed, not just the factory one', () => {
+		const b = button({ username: val('operator'), password: val('s3cret') })
+
+		const { updatedConfig, updatedSecrets } = upgrade([b], { host: '10.0.0.1' })
+
+		expect(updatedConfig.username).toBe('operator')
+		expect(updatedSecrets.password).toBe('s3cret')
+	})
+
+	// A login the user has already entered is their answer; the button's is the older one.
+	it.each([
+		['a user name', { host: '10.0.0.1', username: 'operator' }, null],
+		['a password', { host: '10.0.0.1' }, { password: 'kept' }],
+	])('does not overwrite %s the connection already has', (_name, config, secrets) => {
+		const { updatedConfig, updatedSecrets } = upgrade([admin()], config, secrets)
+
+		expect(updatedConfig).toBeNull()
+		expect(updatedSecrets).toBeUndefined()
+	})
+
+	// There is one connection and no way to honour two answers.
+	it('takes the first of several buttons that disagree', () => {
+		const first = button({ username: val('first'), password: val('one') })
+		const second = button({ username: val('second'), password: val('two') })
+
+		const { updatedConfig, updatedActions } = upgrade([first, second], { host: '10.0.0.1' })
+
+		expect(updatedConfig.username).toBe('first')
+		expect(updatedActions).toHaveLength(2) // both are still stripped
+	})
+
+	// Buttons are upgraded with no connection behind them, so there is nothing to lift onto. The
+	// connection's own pass does that; this one must still strip the options rather than throw.
+	it('still strips the options when no connection is being upgraded', () => {
+		const b = admin()
+
+		const { updatedConfig, updatedActions } = upgrade([b], null)
+
+		expect(updatedConfig).toBeNull()
+		expect(updatedActions).toEqual([b])
+		expect(b.options).toEqual({})
+	})
+
+	it('falls back to the factory login when no button carried one', () => {
+		const result = upgrade([button({})], { host: '10.0.0.1' })
+
+		expect(result.updatedConfig).toEqual({ host: '10.0.0.1', username: 'admin' })
+		expect(result.updatedSecrets).toEqual({ password: '12345' })
+	})
+
+	// Restart is Admin level on every model, guarded even where "User auth." is off. An existing
+	// connection that never had a login must come out of the upgrade with one, or restart breaks
+	// for everyone who upgrades.
+	it('gives a connection with no restart button the factory login too', () => {
+		const result = upgrade([], { host: '10.0.0.1' })
+
+		expect(result.updatedConfig).toEqual({ host: '10.0.0.1', username: 'admin' })
+		expect(result.updatedSecrets).toEqual({ password: '12345' })
+	})
+
+	it('leaves a login the user already set alone', () => {
+		const result = upgrade([button({ username: 'admin', password: '12345' })], { host: '10.0.0.1', username: 'ops' })
+
+		expect(result.updatedConfig).toBeNull()
+		expect(result.updatedSecrets).toBeUndefined()
+	})
+
+	it('writes no connection login when buttons are upgraded on their own', () => {
+		expect(upgrade([button({ username: 'ops', password: 'pw' })], null).updatedConfig).toBeNull()
 	})
 })

@@ -1,5 +1,7 @@
 import { MODELS } from './models.js'
 
+export const FACTORY_LOGIN = { username: 'admin', password: '12345' }
+
 const section = (id, label) => ({ type: 'static-text', id, label, value: '<hr>', width: 12 })
 
 export const ConfigFields = [
@@ -32,6 +34,31 @@ export const ConfigFields = [
 		default: 2000,
 		min: 100,
 		max: 5000,
+	},
+
+	section('sectionAuth', ''),
+	{
+		type: 'textinput',
+		id: 'username',
+		label: 'User Name',
+		description: 'The user account this connection uses on request. Default: admin',
+		width: 6,
+		default: FACTORY_LOGIN.username,
+	},
+	{
+		type: 'secret-text',
+		id: 'password',
+		label: 'Password',
+		description: 'The password for that account. Default: 12345',
+		width: 6,
+		default: FACTORY_LOGIN.password,
+	},
+	{
+		type: 'static-text',
+		id: 'authDetected',
+		label: '',
+		width: 6,
+		value: '', // filled per instance by getConfigFields()
 	},
 
 	section('sectionModel', ''),
@@ -144,8 +171,7 @@ export const ConfigFields = [
 	},
 ]
 
-// Config panel strips style attributes from static text, so a leading symbol is the only visible cue.
-const warn = (text) => `⚠ ${text}`
+const warn = (text) => `<mark>⚠ ${text}</mark>`
 
 export function describeDetectedModel(config, data) {
 	const detected = data?.modelAuto
@@ -173,6 +199,30 @@ export function describeDetectedModel(config, data) {
 	return `Detected <b>${label}</b>.`
 }
 
+export function describeAuth(data) {
+	const { state, scheme, realm } = data?.auth ?? {}
+	const named = { digest: 'Digest', basic: 'Basic' }[scheme] ?? scheme
+	const forRealm = realm ? ` for realm "${realm}"` : ''
+
+	switch (state) {
+		case 'authenticated':
+			return `<b>Logged in</b> with ${named} authentication${forRealm}.`
+		case 'required':
+			return warn(`This camera requires a login${forRealm}. Fill in the user name and password above.`)
+		case 'rejected':
+			return warn(`The camera rejected this user name and password${forRealm}.`)
+		case 'unsupported':
+			return warn(
+				`The camera asked for ${named ?? 'a login method'}, which this module cannot answer. Set its ` +
+					"'Auth. method' to 'Digest' or 'Basic' in the camera's web menu.",
+			)
+		default:
+			return ''
+	}
+}
+
+const SEEDED_TOGETHER = new Set(['username', 'password'])
+
 // Fields added after a config's last Save are absent from it and read `undefined` (NaN poll delay,
 // invalid dropdown). Fill from each field's declared default so the rest of the module can treat
 // this.config as complete.
@@ -180,7 +230,7 @@ export function applyConfigDefaults(config) {
 	const filled = { ...config }
 
 	for (const field of ConfigFields) {
-		if (field.type === 'static-text' || field.default === undefined) continue
+		if (field.type === 'static-text' || SEEDED_TOGETHER.has(field.id) || field.default === undefined) continue
 		if (filled[field.id] === undefined) filled[field.id] = field.default
 	}
 

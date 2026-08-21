@@ -931,29 +931,10 @@ export function getActionDefinitions(self) {
 	if (caps.restart) {
 		actions.restart = {
 			name: 'System - Restart',
-			description:
-				"To perform a remote restart of the camera the username and password for administrator authority are necessary. These are the same credentials that are used to log in to the camera's web interface. The factory default values are 'admin' and '12345'.",
-			options: [
-				{
-					id: 'username',
-					type: 'textinput',
-					label: 'Username',
-					default: 'admin',
-					minLength: 1,
-				},
-				{
-					id: 'password',
-					type: 'textinput',
-					label: 'Password',
-					default: '12345',
-					minLength: 1,
-				},
-			],
-			callback: async (action) => {
-				await self.getWeb('initial?cmd=reset&Randomnum=12345', {
-					username: action.options.username,
-					password: action.options.password,
-				})
+			description: 'Restarts the camera. Requires valid credentials with administrator privileges.',
+			options: [],
+			callback: async () => {
+				await self.getWeb('initial?cmd=reset&Randomnum=12345')
 			},
 		}
 	}

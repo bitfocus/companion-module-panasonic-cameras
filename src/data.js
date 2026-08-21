@@ -2,6 +2,9 @@
 // not inherit the old one's) and its own arrays (a shared literal would alias them across instances).
 export function initialData() {
 	return {
+		// What the connection learned about logging in; wiped with everything else on a config change.
+		auth: { state: 'unknown', scheme: null, realm: null },
+
 		modelAuto: null,
 		model: 'Auto',
 		series: null,
