@@ -581,17 +581,40 @@ describe('refusals that arrive after the connection is up', () => {
 	// The auth layer answers 401 and nothing else, so a 403 has only this backstop. Gating it on the
 	// latch having anything in it disarmed it on every connection that works: the ordinary "this
 	// camera never asks for a login" note lands there on the first successful request.
-	it('still reports a 403 after the connection has settled on needing no login', async () => {
-		const server = camera({ scheme: 'none', refuse: { path: 'get_basic', code: 403 } })
+	// A 403 says the login was taken and the account may not do this. Nothing a later request can send
+	// changes that, so on repeating traffic it has to stop the loops the way a refused login does —
+	// which used to be the difference between the two codes: 403 only ever moved the status, and both
+	// loops carried on issuing and logging the same forbidden request.
+	it('stops the loops when repeating traffic is forbidden', async () => {
+		const server = camera({ scheme: 'none', refuse: { path: 'QID', code: 403 } })
 		const port = await server.listen()
-		const self = instance(port, {})
+		const self = running(instance(port, CREDENTIALS))
 
-		await self.getCam('QID')
-		expect(self.reportedAuth.size).toBeGreaterThan(0)
+		await self.getCam('QID', { polled: true })
 
-		await self.getWeb('get_basic')
+		expect(self.auth.blocked).toBe(true)
+		expect(self.poll).toBe(false)
+		expect(self.pollImage).toBe(false)
+		expect(self.updateStatus).toHaveBeenCalledWith(InstanceStatus.InsufficientPermissions, 'Insufficient permissions')
+		await server.close()
+	})
 
-		expect(self.updateStatus).toHaveBeenCalledWith(InstanceStatus.InsufficientPermissions, 'HTTP 403')
+	// One command the account may not run is not a broken connection — the same distinction a refused
+	// restart button already gets.
+	it('leaves the connection alone when one command is forbidden', async () => {
+		const server = camera({ scheme: 'none', refuse: { path: 'initial', code: 403 } })
+		const port = await server.listen()
+		const self = running(instance(port, CREDENTIALS))
+
+		await self.getCam('QID') // the connection is up
+		self.updateStatus.mockClear()
+
+		await self.getWeb('initial?cmd=reset&Randomnum=12345')
+
+		expect(self.auth.blocked).toBe(false)
+		expect(self.poll).toBe(true)
+		expect(self.updateStatus).not.toHaveBeenCalled()
+		expect(self.log.mock.calls.filter(([level]) => level === 'error')).toHaveLength(1)
 		await server.close()
 	})
 })
@@ -656,7 +679,7 @@ describe('an account without the rights for the picture', () => {
 
 		await run(self)
 
-		expect(self.updateStatus).toHaveBeenCalledWith(InstanceStatus.InsufficientPermissions, 'HTTP 403')
+		expect(self.updateStatus).toHaveBeenCalledWith(InstanceStatus.InsufficientPermissions, 'Insufficient permissions')
 		await server.close()
 	})
 })

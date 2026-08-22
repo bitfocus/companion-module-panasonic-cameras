@@ -42,9 +42,15 @@ const AUTH_REJECTIONS = {
 	403: InstanceStatus.InsufficientPermissions,
 }
 
+// Which auth findings answer for which HTTP code.
+const AUTH_SPEAKS_FOR = {
+	401: ['credentialsRequired', 'rejected', 'unsupported'],
+	403: ['forbidden'],
+}
+
 // The auth findings past which the request that met them cannot succeed. Whether that verdict belongs
 // to the connection or only to the one command it happened to be is decided in reportAuthEvent.
-const AUTH_REFUSALS = ['credentialsRequired', 'rejected', 'unsupported']
+const AUTH_REFUSALS = Object.values(AUTH_SPEAKS_FOR).flat()
 
 // Ordinary HTTP error codes that are not caused by a connection problem and therefore do not need to be logged as errors.
 const ORDINARY_REJECTION_CODES = new Set([
@@ -202,6 +208,15 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					`The camera requires a login${forRealm}: ${url} answered HTTP 401. Enter its user name and ` +
 						"password in this connection's settings. A camera only asks once its 'User auth.' has been " +
 						'switched on in the web menu; any camera-control or administrator account will do.',
+				)
+
+			case 'forbidden':
+				this.setStatus(InstanceStatus.InsufficientPermissions, 'Insufficient permissions')
+				return this.log(
+					'error',
+					`The camera refused ${url} with HTTP 403${forRealm}: the login this connection uses does not ` +
+						'have the rights for it. Restarting a camera needs an account with administrator rights; ' +
+						'everything else needs one with camera-control rights.',
 				)
 
 			case 'rejected':
@@ -714,9 +729,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 			const status = AUTH_REJECTIONS[err.response?.statusCode]
 			if (status) {
-				const spokenFor =
-					err.response?.statusCode === 401 &&
-					AUTH_REFUSALS.some((type) => this.reportedAuth?.has(type) || this.reportedAuth?.has('command:' + type))
+				const spokenFor = (AUTH_SPEAKS_FOR[err.response?.statusCode] ?? []).some(
+					(type) => this.reportedAuth?.has(type) || this.reportedAuth?.has('command:' + type),
+				)
 
 				if (spokenFor) return null
 

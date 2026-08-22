@@ -1,8 +1,10 @@
 import { createHash, getHashes, randomBytes } from 'node:crypto'
 
-// HTTP authentication for cameras whose "User auth." is switched on. Everything the module sends
-// routinely is at the camera's Live level, which needs no login until that setting is enabled; the
-// one Admin-level command (initial?cmd=reset) always did and carries its own credentials.
+// HTTP authentication for cameras whose "User auth." is switched on. Everything runs on the
+// connection's own login, restart included — it used to carry credentials of its own, per button.
+// Almost all of it is the camera's Live level, which needs no login until that setting is enabled;
+// the exception is initial?cmd=reset, which is Admin level and guarded on every model, so that one
+// command needs a login even on a camera whose "User auth." was never switched on.
 //
 // The camera decides the scheme, not the user: its Auth. method setting offers "Digest or Basic",
 // "Digest" and "Basic", and the first of those is the factory default — so there is no answer a
@@ -231,6 +233,12 @@ export function authHeaders(session, { method = 'GET', uri }) {
 
 const isUnauthorized = (error) => error?.response?.statusCode === 401
 
+// The camera took the login and still said no: the account is real but lacks the rights for this
+// request. Nothing further can be sent that would change that, so it belongs on the same path as a
+// refused login rather than in the generic error handling, which cannot tell whether the refusal met
+// the connection or one command.
+const isForbidden = (error) => error?.response?.statusCode === 403
+
 // Sends one request, and answers a 401 by adopting the challenge and sending it again — once.
 //
 // The retry-once bound is the whole safety property. A camera that keeps saying no is answered by
@@ -263,6 +271,11 @@ export async function requestWithAuth(send, { session, method = 'GET', uri, repo
 		session.ok = true
 		return response
 	} catch (error) {
+		if (isForbidden(error)) {
+			report({ type: 'forbidden', realm: session.challenge?.params?.realm, scheme: session.scheme })
+			throw error
+		}
+
 		if (!isUnauthorized(error)) throw error
 
 		const header = error.response?.headers?.['www-authenticate']
@@ -341,6 +354,9 @@ export async function requestWithAuth(send, { session, method = 'GET', uri, repo
 			// next request to discover, so a wrong password is named the moment it is known.
 			if (isUnauthorized(retryError)) {
 				report({ type: 'rejected', realm: challenge?.params?.realm, scheme: session.scheme })
+			} else if (isForbidden(retryError)) {
+				// The handshake worked and the account is still not allowed to do this.
+				report({ type: 'forbidden', realm: challenge?.params?.realm, scheme: session.scheme })
 			}
 			throw retryError
 		}
