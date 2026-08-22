@@ -290,10 +290,15 @@ export async function requestWithAuth(send, { session, method = 'GET', uri, repo
 			throw error
 		}
 
-		// A challenge that arrived while this request was in flight is used as it stands. Adopting it a
-		// second time would reset the nonce counter, and a count the camera has already seen is a replay
-		// to it — so the request that got there first keeps ownership of the sequence.
-		if (stale || !session.challenge) {
+		// Adopt only where this request is the one with something to replace: the challenge it attempted
+		// is still the session's (a nonce rotation this request is first to see), or the session carries
+		// none at all (the first 401 of the connection). A challenge another request adopted while this
+		// one was in flight is used as it stands — adopting again would reset the nonce counter, and a
+		// count the camera has already seen is a replay to it. Both halves matter: concurrent requests
+		// meet the first 401 together, and they meet a stale rotation together too.
+		const mine = stale ? session.challenge === attempted : !session.challenge
+
+		if (mine) {
 			if (stale) report({ type: 'stale', realm: challenge.params.realm })
 
 			// Some firmware answers 401 with no challenge at all. Basic needs none, so it is worth the
@@ -322,6 +327,11 @@ export async function requestWithAuth(send, { session, method = 'GET', uri, repo
 					scheme: session.scheme,
 					realm: challenge?.params?.realm,
 					algorithm: challenge?.params?.algorithm,
+
+					// What the camera actually named, which is not always what was used: a 401 carrying no
+					// challenge at all is answered with Basic on spec, and reporting that as "the camera
+					// asked for Basic" would put words in its mouth.
+					offered: challenge?.scheme,
 				})
 			}
 

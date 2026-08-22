@@ -565,4 +565,36 @@ describe('requestWithAuth', () => {
 		const counts = sent.filter(Boolean).map((h) => /nc=([0-9a-f]{8})/.exec(h)[1])
 		expect(counts).toEqual(['00000001', '00000002'])
 	})
+	// Same race one step later: two requests signed with the same challenge, and the camera rotates the
+	// nonce under both. Adopting the rotation twice restarts the counter, so both retries sign nc=1 —
+	// and the camera answers a repeated count as a replay, which reads here as a wrong password.
+	it('adopts a rotated nonce once, however many requests met the rotation', async () => {
+		const session = createAuthSession({ username: 'u', password: 'p' })
+		adoptChallenge(session, digest('Digest realm="r", nonce="n1", qop="auth"'), () => 'first')
+
+		const events = []
+		const signed = []
+
+		const send = async (headers) => {
+			const nonce = /nonce="([^"]+)"/.exec(headers.authorization)[1]
+
+			if (nonce === 'n1') {
+				throw {
+					response: {
+						statusCode: 401,
+						headers: { 'www-authenticate': 'Digest realm="r", nonce="n2", qop="auth", stale=true' },
+					},
+				}
+			}
+
+			signed.push(/nc=([0-9a-f]{8})/.exec(headers.authorization)[1])
+			return 'ok'
+		}
+
+		const once = () => requestWithAuth(send, { session, uri: '/x', report: (e) => events.push(e.type) })
+
+		expect(await Promise.all([once(), once()])).toEqual(['ok', 'ok'])
+		expect(events).not.toContain('rejected')
+		expect(signed).toEqual(['00000001', '00000002'])
+	})
 })

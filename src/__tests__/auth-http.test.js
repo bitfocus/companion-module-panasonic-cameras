@@ -3,7 +3,7 @@ import { InstanceStatus } from '@companion-module/base'
 import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
 import PanasonicCameraInstance from '../index.js'
-import { createAuthSession } from '../auth.js'
+import { createAuthSession, requestWithAuth } from '../auth.js'
 import { initialData } from '../data.js'
 import { startLiveImagePoll } from '../polling.js'
 import { describeAuth } from '../config.js'
@@ -592,6 +592,89 @@ describe('refusals that arrive after the connection is up', () => {
 		await self.getWeb('get_basic')
 
 		expect(self.updateStatus).toHaveBeenCalledWith(InstanceStatus.InsufficientPermissions, 'HTTP 403')
+		await server.close()
+	})
+})
+
+describe('what the debug log claims about a login', () => {
+	const lines = (self) => self.log.mock.calls.filter(([level]) => level === 'debug').map(([, text]) => text)
+
+	it.each(['digest', 'basic'])('names the method the camera asked for, %s', async (scheme) => {
+		const server = camera({ scheme })
+		const port = await server.listen()
+		const self = instance(port, CREDENTIALS)
+
+		await self.getCam('QID')
+
+		expect(lines(self)).toContainEqual(`Camera asked for ${scheme} authentication (realm "Control"); authenticated.`)
+		await server.close()
+	})
+
+	// A 401 with no WWW-Authenticate at all is answered with Basic on spec. Saying the camera asked
+	// for Basic would put words in its mouth — it named nothing.
+	it('does not claim the camera asked for a method it never named', async () => {
+		const self = instance(1, CREDENTIALS)
+		let sends = 0
+
+		self.httpGet = (url, options) =>
+			requestWithAuth(
+				async () => {
+					if (sends++ === 0) throw { response: { statusCode: 401, headers: {} } }
+					return { body: 'OID:AW-HE40\r\n' }
+				},
+				{ session: self.auth, uri: '/x', report: (event) => self.reportAuthEvent(event, url, options?.polled) },
+			)
+
+		await self.getCam('QID')
+
+		expect(lines(self)).toContainEqual('Camera answered HTTP 401 naming no method; authenticated with basic.')
+	})
+
+	// The success line used to live in the switch's default branch, where any event type added later
+	// would be announced as a login that went through.
+	it('does not announce an unknown event as a successful login', () => {
+		const self = instance(1, CREDENTIALS)
+
+		self.reportAuthEvent({ type: 'something-new' }, 'http://x/')
+
+		expect(lines(self)).toEqual(['Unhandled authentication event "something-new".'])
+	})
+})
+
+// The image and thumbnail paths deliberately bypass handleConnectionError — a dropped frame is no
+// evidence the control connection is gone — which used to take the auth rejections with it.
+describe('an account without the rights for the picture', () => {
+	it.each([
+		['the live image', 'view.cgi', (self) => self.getImage()],
+		['a preset thumbnail', 'get_preset_thumbnail', (self) => self.getThumbnail(1)],
+	])('reports a 403 from %s', async (_name, path, run) => {
+		const server = camera({ scheme: 'none', refuse: { path, code: 403 } })
+		const port = await server.listen()
+		const self = instance(port, {})
+		self.imageErrors = 0
+		self.data.presetThumbnails = {}
+
+		await run(self)
+
+		expect(self.updateStatus).toHaveBeenCalledWith(InstanceStatus.InsufficientPermissions, 'HTTP 403')
+		await server.close()
+	})
+})
+
+// A refused login used to be logged twice: the auth layer's line naming the cause, and a generic
+// "request failed" behind it carrying nothing the first did not already say.
+describe('a login refusal that has already been reported', () => {
+	it('is not logged a second time by the request that met it', async () => {
+		const server = camera({ scheme: 'basic' })
+		const port = await server.listen()
+		const self = instance(port, {}) // nothing to answer the challenge with
+
+		await self.getWeb('get_basic')
+
+		const errors = self.log.mock.calls.filter(([level]) => level === 'error')
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0][1]).toContain('requires a login')
 		await server.close()
 	})
 })
