@@ -92,11 +92,25 @@ export function parseAuthChallenges(header) {
 	return challenges
 }
 
+// qop may be a list ("auth,auth-int"). auth-int hashes the request body, and every request this
+// module makes is a GET without one, so only plain auth can be answered. A challenge naming neither
+// is the RFC 2069 form, which needs no qop at all.
+const offersQop = (qop) => qop === undefined || qopList(qop).includes('auth')
+
+const qopList = (qop) =>
+	String(qop ?? '')
+		.split(',')
+		.map((v) => v.trim())
+
 // Digest before Basic wherever both are offered: it is the stronger of the two and the camera
-// accepts either. A scheme we cannot answer is not chosen, so it can be reported as unsupported.
+// accepts either. A challenge we cannot answer is not chosen — neither one hashed a way this build
+// cannot compute, nor one asking for auth-int only, which would otherwise be answered with the
+// qop-less formula it cannot satisfy and would crowd out a Basic challenge that would have worked.
 export function chooseChallenge(challenges) {
 	const usable = challenges.filter(
-		(c) => c.scheme === 'basic' || (c.scheme === 'digest' && hashFor(c.params.algorithm) !== null),
+		(c) =>
+			c.scheme === 'basic' ||
+			(c.scheme === 'digest' && hashFor(c.params.algorithm) !== null && offersQop(c.params.qop)),
 	)
 
 	return usable.find((c) => c.scheme === 'digest') ?? usable.find((c) => c.scheme === 'basic') ?? null
@@ -124,14 +138,7 @@ export function buildDigestAuthorization(challenge, { username, password, method
 	const secret = H(`${username}:${realm}:${password}`)
 	const ha1 = sess ? H(`${secret}:${nonce}:${cnonce}`) : secret
 
-	// qop may be a list ("auth,auth-int"). auth-int hashes the request body, and every request this
-	// module makes is a GET without one, so only plain auth is ever offered back.
-	const useQop = String(qop ?? '')
-		.split(',')
-		.map((v) => v.trim())
-		.includes('auth')
-		? 'auth'
-		: null
+	const useQop = qopList(qop).includes('auth') ? 'auth' : null
 
 	const ha2 = H(`${method}:${uri}`)
 	const response = useQop ? H(`${ha1}:${nonce}:${ncHex}:${cnonce}:${useQop}:${ha2}`) : H(`${ha1}:${nonce}:${ha2}`) // the RFC 2069 form, for a camera that offers no qop
@@ -148,6 +155,9 @@ export function buildDigestAuthorization(challenge, { username, password, method
 
 	if (algorithm) parts.push(`algorithm=${algorithm}`) // echoed only when the challenge named one
 	if (useQop) parts.push(`qop=${useQop}`, `nc=${ncHex}`, `cnonce="${cnonce}"`)
+	// A -sess key folds the cnonce into HA1, so the server cannot rebuild it without being told which
+	// one was used. With qop that goes out above; without one it would otherwise be lost.
+	else if (sess) parts.push(`cnonce="${cnonce}"`)
 	if (opaque !== undefined) parts.push(`opaque="${opaque}"`)
 
 	return 'Digest ' + parts.join(', ')
@@ -221,6 +231,13 @@ const isUnauthorized = (error) => error?.response?.statusCode === 401
 export async function requestWithAuth(send, { session, method = 'GET', uri, report = () => {} } = {}) {
 	if (!session) return send({})
 
+	// The challenge this request signs with, taken before anything goes out. Concurrent requests share
+	// one session, so asking afterwards whether the session has a challenge answers a different
+	// question: another request in flight may have adopted one meanwhile, and reading that as "we
+	// offered credentials and they were refused" reports a good password as rejected without this
+	// request ever having sent it.
+	const attempted = session.challenge
+
 	try {
 		const response = await send(authHeaders(session, { method, uri }))
 
@@ -254,22 +271,24 @@ export async function requestWithAuth(send, { session, method = 'GET', uri, repo
 			throw error
 		}
 
-		// Already carrying a challenge and refused anyway: either the nonce aged out, or the password
-		// is wrong. Only the first is worth another request.
+		// This request offered credentials and was refused anyway: either the nonce aged out, or the
+		// password is wrong. Only the first is worth another request.
 		const stale = String(challenge?.params?.stale ?? '').toLowerCase() === 'true'
 
-		if (session.challenge && !stale) {
+		if (attempted && !stale) {
 			report({ type: 'rejected', realm: challenge?.params?.realm, scheme: session.scheme })
 			throw error
 		}
 
-		if (challenge) {
+		// A challenge that arrived while this request was in flight is used as it stands. Adopting it a
+		// second time would reset the nonce counter, and a count the camera has already seen is a replay
+		// to it — so the request that got there first keeps ownership of the sequence.
+		if (stale || !session.challenge) {
 			if (stale) report({ type: 'stale', realm: challenge.params.realm })
-			adoptChallenge(session, challenge)
-		} else {
+
 			// Some firmware answers 401 with no challenge at all. Basic needs none, so it is worth the
 			// single retry we allow ourselves.
-			adoptChallenge(session, { scheme: 'basic', params: {} })
+			adoptChallenge(session, challenge ?? { scheme: 'basic', params: {} })
 		}
 
 		const headers = authHeaders(session, { method, uri })

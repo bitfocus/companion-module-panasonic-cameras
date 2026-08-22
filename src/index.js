@@ -45,6 +45,10 @@ const AUTH_REJECTIONS = {
 	403: InstanceStatus.InsufficientPermissions,
 }
 
+// The auth findings past which the request that met them cannot succeed. Whether that verdict belongs
+// to the connection or only to the one command it happened to be is decided in reportAuthEvent.
+const AUTH_REFUSALS = ['credentialsRequired', 'rejected', 'unsupported']
+
 // Ordinary HTTP error codes that are not caused by a connection problem and therefore do not need to be logged as errors.
 const ORDINARY_REJECTION_CODES = new Set([
 	503, // Service Unavailable: Precondition not met (e.g. SRT control while RTMP is the selected protocol)
@@ -154,7 +158,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 	}
 
 	reportAuthEvent({ type, scheme, realm, algorithm, offered }, url, polled = false) {
-		const refused = type === 'credentialsRequired' || type === 'rejected' || type === 'unsupported'
+		const refused = AUTH_REFUSALS.includes(type)
 		const connection = !refused || polled || !this.auth?.ok
 
 		// Blocking is a verdict about the connection, not about the request that happened to trigger it.
@@ -597,8 +601,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		}
 	}
 
-	// One image per instance; needs no login, frame size set by the camera (aw_ptz #RZL, or the WEB
-	// menu on the models whose one-shot lives on /cgi-bin/camera).
+	// One image per instance; frame size set by the camera (aw_ptz #RZL, or the WEB menu on the models
+	// whose one-shot lives on /cgi-bin/camera).
 	async getImage() {
 		const image = this.SERIES?.capabilities.imageTransmission
 		if (!image || !this.config.imageEnable) return
@@ -614,6 +618,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			// A full frame is budgeted by the refresh interval, but never below the configured timeout.
 			const response = await this.httpGet(url, {
 				timeout: { request: Math.max(this.config.timeout, this.config.imageInterval) },
+
+				// Repeating traffic, so a login refused here is the connection's problem and not one
+				// button's: without this the loop would spend a 401 per interval on being told no.
+				polled: true,
 			})
 
 			// got returns rawBody as a plain Uint8Array, which Jimp would mistake for a URL
@@ -690,6 +698,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 	// Whether an answer still belongs to the connection that is running. Once scheduleReInit() has
 	// committed to a reconnect the poll loops are down and only reInitAll() starts them again, so a
 	// late arrival must not be allowed to report Ok over a connection whose monitoring has stopped.
+	// Whether reInitAll should give up where it stands: the connection it belongs to is gone, or a
+	// reconnect has already been booked for it.
+	stopped(generation) {
+		return !this.current(generation) || this.reconnecting
+	}
+
 	markReachable() {
 		return !this.reconnecting
 	}
@@ -725,11 +739,20 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			const reachable = this.markReachable()
 
 			// Credentials are the one rejection an operator can do something about. The auth layer says it
-			// better when it has already spoken — "Login required" against "HTTP 401" — so this is the
-			// backstop for a 401 that reached us without going through it.
+			// better where it has spoken — "Login required" against "HTTP 401" — and it is also the only
+			// place that knows whether a refusal belongs to the connection or to the single command that
+			// met it. So this defers to it exactly where it has said something about the credentials.
+			//
+			// Not merely where it has said anything: its ordinary "this camera never asks" note lands in
+			// the same latch on every connection that works, which would leave this backstop permanently
+			// disarmed. And a 403 is never its business — it answers 401 alone.
 			const status = AUTH_REJECTIONS[err.response?.statusCode]
 			if (status) {
-				if (!this.reportedAuth?.size) this.setStatus(status, `HTTP ${err.response.statusCode}`)
+				const spokenFor =
+					err.response?.statusCode === 401 &&
+					AUTH_REFUSALS.some((type) => this.reportedAuth?.has(type) || this.reportedAuth?.has('command:' + type))
+
+				if (!spokenFor) this.setStatus(status, `HTTP ${err.response.statusCode}`)
 				return 'error'
 			}
 
@@ -782,7 +805,12 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.setStatus(InstanceStatus.Connecting, this.config.host + ':' + this.config.httpPort)
 
 		await this.getCam('QID') // pull model
-		if (!this.current(generation)) return // torn down while we waited
+
+		// getCam swallows a reachability error and hands it to scheduleReInit, which puts the loops down
+		// and books a fresh attempt. Carrying on regardless would work through the whole command list
+		// against a camera already known to be gone, and end by starting a poll loop that the booked
+		// attempt then starts a second time.
+		if (this.stopped(generation)) return
 		if (this.auth.blocked) return
 
 		this.SERIES = getAndUpdateSeries(this)
@@ -791,7 +819,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.getWeb('get_basic') // pull cam_title
 
 		await getCameraStatusOnce(this)
-		if (!this.current(generation)) return
+		if (this.stopped(generation)) return
 
 		if (this.SERIES.capabilities.subscription) {
 			this.getCameraStatus() // initial bulk retrieve (camdata.html)

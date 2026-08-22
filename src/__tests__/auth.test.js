@@ -97,6 +97,28 @@ describe('chooseChallenge', () => {
 	it('hands back nothing for a header it cannot read', () => {
 		expect(digest('Negotiate')).toBeNull()
 	})
+
+	// auth-int hashes the request body, which the qop-less RFC 2069 formula does not do — answering an
+	// auth-int challenge with it produces a response the server cannot match. Worse, choosing it at all
+	// crowds out a Basic challenge alongside that would have worked.
+	it('passes over a Digest challenge that will only take auth-int', () => {
+		expect(digest('Digest realm="x", nonce="y", qop="auth-int"')).toBeNull()
+	})
+
+	it('falls back to Basic when Digest offers auth-int alone', () => {
+		const chosen = digest('Digest realm="x", nonce="y", qop="auth-int", Basic realm="x"')
+
+		expect(chosen.scheme).toBe('basic')
+	})
+
+	it('still takes a challenge that lists auth among its options', () => {
+		expect(digest('Digest realm="x", nonce="y", qop="auth-int,auth"').scheme).toBe('digest')
+	})
+
+	// No qop at all is the RFC 2069 form, which the builder answers with the older formula.
+	it('still takes a challenge that names no qop', () => {
+		expect(digest('Digest realm="x", nonce="y"').scheme).toBe('digest')
+	})
 })
 
 describe('buildBasicAuthorization', () => {
@@ -292,6 +314,22 @@ describe('buildDigestAuthorization', () => {
 		expect(header).not.toContain('cnonce')
 	})
 
+	// The one thing a -sess key still has to send without qop: HA1 is hashed over the cnonce, so a
+	// server told nothing about it cannot rebuild the key and refuses every such login.
+	it('names the cnonce for a -sess algorithm even with no qop to carry it', () => {
+		const header = buildDigestAuthorization(digest('Digest realm="r", nonce="n", algorithm=MD5-sess'), {
+			username: 'u',
+			password: 'p',
+			method: 'GET',
+			uri: '/x',
+			nc: 1,
+			cnonce: 'c',
+		})
+
+		expect(header).not.toContain('qop')
+		expect(header).toContain('cnonce="c"')
+	})
+
 	it('answers auth from an "auth,auth-int" list, never auth-int', () => {
 		const header = buildDigestAuthorization(digest('Digest realm="r", nonce="n", qop="auth,auth-int"'), {
 			username: 'u',
@@ -466,5 +504,40 @@ describe('requestWithAuth', () => {
 
 		expect(await requestWithAuth(send, { session: null, uri: '/x' })).toBe('ok')
 		expect(send).toHaveBeenCalledTimes(1)
+	})
+	// Two requests share one session, and both meet the first 401 before either has a challenge. The
+	// one that gets there second must not read the challenge the first adopted as evidence that its
+	// own credentials were offered and turned down — that reports a good password as rejected, and
+	// without ever having retried.
+	it('does not read a challenge adopted mid-flight as its own credentials being refused', async () => {
+		const session = createAuthSession({ username: 'u', password: 'p' })
+		const events = []
+		const sent = []
+
+		const send = async (headers) => {
+			sent.push(headers.authorization ?? null)
+
+			if (!headers.authorization) {
+				throw {
+					response: {
+						statusCode: 401,
+						headers: { 'www-authenticate': 'Digest realm="Control", nonce="n", qop="auth"' },
+					},
+				}
+			}
+
+			return 'ok'
+		}
+
+		const once = () => requestWithAuth(send, { session, uri: '/x', report: (e) => events.push(e.type) })
+		const answers = await Promise.all([once(), once()])
+
+		expect(answers).toEqual(['ok', 'ok'])
+		expect(events).not.toContain('rejected')
+
+		// Each of the two signed requests counts once against the one nonce, rather than the second
+		// re-adopting the challenge and starting the count over — a repeat is a replay to the camera.
+		const counts = sent.filter(Boolean).map((h) => /nc=([0-9a-f]{8})/.exec(h)[1])
+		expect(counts).toEqual(['00000001', '00000002'])
 	})
 })

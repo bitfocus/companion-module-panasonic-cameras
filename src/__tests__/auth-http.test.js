@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { InstanceStatus } from '@companion-module/base'
 import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
 import PanasonicCameraInstance from '../index.js'
@@ -21,6 +22,8 @@ function camera({
 	username = 'admin',
 	password = '12345',
 	body = 'OID:AW-HE40\r\n',
+	// A path the camera answers 403 to: authenticated fine, but not for this account.
+	forbidden = null,
 } = {}) {
 	let scheme = initialScheme
 	const requests = []
@@ -40,6 +43,11 @@ function camera({
 
 		// The Admin CGI challenges on every camera, even one whose "User auth." is off — measured on an
 		// AW-HE40, where /cgi-bin/initial answers 401 while aw_cam answers 200 to the same request.
+		if (forbidden && req.url.includes(forbidden)) {
+			res.writeHead(403)
+			return res.end('forbidden')
+		}
+
 		const admin = req.url.startsWith('/cgi-bin/initial')
 		const wants = admin && scheme === 'none' ? 'basic' : scheme
 
@@ -180,6 +188,37 @@ describe.each(['digest', 'basic'])('a camera asking for %s authentication', (sch
 		expect(self.log.mock.calls.find(([level]) => level === 'error')?.[1]).toContain('requires a login')
 	})
 })
+
+// Everything reInitAll calls that belongs to Companion rather than to the camera.
+const initialising = (self) => {
+	// Everything reInitAll calls that belongs to Companion rather than to the camera.
+	for (const name of [
+		'init_variables',
+		'init_actions',
+		'init_feedbacks',
+		'init_presets',
+		'init_tcp',
+		'setVariableDefinitions',
+		'setVariableValues',
+		'setActionDefinitions',
+		'setFeedbackDefinitions',
+		'setPresetDefinitions',
+	]) {
+		self[name] = vi.fn()
+	}
+
+	self.clients = []
+	self.poll = false
+	self.pollGen = 0
+	self.pollImage = false
+	self.pollImageGen = 0
+	self.imageSubscribers = new Map()
+	self.tcpPortSelected = 31004
+	self.config.subscriptionEnable = false
+	self.config.pollAllow = true
+
+	return self
+}
 
 describe('a camera that asks for nothing', () => {
 	let server, port
@@ -325,36 +364,6 @@ describe('what the settings panel reports', () => {
 // model's entire pull list, spending one failing request per command, until Companion's own init
 // call timed out and killed the process. Measured at 22 seconds against a real camera.
 describe('a connection whose login is refused', () => {
-	const initialising = (self) => {
-		// Everything reInitAll calls that belongs to Companion rather than to the camera.
-		for (const name of [
-			'init_variables',
-			'init_actions',
-			'init_feedbacks',
-			'init_presets',
-			'init_tcp',
-			'setVariableDefinitions',
-			'setVariableValues',
-			'setActionDefinitions',
-			'setFeedbackDefinitions',
-			'setPresetDefinitions',
-		]) {
-			self[name] = vi.fn()
-		}
-
-		self.clients = []
-		self.poll = false
-		self.pollGen = 0
-		self.pollImage = false
-		self.pollImageGen = 0
-		self.imageSubscribers = new Map()
-		self.tcpPortSelected = 31004
-		self.config.subscriptionEnable = false
-		self.config.pollAllow = true
-
-		return self
-	}
-
 	let server, port
 
 	beforeEach(async () => {
@@ -520,5 +529,75 @@ describe('a connection being created for the first time', () => {
 		}
 
 		await server.close()
+	})
+})
+
+// Three failures the review found, each in a state the loopback server can actually produce.
+describe('refusals that arrive after the connection is up', () => {
+	const running = (self) => {
+		self.poll = true
+		self.pollImage = true
+		self.pollGen = 0
+		self.pollImageGen = 0
+		self.imageErrors = 0
+		self.imageSubscribers = new Map()
+		return self
+	}
+
+	// The image loop is repeating traffic like the poll loop, and a login refused there is the
+	// connection's problem. Left as a one-off command refusal it neither says so nor stops, and the
+	// loop spends a 401 on being told no once per image interval for as long as a button shows it.
+	it('stops the image loop when the camera starts asking it for a login it will not take', async () => {
+		const server = camera({ scheme: 'none' })
+		const port = await server.listen()
+		const self = running(instance(port, { username: 'admin', password: 'wrong' }))
+
+		await self.getCam('QID') // the connection is up and has needed no login so far
+		expect(self.auth.ok).toBe(true)
+
+		server.demandAuth('basic') // "User auth." switched on at the camera, and the password is wrong
+		await self.getImage()
+
+		expect(self.pollImage).toBe(false)
+		expect(self.auth.blocked).toBe(true)
+		await server.close()
+	})
+
+	// The auth layer answers 401 and nothing else, so a 403 has only this backstop. Gating it on the
+	// latch having anything in it disarmed it on every connection that works: the ordinary "this
+	// camera never asks for a login" note lands there on the first successful request.
+	it('still reports a 403 after the connection has settled on needing no login', async () => {
+		const server = camera({ scheme: 'none', forbidden: 'get_basic' })
+		const port = await server.listen()
+		const self = instance(port, {})
+
+		await self.getCam('QID')
+		expect(self.reportedAuth.size).toBeGreaterThan(0)
+
+		await self.getWeb('get_basic')
+
+		expect(self.updateStatus).toHaveBeenCalledWith(InstanceStatus.InsufficientPermissions, 'HTTP 403')
+		await server.close()
+	})
+})
+
+// A camera that is simply gone. getCam swallows the error and books a reconnect, and reInitAll used
+// to carry on through the whole list against it — ending by starting a poll loop that the booked
+// attempt would then start a second time.
+describe('a camera that has vanished', () => {
+	it('gives up rather than working through the command list', async () => {
+		const server = camera({ scheme: 'none' })
+		const port = await server.listen()
+		await server.close() // nothing is listening any more
+
+		const self = initialising(instance(port, {}))
+
+		await self.reInitAll()
+
+		expect(self.reconnecting).toBe(true)
+		expect(self.poll).toBe(false)
+		expect(self.init_actions).not.toHaveBeenCalled()
+
+		clearTimeout(self.timeoutID) // the reconnect this booked belongs to nobody now
 	})
 })
