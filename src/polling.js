@@ -65,6 +65,8 @@ export function startLiveImagePoll(self) {
 	if (self.pollImage) return
 	if (!self.SERIES?.capabilities.imageTransmission || !self.config.imageEnable) return
 
+	if (self.auth?.blocked) return
+
 	self.pollImage = true
 
 	pollLiveImage(self).catch((err) => {

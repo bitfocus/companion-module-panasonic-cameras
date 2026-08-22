@@ -40,6 +40,15 @@ describe('parseAuthChallenges', () => {
 		])
 	})
 
+	// RFC 7230 allows whitespace around the "=". Standing on it, readValue() used to return nothing
+	// without advancing, and the quoted value that followed was read as the next scheme — leaving
+	// Digest to hash an empty nonce.
+	it('reads a parameter written with spaces around its equals sign', () => {
+		expect(parseAuthChallenges('Digest realm = "Control", nonce = "abc"')).toEqual([
+			{ scheme: 'digest', params: { realm: 'Control', nonce: 'abc' } },
+		])
+	})
+
 	it('keeps a comma that lives inside a quoted value', () => {
 		expect(parseAuthChallenges('Digest realm="Studio A, Camera 2"')[0].params.realm).toBe('Studio A, Camera 2')
 	})
@@ -357,6 +366,22 @@ describe('buildDigestAuthorization', () => {
 		)
 
 		expect(header).toBeNull()
+	})
+
+	// The parser reads `\\"` back as a plain quote, so the builder has to put it back. Emitted raw it
+	// produces `realm="say "hi""`, which no server can parse.
+	it('escapes a quote inside a value it hands back', () => {
+		const header = buildDigestAuthorization(digest('Digest realm="say \\"hi\\"", nonce="n", qop="auth"'), {
+			username: 'a"b',
+			password: 'p',
+			method: 'GET',
+			uri: '/x',
+			nc: 1,
+			cnonce: 'c',
+		})
+
+		expect(header).toContain('realm="say \\"hi\\""')
+		expect(header).toContain('username="a\\"b"')
 	})
 })
 

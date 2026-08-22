@@ -52,6 +52,10 @@ export function parseAuthChallenges(header) {
 		while (i < header.length && /[\s,]/.test(header[i])) i++
 	}
 
+	const skipBlanks = () => {
+		while (i < header.length && /\s/.test(header[i])) i++
+	}
+
 	const readToken = () => {
 		const start = i
 		while (i < header.length && /[^\s,=]/.test(header[i])) i++
@@ -82,6 +86,7 @@ export function parseAuthChallenges(header) {
 			// A parameter, so it belongs to the challenge already open. One with no challenge before
 			// it is malformed; drop it rather than invent a scheme for it.
 			i++
+			skipBlanks() // RFC 7230 allows `nonce = "abc"`; without this the value reads as a new scheme
 			const value = readValue()
 			if (challenges.length) challenges[challenges.length - 1].params[token.toLowerCase()] = value
 		} else {
@@ -116,6 +121,11 @@ export function chooseChallenge(challenges) {
 	return usable.find((c) => c.scheme === 'digest') ?? usable.find((c) => c.scheme === 'basic') ?? null
 }
 
+// A quoted-string carries `"` and `\` escaped, which is how the parser above reads them back. Emitting
+// them raw produces a header no server can parse — `realm="say "hi""` — and authentication then fails
+// for a reason nothing in the exchange names.
+const quote = (value) => `"${String(value).replace(/(["\\])/g, '\\$1')}"`
+
 export function buildBasicAuthorization({ username, password }) {
 	return 'Basic ' + Buffer.from(`${username}:${password}`, 'utf8').toString('base64')
 }
@@ -146,19 +156,19 @@ export function buildDigestAuthorization(challenge, { username, password, method
 	// Quoting is not cosmetic: servers reject a quoted nc or an unquoted nonce. algorithm, qop and
 	// nc go bare, everything else is a quoted-string.
 	const parts = [
-		`username="${username}"`,
-		`realm="${realm}"`,
-		`nonce="${nonce}"`,
-		`uri="${uri}"`,
-		`response="${response}"`,
+		`username=${quote(username)}`,
+		`realm=${quote(realm)}`,
+		`nonce=${quote(nonce)}`,
+		`uri=${quote(uri)}`,
+		`response=${quote(response)}`,
 	]
 
 	if (algorithm) parts.push(`algorithm=${algorithm}`) // echoed only when the challenge named one
-	if (useQop) parts.push(`qop=${useQop}`, `nc=${ncHex}`, `cnonce="${cnonce}"`)
+	if (useQop) parts.push(`qop=${useQop}`, `nc=${ncHex}`, `cnonce=${quote(cnonce)}`)
 	// A -sess key folds the cnonce into HA1, so the server cannot rebuild it without being told which
 	// one was used. With qop that goes out above; without one it would otherwise be lost.
-	else if (sess) parts.push(`cnonce="${cnonce}"`)
-	if (opaque !== undefined) parts.push(`opaque="${opaque}"`)
+	else if (sess) parts.push(`cnonce=${quote(cnonce)}`)
+	if (opaque !== undefined) parts.push(`opaque=${quote(opaque)}`)
 
 	return 'Digest ' + parts.join(', ')
 }

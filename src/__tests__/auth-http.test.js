@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import PanasonicCameraInstance from '../index.js'
 import { createAuthSession } from '../auth.js'
 import { initialData } from '../data.js'
+import { startLiveImagePoll } from '../polling.js'
 import { describeAuth } from '../config.js'
 
 // End to end through real got against a real server, because everything above httpGet is stubbed in
@@ -22,8 +23,8 @@ function camera({
 	username = 'admin',
 	password = '12345',
 	body = 'OID:AW-HE40\r\n',
-	// A path the camera answers 403 to: authenticated fine, but not for this account.
-	forbidden = null,
+	// A path the camera turns down outright, whatever the login: { path, code }.
+	refuse = null,
 } = {}) {
 	let scheme = initialScheme
 	const requests = []
@@ -43,9 +44,9 @@ function camera({
 
 		// The Admin CGI challenges on every camera, even one whose "User auth." is off — measured on an
 		// AW-HE40, where /cgi-bin/initial answers 401 while aw_cam answers 200 to the same request.
-		if (forbidden && req.url.includes(forbidden)) {
-			res.writeHead(403)
-			return res.end('forbidden')
+		if (refuse && req.url.includes(refuse.path)) {
+			res.writeHead(refuse.code)
+			return res.end('refused')
 		}
 
 		const admin = req.url.startsWith('/cgi-bin/initial')
@@ -560,6 +561,20 @@ describe('refusals that arrive after the connection is up', () => {
 
 		expect(self.pollImage).toBe(false)
 		expect(self.auth.blocked).toBe(true)
+
+		// The feedback re-registers on every evaluation, so the loop is only really stopped if its start
+		// refuses to run again. It needs a live subscriber to get past its own first check — with none,
+		// the loop ends by itself and would pass this whether the guard is there or not.
+		self.imageSubscribers.set('feedback-1', Date.now())
+		startLiveImagePoll(self)
+		expect(self.pollImage).toBe(false)
+
+		// And a request still in flight when the refusal landed must not paint the connection green
+		// again, with both loops down and nothing left watching it.
+		self.updateStatus.mockClear()
+		self.onRequestSucceeded()
+		expect(self.updateStatus).not.toHaveBeenCalled()
+
 		await server.close()
 	})
 
@@ -567,7 +582,7 @@ describe('refusals that arrive after the connection is up', () => {
 	// latch having anything in it disarmed it on every connection that works: the ordinary "this
 	// camera never asks for a login" note lands there on the first successful request.
 	it('still reports a 403 after the connection has settled on needing no login', async () => {
-		const server = camera({ scheme: 'none', forbidden: 'get_basic' })
+		const server = camera({ scheme: 'none', refuse: { path: 'get_basic', code: 403 } })
 		const port = await server.listen()
 		const self = instance(port, {})
 
@@ -577,6 +592,22 @@ describe('refusals that arrive after the connection is up', () => {
 		await self.getWeb('get_basic')
 
 		expect(self.updateStatus).toHaveBeenCalledWith(InstanceStatus.InsufficientPermissions, 'HTTP 403')
+		await server.close()
+	})
+})
+
+// got 15 retries a GET twice by itself. Underneath a module that retries in two bounded places of its
+// own, that turns one refusal into three requests and holds a dead camera back from scheduleReInit
+// for seconds before anything notices.
+describe('requests that the camera turns down', () => {
+	it('sends exactly one, rather than letting got try again underneath', async () => {
+		const server = camera({ scheme: 'none', refuse: { path: 'get_basic', code: 503 } })
+		const port = await server.listen()
+		const self = instance(port, {})
+
+		await self.getWeb('get_basic')
+
+		expect(server.requests).toHaveLength(1)
 		await server.close()
 	})
 })

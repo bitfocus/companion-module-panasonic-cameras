@@ -147,7 +147,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					timeout: { request: this.config.timeout },
 					...gotOptions,
 					headers: { ...gotOptions.headers, ...headers },
-					signal: this.aborter.signal, // last, so callers cannot override
+					retry: { limit: 0 },
+					signal: this.aborter.signal,
 				}),
 			{
 				session: auth,
@@ -695,17 +696,21 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		await this.reInitAll()
 	}
 
-	// Whether an answer still belongs to the connection that is running. Once scheduleReInit() has
-	// committed to a reconnect the poll loops are down and only reInitAll() starts them again, so a
-	// late arrival must not be allowed to report Ok over a connection whose monitoring has stopped.
 	// Whether reInitAll should give up where it stands: the connection it belongs to is gone, or a
 	// reconnect has already been booked for it.
 	stopped(generation) {
 		return !this.current(generation) || this.reconnecting
 	}
 
+	// Whether an answer still belongs to the connection that is running. Once scheduleReInit() has
+	// committed to a reconnect the poll loops are down and only reInitAll() starts them again, so a
+	// late arrival must not be allowed to report Ok over a connection whose monitoring has stopped.
+	//
+	// A refused login leaves the same wreckage without booking anything: the loops are down and stay
+	// down. A request still in flight when that happened would otherwise come back and paint the
+	// connection green, where nothing is watching it any more.
 	markReachable() {
-		return !this.reconnecting
+		return !this.reconnecting && !this.auth?.blocked
 	}
 
 	onRequestSucceeded() {
