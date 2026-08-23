@@ -742,6 +742,32 @@ describe('a camera that has vanished', () => {
 // The getters swallow a reachability error and book a reconnect. Carrying on through the rest of the
 // list means every remaining request fails too — and each failure re-arms the reconnect timer, so a
 // series with a long pull list pushes its own retry out past Companion's init timeout.
+// teardown() says goodbye to the old camera with the old session and waits only briefly for it, so
+// that request can still be in flight when the new connection installs a session of its own.
+describe('a late answer belonging to a connection that is gone', () => {
+	it('does not block the connection that replaced it', async () => {
+		const server = camera({ scheme: 'basic' })
+		const port = await server.listen()
+		const self = instance(port, {})
+		self.poll = true
+		self.pollImage = true
+
+		const departed = createAuthSession({}) // the old connection's session, with no login to offer
+		const current = self.auth
+
+		await self.httpGet(`http://127.0.0.1:${port}/cgi-bin/aw_cam?cmd=QID&res=1`, { auth: departed }).catch(() => {})
+
+		// Nothing of the refusal reaches the connection that is running now — not its session, not its
+		// loops, not its status, and not its log. The session that met it is on its way out anyway.
+		expect(current.blocked).toBe(false)
+		expect(self.poll).toBe(true)
+		expect(self.pollImage).toBe(true)
+		expect(self.updateStatus).not.toHaveBeenCalled()
+		expect(self.log.mock.calls.filter(([level]) => level === 'error')).toHaveLength(0)
+		await server.close()
+	})
+})
+
 describe('the one-shot status list', () => {
 	// Transport order is ptz, then cam, then web — so a fixture with both shows where it stopped.
 	const listing = (sent, onSend) => {

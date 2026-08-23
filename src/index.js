@@ -154,7 +154,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			{
 				session: auth,
 				uri: pathname + search,
-				report: (event) => this.reportAuthEvent(event, url, polled),
+				report: (event) => auth === this.auth && this.reportAuthEvent(event, url, polled),
 			},
 		)
 	}

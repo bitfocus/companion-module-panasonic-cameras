@@ -243,7 +243,7 @@ describe('describeDetectedModel', () => {
 		const text = describeDetectedModel({ model: 'Auto' }, { modelAuto: 'AW-XX999' })
 
 		expect(text).toContain('AW-XX999')
-		expect(text).toMatch(/Other Cameras/)
+		expect(text).toMatch(/report it as a new issue/)
 	})
 
 	it('still flags the mismatch when the camera it found is also unknown', () => {
@@ -268,6 +268,16 @@ describe('describeAuth', () => {
 	// when there is nothing to report either way.
 	it.each([['unknown'], ['none'], [undefined]])('says nothing at all about %s', (state) => {
 		expect(describeAuth(auth(state))).toBe('')
+	})
+
+	// The 'unsupported' case falls back to "a login method" when the camera named none, or named one
+	// that could not be answered. Anything truthy in `named` — the string "null" included — takes that
+	// fallback away and puts itself in the sentence instead.
+	it('does not name a method the camera never named', () => {
+		const text = describeAuth({ auth: { state: 'unsupported', scheme: null } })
+
+		expect(text).toContain('a login method')
+		expect(text).not.toContain('null')
 	})
 
 	it('names the method actually in use', () => {

@@ -201,7 +201,7 @@ export function describeDetectedModel(config, data) {
 
 	if (!label) {
 		return warn(
-			`Detected <b>${name}</b>, which is not a model this module knows yet. Please report this model using a new issue in the the module's repository so it can be added as supported model.`,
+			`Detected <b>${name}</b>, which is not a model this module knows yet. Please report it as a new issue in the module's repository so it can be added as a supported model.`,
 		)
 	}
 
@@ -210,7 +210,7 @@ export function describeDetectedModel(config, data) {
 
 export function describeAuth(data) {
 	const { state, scheme, realm } = data?.auth ?? {}
-	const named = { digest: 'Digest', basic: 'Basic' }[scheme] ?? safe(scheme)
+	const named = { digest: 'Digest', basic: 'Basic' }[scheme] ?? (scheme ? safe(scheme) : null)
 	const forRealm = realm ? ` for realm "${safe(realm)}"` : ''
 
 	switch (state) {
