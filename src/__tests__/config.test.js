@@ -300,3 +300,27 @@ describe('describeAuth', () => {
 		expect(describeAuth(undefined)).toBe('')
 	})
 })
+
+// Realm and model name arrive from the camera, and static text is rendered rather than printed. A
+// device on the configured address could otherwise write the panel it is described in.
+describe('text the camera supplies', () => {
+	it('shows a realm as text rather than letting it format the panel', () => {
+		const text = describeAuth({ auth: { state: 'authenticated', scheme: 'basic', realm: '<mark>Trusted</mark>' } })
+
+		expect(text).toContain('&lt;mark&gt;Trusted&lt;/mark&gt;')
+		expect(text).not.toContain('<mark>')
+	})
+
+	it('shows an unknown scheme as text as well', () => {
+		const text = describeAuth({ auth: { state: 'unsupported', scheme: '<b>x</b>' } })
+
+		expect(text).toContain('&lt;b&gt;x&lt;/b&gt;')
+	})
+
+	it('shows a model name the module does not know as text', () => {
+		const text = describeDetectedModel({}, { modelAuto: 'AW-<b>UE150</b>' })
+
+		expect(text).toContain('&lt;b&gt;UE150&lt;/b&gt;')
+		expect(text.match(/<b>/g)).toHaveLength(1) // the one this function writes itself
+	})
+})

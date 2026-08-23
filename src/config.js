@@ -171,6 +171,12 @@ export const ConfigFields = [
 	},
 ]
 
+// Static text is rendered as Markdown and then sanitised, so a few tags survive — which is what makes
+// the <b> and <mark> below work. Everything the camera supplies is put through this first: a realm or
+// a model name is device data, not markup, and must not be able to shape the panel it is shown in.
+const safe = (value) =>
+	String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+
 const warn = (text) => `<mark>⚠ ${text}</mark>`
 
 export function describeDetectedModel(config, data) {
@@ -182,27 +188,30 @@ export function describeDetectedModel(config, data) {
 
 	const label = MODELS.find((m) => m.id === detected)?.label
 	const selected = config?.model
+	const name = safe(label ?? detected)
 
 	const pinned = selected && selected !== 'Auto' && selected !== 'Other'
 
 	if (pinned && selected !== detected) {
 		return warn(
-			`Detected <b>${label ?? detected}</b>, but this connection is set to <b>${selected}</b>. ` +
+			`Detected <b>${name}</b>, but this connection is set to <b>${safe(selected)}</b>. ` +
 				`The camera is driven as the model you selected, which may not match what it can do.`,
 		)
 	}
 
 	if (!label) {
-		return `Detected <b>${detected}</b>, which is not a model this module knows. It is driven with the generic 'Other Cameras' feature set, so expect only basic operation.`
+		return warn(
+			`Detected <b>${name}</b>, which is not a model this module knows yet. Please report this model using a new issue in the the module's repository so it can be added as supported model.`,
+		)
 	}
 
-	return `Detected <b>${label}</b>.`
+	return `Detected <b>${name}</b>.`
 }
 
 export function describeAuth(data) {
 	const { state, scheme, realm } = data?.auth ?? {}
-	const named = { digest: 'Digest', basic: 'Basic' }[scheme] ?? scheme
-	const forRealm = realm ? ` for realm "${realm}"` : ''
+	const named = { digest: 'Digest', basic: 'Basic' }[scheme] ?? safe(scheme)
+	const forRealm = realm ? ` for realm "${safe(realm)}"` : ''
 
 	switch (state) {
 		case 'authenticated':

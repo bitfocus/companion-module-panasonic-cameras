@@ -76,11 +76,15 @@ export function startLiveImagePoll(self) {
 }
 
 // One-shot query of the model's pull+poll capabilities, run at initialisation.
-export async function getCameraStatusOnce(self) {
+export async function getCameraStatusOnce(self, generation) {
 	for (const caps of [self.SERIES.capabilities.pull, self.SERIES.capabilities.poll]) {
 		if (!caps) continue
 		for (const [key, method] of Object.entries(transports)) {
-			for (const cmd of caps[key] || []) await self[method](cmd)
+			for (const cmd of caps[key] || []) {
+				if (self.stopped(generation) || self.auth?.blocked) return
+
+				await self[method](cmd)
+			}
 		}
 	}
 }

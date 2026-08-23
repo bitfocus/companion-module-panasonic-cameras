@@ -797,7 +797,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.getWeb('getinfo?FILE=1') // pull model, mac, version and serial
 		this.getWeb('get_basic') // pull cam_title
 
-		await getCameraStatusOnce(this)
+		await getCameraStatusOnce(this, generation)
 		if (this.stopped(generation)) return
 
 		if (this.SERIES.capabilities.subscription) {

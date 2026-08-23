@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 import PanasonicCameraInstance from '../index.js'
 import { createAuthSession, requestWithAuth } from '../auth.js'
 import { initialData } from '../data.js'
-import { startLiveImagePoll } from '../polling.js'
+import { getCameraStatusOnce, startLiveImagePoll } from '../polling.js'
 import { describeAuth } from '../config.js'
 
 // End to end through real got against a real server, because everything above httpGet is stubbed in
@@ -736,5 +736,61 @@ describe('a camera that has vanished', () => {
 		expect(self.init_actions).not.toHaveBeenCalled()
 
 		clearTimeout(self.timeoutID) // the reconnect this booked belongs to nobody now
+	})
+})
+
+// The getters swallow a reachability error and book a reconnect. Carrying on through the rest of the
+// list means every remaining request fails too — and each failure re-arms the reconnect timer, so a
+// series with a long pull list pushes its own retry out past Companion's init timeout.
+describe('the one-shot status list', () => {
+	// Transport order is ptz, then cam, then web — so a fixture with both shows where it stopped.
+	const listing = (sent, onSend) => {
+		const self = {
+			auth: {},
+			reconnecting: false,
+			SERIES: { capabilities: { pull: { ptz: ['#O'], cam: ['QID', 'QAF'] }, poll: { cam: ['QSD:4F'] } } },
+			stopped: () => self.reconnecting,
+		}
+
+		const send = async (cmd) => {
+			sent.push(cmd)
+			onSend?.(self)
+		}
+
+		self.getCam = send
+		self.getPTZ = send
+
+		return self
+	}
+
+	it('stops where the camera dropped instead of running the list out', async () => {
+		const sent = []
+
+		// What scheduleReInit does, from inside the getter that swallowed the error.
+		await getCameraStatusOnce(
+			listing(sent, (self) => (self.reconnecting = true)),
+			0,
+		)
+
+		expect(sent).toEqual(['#O'])
+	})
+
+	it('stops on a refused login too', async () => {
+		const sent = []
+
+		await getCameraStatusOnce(
+			listing(sent, (self) => (self.auth.blocked = true)),
+			0,
+		)
+
+		expect(sent).toEqual(['#O'])
+	})
+
+	it('runs the whole list while nothing is wrong', async () => {
+		const sent = []
+
+		await getCameraStatusOnce(listing(sent), 0)
+
+		expect(sent).toEqual(['#O', 'QID', 'QAF', 'QSD:4F'])
 	})
 })
