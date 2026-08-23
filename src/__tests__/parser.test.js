@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { parseUpdate } from '../parser.js'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { parseRefusal, parseUpdate, parseWeb, parseWebCode } from '../parser.js'
 import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
 import { initialData } from '../data.js'
 
@@ -228,5 +228,195 @@ describe('common helpers', () => {
 	it('returns undefined for a label that does not exist', () => {
 		expect(getLabel([{ id: '1', label: 'One' }], '1')).toBe('One')
 		expect(getLabel([{ id: '1', label: 'One' }], '2')).toBeUndefined()
+	})
+})
+
+// These CGIs answer with a status code and no body, so the code is the entire reply.
+describe('parseWebCode', () => {
+	function code(statusCode, cmd) {
+		const self = { data: initialData() }
+		parseWebCode(self, statusCode, cmd)
+		return self.data
+	}
+
+	it.each([
+		['srt_ctrl?cmd=start', 'srt', '1'],
+		['srt_ctrl?cmd=stop', 'srt', '0'],
+		['ts_ctrl?cmd=start', 'ts', '1'],
+		['ts_ctrl?cmd=stop', 'ts', '0'],
+		['rtmp_ctrl?cmd=start', 'rtmp', '1'],
+		['rtmp_ctrl?cmd=stop', 'rtmp', '0'],
+		['sdctrl?save=start', 'recording', '1'],
+		['sdctrl?save=end', 'recording', '0'],
+		['initial?cmd=reset&Randomnum=12345', 'power', '0'],
+	])('takes 204 on %s as the camera having done it', (cmd, field, expected) => {
+		expect(code(204, cmd)[field]).toBe(expected)
+	})
+
+	// 503 was accepted here alongside 204, as a second flavour of "no content" — but these cameras send
+	// it when the command's precondition does not hold (SRT not the selected protocol, card not ready),
+	// so it says the opposite of what it was read as. Recording it as a started stream would put the
+	// module's state at odds with the camera's until the next poll disagreed.
+	it('does not take 503 as the camera having done it', () => {
+		expect(code(503, 'srt_ctrl?cmd=start').srt).toBeNull()
+		expect(code(503, 'sdctrl?save=start').recording).toBeNull()
+	})
+
+	it('leaves state alone for a command it does not know', () => {
+		expect(code(204, 'get_basic')).toEqual(initialData())
+	})
+})
+
+// Strings measured on an AW-UE150 V3.20: aw_ptz answers lower-case, aw_cam upper-case.
+describe('parseRefusal', () => {
+	it.each([
+		['eR1:XF', 1, 'XF'],
+		['ER1:QXF', 1, 'QXF'],
+		['eR2:S', 2, 'S'],
+		['ER2:OWS', 2, 'OWS'],
+		['eR3:AXZ', 3, 'AXZ'],
+		['ER3:OGU', 3, 'OGU'],
+	])('reads %s as a refusal', (str, code, command) => {
+		expect(parseRefusal(str)).toEqual({ code, command })
+	})
+
+	// The camera names the command only, cut at three characters, with everything the module sent
+	// after it dropped. So the echo is not what was sent, and nothing downstream may assume it is.
+	it.each([
+		['eR1:AXZ', 'AXZ'], // sent #AXZFFFF
+		['ER1:QSL', 'QSL'], // sent QSL:36:99
+		['eR1:XYZ', 'XYZ'], // sent #XYZ123
+	])('hands back %s as the camera wrote it', (str, command) => {
+		expect(parseRefusal(str).command).toBe(command)
+	})
+
+	// Ordinary answers must not be mistaken for refusals — several start with the same letters.
+	it.each(['s00', 'aPCA1C67FE2', 'rER00', 'OER:0', 'OSI:46:00000000', 'ER4:XX', 'ER:XX', 'lC10'])(
+		'reads %s as an ordinary answer',
+		(str) => {
+			expect(parseRefusal(str)).toBeNull()
+		},
+	)
+})
+
+// The compatible-model table's ▼OAW section: a White Balance query answers in a different encoding
+// than the control command takes. 1 is never returned, and 2 and 3 come back one step below what
+// sets them — so an unmapped reply named the wrong mode (2) or none at all (3).
+//
+// The '3' case is measured, not read off a table: an AW-HE40 standing in AWC B answers OAW:3. The
+// other spec calls 3 a second ATW for this family, so the two disagree and only the camera settles it.
+describe('the white balance confirmation encoding', () => {
+	const he40 = () => ({
+		data: initialData(),
+		getThumbnail: () => {},
+		SERIES: { capabilities: { whiteBalance: { confirm: { 2: '1', 3: '2' } } } },
+	})
+
+	it.each([
+		['0', '0'], // ATW, same either way
+		['2', '1'], // the camera means AWC A, which is 1 in the control encoding
+		['3', '2'], // the camera means AWC B — the reply that used to leave the variable empty
+		['4', '4'], // Preset 3200K, same either way
+		['5', '5'],
+		['9', '9'], // VAR
+	])('reads OAW:%s back as %s', (answered, expected) => {
+		const self = he40()
+		parseUpdate(self, ['OAW', answered])
+
+		expect(self.data.whiteBalance).toBe(expected)
+	})
+
+	// The same "OAW:3" means ATW when it is a control command being handed back, and AWC B when the
+	// camera is reporting its own state. Only the caller knows which, so only the caller can say.
+	it.each([
+		['3', '3'], // the ATW an action just set, repeated back
+		['1', '1'], // AWC A
+		['2', '2'], // AWC B
+	])('leaves OAW:%s alone when it is an action reading its own value back', (answered, expected) => {
+		const self = he40()
+		parseUpdate(self, ['OAW', answered], { echo: true })
+
+		expect(self.data.whiteBalance).toBe(expected)
+	})
+
+	// The CX350 and HE2 answer in the encoding they take, and carry no map.
+	it('leaves the answer alone for a series that needs no mapping', () => {
+		const self = { data: initialData(), getThumbnail: () => {}, SERIES: { capabilities: { whiteBalance: {} } } }
+		parseUpdate(self, ['OAW', '3'])
+
+		expect(self.data.whiteBalance).toBe('3')
+	})
+
+	// parseUpdate also runs from the upgrade scripts and the tests, on a `self` with no series at all.
+	it('does not require a resolved series', () => {
+		const self = { data: initialData(), getThumbnail: () => {} }
+		parseUpdate(self, ['OAW', '3'])
+
+		expect(self.data.whiteBalance).toBe('3')
+	})
+})
+
+// The parser logs through the base package's module logger rather than the instance, so it was
+// missed when everything else moved off info. A detected model is protocol detail like the rest: it
+// belongs in the log Companion filters, not in the one an operator reads on a healthy connection.
+describe("the parser's own logging", () => {
+	const captured = []
+
+	beforeEach(() => {
+		captured.length = 0
+		globalThis.COMPANION_LOGGER = (_source, level, message) => captured.push([level, message])
+	})
+	afterEach(() => {
+		delete globalThis.COMPANION_LOGGER
+	})
+
+	it('reports the model detected over aw_cam at debug', () => {
+		parseUpdate({ data: initialData(), getThumbnail: () => {} }, ['OID', 'AW-UE150'])
+
+		expect(captured).toEqual([['debug', 'Detected Camera Model: AW-UE150']])
+	})
+
+	it('reports the model detected over the web CGI at debug', () => {
+		parseWeb({ data: initialData() }, ['NAME', 'AW-UE150'], 'getinfo?FILE=1')
+
+		expect(captured).toEqual([['debug', 'Detected Camera Model: AW-UE150']])
+	})
+
+	// Every init resolves the model; only a change is worth a line.
+	it('says nothing when the model is the one already resolved', () => {
+		const data = initialData()
+		data.model = 'AW-UE150'
+
+		parseUpdate({ data, getThumbnail: () => {} }, ['OID', 'AW-UE150'])
+
+		expect(captured).toEqual([])
+	})
+})
+
+// OSJ:D2 is the filter actually in place; OFT is the setting, and the setting can be Auto ND. They
+// shared `data.filter` until they were split, so whichever arrived last decided what the ND Filter
+// variable said — a camera in Auto ND could read as a fixed filter, or a fixed one as Auto.
+describe('the ND filter follow status', () => {
+	it('reads OSJ:D2 into its own field', () => {
+		expect(parse('OSJ', 'D2', '2').filterFollow).toBe('2')
+	})
+
+	it('leaves the filter setting alone', () => {
+		const data = initialData()
+
+		parseUpdate({ data }, ['OFT', '8']) // Auto ND
+		parseUpdate({ data }, ['OSJ', 'D2', '2']) // ...which settled on 1/16 ND
+
+		expect(data.filter).toBe('8')
+		expect(data.filterFollow).toBe('2')
+	})
+
+	it('is not touched by the filter setting either', () => {
+		const data = initialData()
+
+		parseUpdate({ data }, ['OSJ', 'D2', '3'])
+		parseUpdate({ data }, ['OFT', '0'])
+
+		expect(data.filterFollow).toBe('3')
 	})
 })

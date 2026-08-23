@@ -30,11 +30,6 @@ const colorBlack = combineRgb(0, 0, 0)
 // #### Button graphics ####
 // ##########################
 
-// A layered preset hands Companion the drawing elements directly. The alternative, `simple`, still
-// takes the 1.x style object, but there `size` is a pixel height on a 72px button that the host
-// rescales on import (×2.1 with a topbar, ×1/0.6 without) — which is why a preset written as
-// `size: '14'` read as 29.4 in the button properties. Here fontsize is what the field says it is: a
-// percentage of the element's own drawing area.
 const SIZE = 24
 const SIZE_LARGE = 32 // the tally captions and the jog icons, a third larger than SIZE
 
@@ -44,7 +39,6 @@ const BG = 'box0'
 const IMAGE = 'image0'
 const TEXT = 'text0'
 
-// A layered element takes the image as a data URL; only the legacy path wrapped bare base64 for us.
 const dataUrl = (png64) => 'data:image/png;base64,' + png64
 
 const align = (alignment) => {
@@ -56,22 +50,13 @@ const align = (alignment) => {
 // Background, image, text, in the order the host itself stacked them; Companion prepends the canvas.
 // Every button carries all three even when it draws no image, exactly as the legacy conversion did —
 // a feedback can then fill one in without the preset having to anticipate it.
-const layers = ({
-	text = '',
-	size = SIZE,
-	color = colorWhite,
-	alignment,
-	bgcolor = colorBlack,
-	png64,
-	pngalignment,
-} = {}) => [
+const layers = ({ text = '', size = SIZE, color = colorWhite, alignment, bgcolor = colorBlack, png64 } = {}) => [
 	{ id: BG, name: 'Background', type: 'box', color: bgcolor },
 	{
 		id: IMAGE,
 		name: 'Image',
 		type: 'image',
 		base64Image: png64 ? dataUrl(png64) : null,
-		...align(pngalignment),
 	},
 	{
 		id: TEXT,
@@ -86,35 +71,21 @@ const layers = ({
 	},
 ]
 
-// A feedback no longer carries a style, it names the element properties it overrides. The value has
-// to be wrapped: Companion drops any override that is not an ExpressionOrValue, and a feedback left
-// with none of them is dropped along with it.
 const set = (elementId, elementProperty, value) => ({
 	elementId,
 	elementProperty,
 	override: { isExpression: false, value },
 })
 
-// An advanced feedback returns a legacy style object instead of fixed values, so its overrides name
-// which key of that result feeds each element property. Both of this module's advanced feedbacks
-// deliver a picture; the preset thumbnail sends no alignment with it, and an override whose key the
-// result omits simply contributes nothing — which is what the host's own conversion relied on too.
-const advancedImage = [
-	set(IMAGE, 'base64Image', 'png64'),
-	set(IMAGE, 'halign', 'pngalignment'),
-	set(IMAGE, 'valign', 'pngalignment'),
-]
+const advancedImage = [set(IMAGE, 'base64Image', 'png64')]
 
-// Takes the same bag the 1.x feedback style did, so a preset still says what it wants lit rather
-// than which layer holds it. Nullish-guarded: some presets pass a null style beside a null feedback.
 const overrides = (style) => {
-	const { color, bgcolor, png64, pngalignment } = style ?? {}
+	const { color, bgcolor, png64 } = style ?? {}
 
 	return [
 		...(bgcolor !== undefined ? [set(BG, 'color', bgcolor)] : []),
 		...(color !== undefined ? [set(TEXT, 'color', color)] : []),
 		...(png64 !== undefined ? [set(IMAGE, 'base64Image', dataUrl(png64))] : []),
-		...Object.entries(align(pngalignment)).map(([property, value]) => set(IMAGE, property, value)),
 	]
 }
 
@@ -1035,10 +1006,7 @@ export function getPresetDefinitions(self) {
 	}
 
 	if (SERIES.capabilities.restart) {
-		presets['system-restart'] = momentaryPreset('System', 'Restart', 'Restart\\n🗘', 'restart', {
-			username: 'admin',
-			password: '12345',
-		})
+		presets['system-restart'] = momentaryPreset('System', 'Restart', 'Restart\\n🗘', 'restart')
 	}
 
 	if (SERIES.capabilities.colorbar) {
@@ -1049,7 +1017,7 @@ export function getPresetDefinitions(self) {
 			'Color Bar\\n$(generic-module:colorbar)',
 			'colorbar',
 			'colorbarState',
-			{ color: colorWhite, bgcolor: colorRed, png64: ICONS.COLORBAR, pngalignment: 'center:center' },
+			{ color: colorWhite, bgcolor: colorRed, png64: ICONS.COLORBAR },
 		)
 	}
 

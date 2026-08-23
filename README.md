@@ -221,6 +221,7 @@ and the model specific "Supplement for Web Control" specifications.
 | `$(whiteBalance)` | White Balance Mode |
 | `$(colorTemperature)` | Color Temperature |
 | `$(filter)` | ND Filter |
+| `$(filterFollow)` | ND Filter Follow |
 | `$(gain)` | Gain |
 | `$(shootingMode)` | Shooting Mode |
 | `$(nightMode)` | Night Mode |

@@ -2,7 +2,8 @@
 // not inherit the old one's) and its own arrays (a shared literal would alias them across instances).
 export function initialData() {
 	return {
-		debug: false,
+		// What the connection learned about logging in; wiped with everything else on a config change.
+		auth: { state: 'unknown', scheme: null, realm: null },
 
 		modelAuto: null,
 		model: 'Auto',
@@ -27,6 +28,7 @@ export function initialData() {
 		errorCamera: null,
 		errorCameraDetail: null,
 		filter: null,
+		filterFollow: null,
 		focusMode: null,
 		gain: null,
 		installMode: null,

@@ -1,39 +1,45 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Jimp } from 'jimp'
-import { IMAGE_SCALING, IMAGE_SIZE, fitImage } from '../common.js'
+import { IMAGE_SIZE, fitImage } from '../common.js'
 import { startLiveImagePoll } from '../polling.js'
 
 // A 16:9 frame, the shape every camera answers with.
 const frame = () => new Jimp({ width: 1920, height: 1080, color: 0x3366ccff })
 
-describe('fitting a camera frame onto a square button', () => {
-	it('letterboxes by default, leaving the frame whole', () => {
-		const img = fitImage(frame(), 'letterbox')
+describe('bounding a camera frame for a button', () => {
+	it('scales a frame down to what a button can show, whole', () => {
+		const img = fitImage(frame())
 
-		// 16:9 preserved; the button's own background shows above and below, no baked-in black bar.
-		expect([img.width, img.height]).toEqual([IMAGE_SIZE, 162])
+		// 16:9 preserved and nothing padded: how the result is fitted onto the button is the image
+		// element's `fillMode`, set per button, so the module must not decide it here.
+		expect([img.width, img.height]).toEqual([IMAGE_SIZE, 180])
 	})
 
-	it('crops to fill the button, at the cost of the sides of the frame', () => {
-		const img = fitImage(frame(), 'crop')
+	// Neither side may exceed the bound, whichever way round the frame is.
+	it('bounds both sides, not just the wider one', () => {
+		const portrait = fitImage(new Jimp({ width: 1080, height: 1920, color: 0x3366ccff }))
 
-		expect([img.width, img.height]).toEqual([IMAGE_SIZE, IMAGE_SIZE])
+		expect(Math.max(portrait.width, portrait.height)).toBe(IMAGE_SIZE)
 	})
 
-	it('squeezes to fill the button, at the cost of the aspect ratio', () => {
-		const img = fitImage(frame(), 'squeeze')
+	// Downscale only. scaleToFit would have enlarged these, inventing no detail while inflating the
+	// base64 on every button that carries the picture.
+	it.each([
+		[160, 90], // a small snapshot
+		[320, 176], // a preset thumbnail, as an AW-UE150 serves it — the size the bound is set to clear
+		[IMAGE_SIZE, IMAGE_SIZE], // exactly the bound: already small enough, nothing to do
+		[IMAGE_SIZE, 100],
+	])('hands back a %ix%i frame untouched rather than enlarging it', (width, height) => {
+		const img = fitImage(new Jimp({ width, height, color: 0x3366ccff }))
 
-		expect([img.width, img.height]).toEqual([IMAGE_SIZE, IMAGE_SIZE])
+		expect([img.width, img.height]).toEqual([width, height])
 	})
 
-	it('letterboxes a config saved before the setting existed', () => {
-		// An old connection has no imageScaling and must keep its old behaviour.
-		expect([fitImage(frame(), undefined).width, fitImage(frame(), undefined).height]).toEqual([IMAGE_SIZE, 162])
-	})
+	it('still scales down a frame over the limit on only one side', () => {
+		const wide = fitImage(new Jimp({ width: 1920, height: 100, color: 0x3366ccff }))
 
-	it('offers exactly the modes the scaling knows how to carry out', () => {
-		// The dropdown and the switch are two lists of the same ids; this stops them drifting.
-		expect(IMAGE_SCALING.map((m) => m.id)).toEqual(['letterbox', 'crop', 'squeeze'])
+		expect(wide.width).toBe(IMAGE_SIZE)
+		expect(wide.height).toBeLessThan(100)
 	})
 })
 

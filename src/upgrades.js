@@ -2,6 +2,7 @@ import { EmptyUpgradeScript, FixupNumericOrVariablesValueToExpressions } from '@
 import { getActionDefinitions } from './actions.js'
 import { getFeedbackDefinitions } from './feedbacks.js'
 import { constrainRange, getAndUpdateSeries, optionSpecs } from './common.js'
+import { FACTORY_LOGIN } from './config.js'
 
 // Leftovers from the "Use Variable" construct, dropped from every button that carries them.
 const DEAD_OPTIONS = ['useVar', 'setVar', 'stepVar', 'valVar', 'optionVar']
@@ -234,6 +235,68 @@ function rescaleColorTemperatureStep(_context, props) {
 	return result
 }
 
+// `debug` gated every log line the module produced, at info level, so it was all-or-nothing and none
+// of it reached Companion's own filtering. The lines are debug level now and always emitted; the flag
+// that survives only decides whether the repeating poll traffic joins them. Same meaning for a user
+// who had it on - "show me the protocol" - so the stored value carries over rather than resetting.
+function renameDebugToTrace(_context, props) {
+	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
+
+	if (props.config && 'debug' in props.config) {
+		const { debug, ...rest } = props.config
+		result.updatedConfig = { ...rest, trace: debug === true }
+	}
+
+	return result
+}
+
+// The restart action carried its own administrator user name and password, because Admin is the one
+// level the camera guards even while "User auth." is off. Everything runs on the connection's own
+// login now, so those options are gone from the definition — and a button that still holds them
+// would leave two logins on disk with nothing to say which one wins.
+//
+// They are lifted onto the connection rather than discarded: they are the credentials that made this
+// user's restart button work, and dropping them would break it silently. Only onto a connection that
+// has none of its own, so a login the user has since entered is never overwritten. Where several
+// buttons disagree the first one wins — there is one connection and no way to honour two answers.
+function dropRestartCredentials(_context, props) {
+	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
+	const carried = []
+
+	for (const action of props.actions ?? []) {
+		if (action.actionId !== 'restart') continue
+		if (!('username' in action.options) && !('password' in action.options)) continue
+
+		carried.push({
+			username: unwrap(action.options.username).value ?? '',
+			password: unwrap(action.options.password).value ?? '',
+		})
+
+		delete action.options.username
+		delete action.options.password
+		result.updatedActions.push(action)
+	}
+
+	// A connection that predates the login fields has none, and the restart action no longer carries
+	// its own — so without this, restarting would stop working on every existing installation. Give
+	// the connection whatever a restart button was using, or else the factory login: the same value a
+	// connection created today starts with, and the one that makes restart work on a camera whose
+	// "User auth." was never switched on.
+	//
+	// Only ever applied to a connection that has no login at all, so nothing a user set can be
+	// overwritten. props.config is null when buttons are upgraded rather than a connection; the
+	// connection's own pass does the lifting then.
+	const adopt = carried.find(({ username, password }) => username || password) ?? FACTORY_LOGIN
+	const vacant = props.config && !props.config.username && !props.secrets?.password
+
+	if (vacant) {
+		result.updatedConfig = { ...props.config, username: adopt.username }
+		result.updatedSecrets = { ...(props.secrets ?? {}), password: adopt.password }
+	}
+
+	return result
+}
+
 export const upgradeScripts = [
 	// Was addSetIncDecVariables. Blanked, not deleted: upgrade progress is tracked by index.
 	EmptyUpgradeScript,
@@ -261,4 +324,6 @@ export const upgradeScripts = [
 	dropUseVarToggles,
 	repairPre201Writes,
 	rescaleColorTemperatureStep,
+	renameDebugToTrace,
+	dropRestartCredentials,
 ]

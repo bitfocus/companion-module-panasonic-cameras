@@ -1,5 +1,6 @@
-import { IMAGE_SCALING } from './common.js'
 import { MODELS } from './models.js'
+
+export const FACTORY_LOGIN = { username: 'admin', password: '12345' }
 
 const section = (id, label) => ({ type: 'static-text', id, label, value: '<hr>', width: 12 })
 
@@ -33,6 +34,31 @@ export const ConfigFields = [
 		default: 2000,
 		min: 100,
 		max: 5000,
+	},
+
+	section('sectionAuth', ''),
+	{
+		type: 'textinput',
+		id: 'username',
+		label: 'User Name',
+		description: 'The user account this connection uses on request. Default: admin',
+		width: 6,
+		default: FACTORY_LOGIN.username,
+	},
+	{
+		type: 'secret-text',
+		id: 'password',
+		label: 'Password',
+		description: 'The password for that account. Default: 12345',
+		width: 6,
+		default: FACTORY_LOGIN.password,
+	},
+	{
+		type: 'static-text',
+		id: 'authDetected',
+		label: '',
+		width: 6,
+		value: '', // filled per instance by getConfigFields()
 	},
 
 	section('sectionModel', ''),
@@ -112,16 +138,6 @@ export const ConfigFields = [
 
 	section('sectionImage', ''),
 	{
-		type: 'dropdown',
-		id: 'imageScaling',
-		label: 'Thumbnail Scaling',
-		description:
-			'How a camera image is fitted onto a square button. This governs every image the module draws — the preset thumbnails as much as the live one.',
-		width: 6,
-		default: 'letterbox',
-		choices: IMAGE_SCALING,
-	},
-	{
 		type: 'checkbox',
 		id: 'imageEnable',
 		label: 'Live Image',
@@ -146,17 +162,22 @@ export const ConfigFields = [
 	section('sectionDiagnostics', ''),
 	{
 		type: 'checkbox',
-		id: 'debug',
-		label: 'Debug Mode',
+		id: 'trace',
+		label: 'Trace Polling',
 		description:
-			'Log every exchange between this instance and the camera in detail. Only turn this on to investigate a protocol-level problem: it floods the log, and it can slow the whole system down. DO NOT ENABLE THIS IN PRODUCTION!',
+			'Log every request and response of the repeating status, update and image polling. Everything else this instance does is logged at debug level regardless, and Companion filters that for you. Only turn this on to investigate a protocol-level problem: the polling traffic is continuous, so it evicts the rest of the log history within minutes. DO NOT ENABLE THIS IN PRODUCTION!',
 		width: 6,
 		default: false,
 	},
 ]
 
-// Config panel strips style attributes from static text, so a leading symbol is the only visible cue.
-const warn = (text) => `⚠ ${text}`
+// Static text is rendered as Markdown and then sanitised, so a few tags survive — which is what makes
+// the <b> and <mark> below work. Everything the camera supplies is put through this first: a realm or
+// a model name is device data, not markup, and must not be able to shape the panel it is shown in.
+const safe = (value) =>
+	String(value).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+
+const warn = (text) => `<mark>⚠ ${text}</mark>`
 
 export function describeDetectedModel(config, data) {
 	const detected = data?.modelAuto
@@ -167,22 +188,49 @@ export function describeDetectedModel(config, data) {
 
 	const label = MODELS.find((m) => m.id === detected)?.label
 	const selected = config?.model
+	const name = safe(label ?? detected)
 
 	const pinned = selected && selected !== 'Auto' && selected !== 'Other'
 
 	if (pinned && selected !== detected) {
 		return warn(
-			`Detected <b>${label ?? detected}</b>, but this connection is set to <b>${selected}</b>. ` +
+			`Detected <b>${name}</b>, but this connection is set to <b>${safe(selected)}</b>. ` +
 				`The camera is driven as the model you selected, which may not match what it can do.`,
 		)
 	}
 
 	if (!label) {
-		return `Detected <b>${detected}</b>, which is not a model this module knows. It is driven with the generic 'Other Cameras' feature set, so expect only basic operation.`
+		return warn(
+			`Detected <b>${name}</b>, which is not a model this module knows yet. Please report it as a new issue in the module's repository so it can be added as a supported model.`,
+		)
 	}
 
-	return `Detected <b>${label}</b>.`
+	return `Detected <b>${name}</b>.`
 }
+
+export function describeAuth(data) {
+	const { state, scheme, realm } = data?.auth ?? {}
+	const named = { digest: 'Digest', basic: 'Basic' }[scheme] ?? (scheme ? safe(scheme) : null)
+	const forRealm = realm ? ` for realm "${safe(realm)}"` : ''
+
+	switch (state) {
+		case 'authenticated':
+			return `<b>Logged in</b> with ${named} authentication${forRealm}.`
+		case 'required':
+			return warn(`This camera requires a login${forRealm}. Fill in the user name and password above.`)
+		case 'rejected':
+			return warn(`The camera rejected this user name and password${forRealm}.`)
+		case 'unsupported':
+			return warn(
+				`The camera asked for ${named ?? 'a login method'}, which this module cannot answer. Set its ` +
+					"'Auth. method' to 'Digest' or 'Basic' in the camera's web menu.",
+			)
+		default:
+			return ''
+	}
+}
+
+const SEEDED_TOGETHER = new Set(['username', 'password'])
 
 // Fields added after a config's last Save are absent from it and read `undefined` (NaN poll delay,
 // invalid dropdown). Fill from each field's declared default so the rest of the module can treat
@@ -191,7 +239,7 @@ export function applyConfigDefaults(config) {
 	const filled = { ...config }
 
 	for (const field of ConfigFields) {
-		if (field.type === 'static-text' || field.default === undefined) continue
+		if (field.type === 'static-text' || SEEDED_TOGETHER.has(field.id) || field.default === undefined) continue
 		if (filled[field.id] === undefined) filled[field.id] = field.default
 	}
 

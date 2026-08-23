@@ -39,7 +39,7 @@ function makeInstance(config = {}, { series = 'UE80', capabilities } = {}) {
 		subscriptionEnable: true,
 		imageEnable: false,
 		imageInterval: 1000,
-		debug: false,
+		trace: false,
 		model: 'Auto',
 		...config,
 	}
@@ -55,9 +55,11 @@ function makeInstance(config = {}, { series = 'UE80', capabilities } = {}) {
 	self.pollImage = false
 	self.pollImageGen = 0
 	self.imageErrors = 0
-	self.failures = 0
 	self.reconnecting = false
 	self.imageSubscribers = new Map()
+	self.secrets = {}
+	self.auth = null // no login configured: requestWithAuth passes straight through
+	self.reportedAuth = new Set()
 	self.tcpPortSelected = 31004
 
 	self.log = vi.fn()
@@ -219,10 +221,8 @@ describe('handleConnectionError', () => {
 	it.each([...REACHABILITY_ERRORS])('reports %s as a connection failure, and keeps trying', (code) => {
 		const self = makeInstance()
 
-		// One of these is a blip; a streak of them is a lost camera (see FAILURE_THRESHOLD).
-		self.handleConnectionError({ code })
-		self.handleConnectionError({ code })
-		expect(self.handleConnectionError({ code })).toBe(true)
+		// One is enough: a request that never reached the camera is a connection to rebuild.
+		expect(self.handleConnectionError({ code })).toBe('error')
 
 		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
 		expect(vi.getTimerCount()).toBe(1) // a reconnect is scheduled
@@ -239,7 +239,7 @@ describe('handleConnectionError', () => {
 		const self = makeInstance()
 
 		// Retrying an undiagnosed fault turns a bug into a request storm; the user is told and the module stops.
-		expect(self.handleConnectionError({ code: 'ERR_BODY_PARSE_FAILURE' })).toBe(true)
+		expect(self.handleConnectionError({ code: 'ERR_BODY_PARSE_FAILURE' })).toBe('error')
 
 		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['unknown_error'])
 		expect(vi.getTimerCount()).toBe(0)
@@ -261,10 +261,26 @@ describe('handleConnectionError', () => {
 
 		// teardown() aborts in-flight requests; got surfaces that as ERR_ABORTED. Read as a camera
 		// failure it would report a healthy camera as broken and schedule a pointless retry.
-		expect(self.handleConnectionError({ code: 'ERR_ABORTED' })).toBe(false)
+		expect(self.handleConnectionError({ code: 'ERR_ABORTED' })).toBe('debug')
 
 		expect(self.updateStatus).not.toHaveBeenCalled()
 		expect(vi.getTimerCount()).toBe(0)
+	})
+
+	// A request that never reached the camera means the connection is gone, so it is taken down and
+	// built again at once. This used to wait for three such failures in a row, which only delayed the
+	// reconnect.
+	it('stops polling and rebuilds on a single dropped connection', () => {
+		const self = makeInstance()
+		self.poll = true
+		self.pollImage = true
+
+		expect(self.handleConnectionError({ code: 'ECONNRESET' })).toBe('error')
+
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
+		expect(self.poll).toBe(false) // only reInitAll starts it again
+		expect(self.pollImage).toBe(false)
+		expect(vi.getTimerCount()).toBe(1) // the reconnect it committed to
 	})
 
 	it('lets a burst of failures share one reconnect', () => {
@@ -278,57 +294,65 @@ describe('handleConnectionError', () => {
 		expect(vi.getTimerCount()).toBe(1)
 	})
 
-	it('rides out a single dropped connection instead of rebuilding the whole instance', async () => {
-		// ECONNRESET on a keep-alive is routine with these cameras. Read as a lost connection it stopped
-		// polling, flipped the status and re-published ~200 presets — a full panel redraw for a blip.
+	// Companion writes a "Status: ok - null" line to the connection log for every set-status message,
+	// deduplicating only the status it stores. A poll loop calls onRequestSucceeded() per command, so
+	// without this the log was one status line per request and nothing else stayed visible in it.
+	it('reports a status once and stays quiet while it holds', async () => {
 		const self = makeInstance()
-		self.poll = true
+		self.httpGet = vi.fn(async () => ({ body: 'OID:AW-UE100\r\n', statusCode: 200 }))
 
-		expect(self.handleConnectionError({ code: 'ECONNRESET' })).toBe(false) // not worth logging yet
+		for (let i = 0; i < 20; i++) await self.getCam('QID')
 
-		expect(self.updateStatus).not.toHaveBeenCalled()
-		expect(self.poll).toBe(true) // polling is what recovers it
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['ok'])
 	})
 
-	it('withdraws the pending retry as soon as a request gets through again', async () => {
+	it('reports a status again once something else has been reported in between', async () => {
 		const self = makeInstance()
 		self.reInitAll = vi.fn()
 		self.httpGet = vi.fn(async () => ({ body: 'OID:AW-UE100\r\n', statusCode: 200 }))
 
-		self.handleConnectionError({ code: 'ECONNRESET' })
-		expect(vi.getTimerCount()).toBe(1) // armed in case nothing else drives a retry
+		await self.getCam('QID')
+		self.scheduleReInit('ECONNRESET')
+		self.reconnecting = false // the retry fired; the camera answers again
+		await self.getCam('QID')
 
-		await self.getCam('QID') // the very next poll succeeds
-
-		expect(vi.getTimerCount()).toBe(0)
-		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['ok'])
-
-		// Nothing must resurrect the reconnect once the connection has proven itself.
-		await vi.advanceTimersByTimeAsync(60_000)
-		expect(self.reInitAll).not.toHaveBeenCalled()
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['ok', 'connection_failure', 'ok'])
 	})
 
-	it('still gives up on a camera that goes quiet without another request to notice', async () => {
-		// A subscription-only camera makes no further requests, so the streak can never grow past one.
-		// The fallback timer is what keeps that connection from sitting in Ok forever.
+	// The message is half the status: two failures for different reasons are two different reports.
+	it('reports a repeated status whose detail changed', async () => {
 		const self = makeInstance()
 		self.reInitAll = vi.fn()
 
+		self.scheduleReInit('ECONNREFUSED')
+		self.scheduleReInit('EHOSTUNREACH')
+
+		expect(self.updateStatus.mock.calls.map(([, detail]) => detail)).toEqual(['ECONNREFUSED', 'EHOSTUNREACH'])
+	})
+
+	// A subscription-only camera makes no further requests of its own, so nothing would come along to
+	// notice. Committing to the reconnect on the first failure is what covers it.
+	it('gives up on a camera that goes quiet without another request to notice', async () => {
+		const self = makeInstance()
+		self.reInitAll = vi.fn(async () => {})
+
 		self.handleConnectionError({ code: 'EHOSTUNREACH' })
-		await vi.advanceTimersByTimeAsync(self.config.timeout + self.config.pollDelay)
 
 		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['connection_failure'])
+
+		await vi.advanceTimersByTimeAsync(self.config.timeout + self.config.pollDelay)
+		expect(self.reInitAll).toHaveBeenCalled()
 	})
 
 	it('does not let a late answer cancel a reconnect that is already committed', async () => {
 		// scheduleReInit() has stopped the poll loops and only reInitAll() starts them again. A request
-		// still in flight when the streak completed would otherwise clear the timer on its way in,
-		// leaving the connection reporting Ok with its monitoring dead for good.
+		// still in flight when the failure landed would otherwise report Ok on its way in, leaving the
+		// connection looking healthy with its monitoring dead for good.
 		const self = makeInstance()
 		self.reInitAll = vi.fn(async () => {})
 		self.poll = true
 
-		for (let i = 0; i < 3; i++) self.handleConnectionError({ code: 'ETIMEDOUT' })
+		self.handleConnectionError({ code: 'ETIMEDOUT' })
 		expect(self.poll).toBe(false) // committed
 
 		self.httpGet = vi.fn(async () => ({ body: 'OID:AW-UE100\r\n', statusCode: 200 }))
@@ -340,17 +364,89 @@ describe('handleConnectionError', () => {
 		expect(self.reInitAll).toHaveBeenCalled() // the reconnect still runs, and restarts polling
 	})
 
-	it('takes a rejected request as proof the camera is there', async () => {
-		// ERR_NON_2XX_3XX_RESPONSE means the camera answered, so it ends a streak rather than ignoring it.
+	it('does not let a rejected request call off a reconnect already committed to', async () => {
 		const self = makeInstance()
 
 		self.handleConnectionError({ code: 'ECONNRESET' })
 		expect(vi.getTimerCount()).toBe(1)
 
+		// The camera answering again proves it is there, but the poll loops are already down and only
+		// reInitAll() starts them; withdrawing the reconnect would leave the connection unmonitored.
 		self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE' })
 
-		expect(self.failures).toBe(0)
-		expect(vi.getTimerCount()).toBe(0)
+		expect(vi.getTimerCount()).toBe(1)
+	})
+
+	// A rejected command used to be silent and statusless, so a camera refusing every request for want
+	// of credentials looked identical to one answering them.
+	it.each([
+		[401, 'authentication_failure'],
+		[403, 'insufficient_permissions'],
+	])('names HTTP %i as something the operator can fix', (statusCode, status) => {
+		const self = makeInstance()
+
+		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode } })
+
+		expect(level).toBe('error')
+		expect(self.updateStatus.mock.calls).toEqual([[status, `HTTP ${statusCode}`]])
+	})
+
+	// 503 is how these cameras decline a command whose precondition does not hold — SRT control while
+	// RTMP is the selected protocol. The camera is working; the command simply does not apply.
+	it.each([503])('stays quiet about the ordinary rejection %i', (statusCode) => {
+		const self = makeInstance()
+
+		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode } })
+
+		expect(level).toBe('debug')
+	})
+
+	// Declining a command is ordinary; failing to answer one is not. The quiet set is small and known,
+	// the set of faults is open-ended, so anything outside the first is reported rather than assumed.
+	// 400 and 404 are in the loud set on purpose. An AW-UE150 answers ts_ctrl with 400 while MPEG-TS
+	// is unconfigured, and answers 404 for a CGI its generation never had — but the module only ever
+	// asks a model for what its own capabilities list, so either one means the model table is wrong.
+	it.each([400, 404, 429, 500, 502, 504])('does not extend that silence to the unexpected %i', (statusCode) => {
+		const self = makeInstance()
+
+		const level = self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode } })
+
+		expect(level).toBe('error')
+	})
+
+	// markReachable() withdraws the fallback retry along with the streak. Without restoring the status
+	// here, a connection left amber by a sub-threshold failure had nothing left to clear it — and with
+	// polling off, nothing would ever ask again.
+	// The camera answered, which is what Ok means here, even though it answered with a refusal.
+	it('takes an ordinary rejection as proof the camera is there', () => {
+		const self = makeInstance()
+
+		self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 503 } })
+
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['ok'])
+	})
+
+	// The camera answered, but with the one rejection an operator has to act on — reporting Ok over it
+	// would erase the only sign of it.
+	it('does not report Ok over an authentication failure', () => {
+		const self = makeInstance()
+
+		self.handleConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 401 } })
+
+		expect(self.updateStatus.mock.calls.map(([status]) => status)).toEqual(['authentication_failure'])
+	})
+
+	// The level decides how loud a failure is; the caller only supplies the words.
+	it('logs a failed request at the level its classification earned', async () => {
+		const self = makeInstance()
+
+		self.logConnectionError({ code: 'ERR_NON_2XX_3XX_RESPONSE', response: { statusCode: 503 } }, 'Cam request failed')
+		self.logConnectionError({ code: 'ECONNRESET' }, 'PTZ request failed')
+
+		expect(self.log.mock.calls).toEqual([
+			['debug', 'Cam request failed'],
+			['error', 'PTZ request failed'],
+		])
 	})
 
 	it('keeps Disconnected for the one thing the user did on purpose', async () => {
@@ -446,16 +542,12 @@ describe('a TCP port that is already taken', () => {
 	})
 
 	it('lets a pushed update prove the camera is still there', async () => {
-		// A subscription-only camera can go minutes without an HTTP request, so one failed request
-		// would otherwise sit at failures > 0 until the fallback declared a connection lost that had
-		// been pushing updates the whole time.
+		// A subscription-only camera can go minutes without an HTTP request of its own, so a pushed
+		// batch is the only thing its connection has to report Ok from.
 		vi.useFakeTimers()
 		const self = makeInstance()
 		self.init_tcp()
-
-		self.handleConnectionError({ code: 'ECONNRESET' })
-		expect(self.failures).toBe(1)
-		expect(vi.getTimerCount()).toBe(1)
+		self.updateStatus.mockClear() // init_tcp reports its own progress
 
 		// Frame layout per Interface Specifications §4.2: [Reserve 22][Size 2][Reserve 4][CRLF cmd CRLF][Reserve 24]
 		const info = Buffer.concat([Buffer.from('\r\n'), Buffer.from('p1', 'latin1'), Buffer.from('\r\n')])
@@ -468,8 +560,7 @@ describe('a TCP port that is already taken', () => {
 		onData(Buffer.concat([header, info, Buffer.alloc(24, 0x02)]))
 
 		expect(self.data.power).toBe('1') // the batch really was parsed
-		expect(self.failures).toBe(0)
-		expect(vi.getTimerCount()).toBe(0)
+		expect(self.updateStatus).toHaveBeenCalledWith('ok', null)
 		vi.useRealTimers()
 	})
 
@@ -703,5 +794,93 @@ describe('configUpdated', () => {
 		expect(stops(self)).toHaveLength(1)
 		expect(stops(self)[0]).toContain('10.0.0.1') // the camera being left
 		expect(stops(self)[0]).not.toContain('10.0.0.2') // never the one being joined
+	})
+})
+
+// aw_ptz and aw_cam answer 200 whatever happens and put a refusal in the body, so the module's only
+// evidence that a command went nowhere used to be dropped on the floor by parseUpdate.
+describe('a command the camera refuses', () => {
+	const answering = (body) => {
+		const self = makeInstance()
+		self.httpGet = vi.fn(async () => ({ body, statusCode: 200 }))
+		return self
+	}
+
+	// getPTZ/getCam also trace the request and the response; those are not what these tests are about.
+	const logs = (self) => self.log.mock.calls.filter(([, message]) => !/^(PTZ|Cam) (request|response)/.test(message))
+
+	it('is not fed to the update parser, which would silently match nothing in it', async () => {
+		const self = answering('ER1:QSL\r\n')
+		await self.getCam('QSL:36')
+
+		expect(self.data.model).toBe('Auto') // untouched
+	})
+
+	// Still an answer, so the connection is demonstrably alive.
+	it('still counts as the camera being reachable', async () => {
+		const self = answering('eR1:XF\r\n')
+
+		await self.getPTZ('XF')
+
+		expect(self.updateStatus.mock.calls.at(-1)).toEqual(['ok', null])
+	})
+
+	it('tells the operator when it was their button that went nowhere', async () => {
+		const self = answering('ER1:QSH\r\n')
+		await self.getCam('QSH')
+
+		expect(logs(self)).toEqual([['warn', 'Camera does not support "QSH"']])
+	})
+
+	// Busy is the camera's own business and clears itself, so polling it is not worth a word — but a
+	// button press that vanished into a busy camera is.
+	it('tells the operator when a busy camera swallowed their button press', async () => {
+		const self = answering('eR2:AXZ\r\n')
+		await self.getPTZ('AXZ')
+
+		expect(logs(self)).toEqual([['warn', 'Camera busy, "AXZ" not executed']])
+	})
+
+	// The poll loop only ever asks a model for what its own capabilities list, so a refusal there is
+	// no more routine than a refused button — it says the model table is wrong. Same words either way.
+	it('says the same thing when it was the poll loop that was refused', async () => {
+		const self = answering('ER1:QSH\r\n')
+		await self.getCam('QSH', { polled: true })
+
+		expect(logs(self)).toEqual([['warn', 'Camera does not support "QSH"']])
+	})
+
+	// Out of range is the module's own fault: it built a value the command does not accept.
+	it('treats a value the command will not take as the module bug it is', async () => {
+		const self = answering('ER3:OGU\r\n')
+		await self.getCam('OGU:90')
+
+		expect(logs(self)).toEqual([['error', 'Camera rejected "OGU": value outside the acceptable range']])
+	})
+})
+
+// aw_cam answers a control command by handing the value back, a query by reporting the camera's own
+// state. For White Balance those are two encodings of the same mode and the reply is identical
+// either way, so getCam has to say which it asked for — nothing downstream can work it out.
+describe('reading a value back versus being told one', () => {
+	const camera = (body) => {
+		const self = makeInstance()
+		self.SERIES = { id: 'HE40', capabilities: { whiteBalance: { confirm: { 2: '1', 3: '2' } } } }
+		self.httpGet = vi.fn(async () => ({ body, statusCode: 200 }))
+		return self
+	}
+
+	it('maps what a query reports onto the settable mode', async () => {
+		const self = camera('OAW:3\r\n')
+		await self.getCam('QAW')
+
+		expect(self.data.whiteBalance).toBe('2') // the camera means AWC B
+	})
+
+	it("takes an action's own value back unchanged", async () => {
+		const self = camera('OAW:3\r\n')
+		await self.getCam('OAW:3') // set ATW
+
+		expect(self.data.whiteBalance).toBe('3') // still the ATW that was sent
 	})
 })

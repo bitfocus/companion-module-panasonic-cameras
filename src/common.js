@@ -74,25 +74,13 @@ export function raceTimeout(promise, ms) {
 	)
 }
 
-export const IMAGE_SIZE = 288
+export const IMAGE_SIZE = 320
 
-export const IMAGE_SCALING = [
-	{ id: 'letterbox', label: 'Letterbox' },
-	{ id: 'crop', label: 'Crop' },
-	{ id: 'squeeze', label: 'Squeeze' },
-]
+// Limits a thumbnail frame to IMAGE_SIZE.
+export function fitImage(img) {
+	if (img.width <= IMAGE_SIZE && img.height <= IMAGE_SIZE) return img
 
-// Jimp mutates and returns the image it is given.
-export function fitImage(img, scaling) {
-	switch (scaling) {
-		case 'crop':
-			return img.cover({ w: IMAGE_SIZE, h: IMAGE_SIZE })
-		case 'squeeze':
-			return img.resize({ w: IMAGE_SIZE, h: IMAGE_SIZE })
-		default:
-			// Letterbox: scale to fit without padding, so the button background shows through, not a black bar.
-			return img.scaleToFit({ w: IMAGE_SIZE, h: IMAGE_SIZE })
-	}
+	return img.scaleToFit({ w: IMAGE_SIZE, h: IMAGE_SIZE })
 }
 
 // Choice ids are 0-based zero-padded preset numbers ("00".."99"); labels count from 1. Expressions

@@ -1,16 +1,48 @@
 import { describe, expect, it } from 'vitest'
-import { ConfigFields, applyConfigDefaults, describeDetectedModel } from '../config.js'
+import { ConfigFields, applyConfigDefaults, describeAuth, describeDetectedModel } from '../config.js'
 
 // A config stores only the fields it was saved with, so a field added later reads `undefined`.
 // applyConfigDefaults fills the gap from the field definitions, the one place defaults are written down.
 
-const VALUE_FIELDS = ConfigFields.filter((f) => f.type !== 'static-text')
+const VALUE_FIELDS = ConfigFields.filter((f) => f.type !== 'static-text' && f.type !== 'secret-text')
+
+// A secret-text field's value lives in Companion's secret store, not in the config, so it is exempt
+// from everything that reasons about config values — including the default it could never hold.
+const SECRET_FIELDS = ConfigFields.filter((f) => f.type === 'secret-text')
 
 describe('config fields', () => {
 	it('gives every field a default, so nothing can reach the module undefined', () => {
 		for (const field of VALUE_FIELDS) {
 			expect(field.default, field.id).toBeDefined()
 		}
+	})
+
+	// Companion seeds a secret's default into its own store when a connection is created. What must
+	// never happen is applyConfigDefaults copying it into the config as well, where it would shadow
+	// the real value's absence with a key the module then reads as a password.
+	it('never writes a secret into the config, whatever default it declares', () => {
+		expect(SECRET_FIELDS.length).toBeGreaterThan(0)
+
+		const filled = applyConfigDefaults({})
+
+		for (const field of SECRET_FIELDS) {
+			expect(filled, field.id).not.toHaveProperty(field.id)
+		}
+	})
+
+	// The two halves of the login are seeded together or not at all — by Companion at creation, and by
+	// the upgrade for connections older than the fields. Filling the half that lives in the config
+	// would leave a user name with no password, which a camera rejects rather than ignores.
+	it('leaves a user name absent rather than pairing it with a password that is not there', () => {
+		expect(applyConfigDefaults({})).not.toHaveProperty('username')
+	})
+
+	it('still declares the factory login on both fields, so a new connection starts with it', () => {
+		const login = Object.fromEntries(
+			ConfigFields.filter((f) => f.id === 'username' || f.id === 'password').map((f) => [f.id, f.default]),
+		)
+
+		expect(login).toEqual({ username: 'admin', password: '12345' })
 	})
 
 	it('points every dropdown default at one of its own choices', () => {
@@ -43,6 +75,8 @@ describe('config fields', () => {
 		const staticText = ConfigFields.filter((f) => f.type === 'static-text').map((f) => f.id)
 
 		expect(staticText).toEqual([
+			'sectionAuth',
+			'authDetected',
 			'sectionModel',
 			'modelDetected',
 			'sectionUpdates',
@@ -70,11 +104,13 @@ describe('config fields', () => {
 
 		expect(grouped).toEqual({
 			connection: ['host', 'httpPort', 'timeout'],
+			// The login belongs with the address: it is part of reaching the camera, not of driving it.
+			sectionAuth: ['username', 'password', 'authDetected'],
 			sectionModel: ['model', 'modelDetected'],
 			sectionUpdates: ['subscriptionEnable', 'portManual', 'tcpPort', 'pollAllow', 'pollDelay'],
 			// Scaling comes first and is unconditional: it governs the preset thumbnails too, not just the live image.
-			sectionImage: ['imageScaling', 'imageEnable', 'imageInterval'],
-			sectionDiagnostics: ['debug'],
+			sectionImage: ['imageEnable', 'imageInterval'],
+			sectionDiagnostics: ['trace'],
 		})
 	})
 
@@ -114,13 +150,14 @@ describe('applyConfigDefaults', () => {
 
 		expect(filled.imageEnable).toBe(true)
 		expect(filled.imageInterval).toBe(1000)
-		expect(filled.imageScaling).toBe('letterbox')
 	})
 
-	it('leaves every field defined, even for a connection that has never been saved', () => {
+	// The login is the one exception, and deliberately so: an absent user name is read as "no login
+	// configured", which is a state the module handles, while a user name without its password is not.
+	it('leaves every other field defined, even for a connection that has never been saved', () => {
 		const filled = applyConfigDefaults({})
 
-		for (const field of VALUE_FIELDS) {
+		for (const field of VALUE_FIELDS.filter((f) => f.id !== 'username')) {
 			expect(filled[field.id], field.id).toBeDefined()
 		}
 	})
@@ -160,7 +197,7 @@ describe('applyConfigDefaults', () => {
 
 // Only a hand-picked model the camera disagrees with is marked a warning; everything else is
 // information. Companion strips style attributes from static text, so the mark lives in the text itself.
-const isWarning = (text) => text.startsWith('⚠')
+const isWarning = (text) => text.includes('⚠')
 
 describe('describeDetectedModel', () => {
 	it('says so plainly while the camera has not answered', () => {
@@ -206,7 +243,7 @@ describe('describeDetectedModel', () => {
 		const text = describeDetectedModel({ model: 'Auto' }, { modelAuto: 'AW-XX999' })
 
 		expect(text).toContain('AW-XX999')
-		expect(text).toMatch(/Other Cameras/)
+		expect(text).toMatch(/report it as a new issue/)
 	})
 
 	it('still flags the mismatch when the camera it found is also unknown', () => {
@@ -216,5 +253,84 @@ describe('describeDetectedModel', () => {
 
 		expect(text).toContain('AW-XX999')
 		expect(isWarning(text)).toBe(true)
+	})
+})
+
+// The camera decides the login method, not the user, so this panel line is the only place anyone can
+// see which one is in use — and the only place that separates "no login needed" from "a login is
+// needed and has not been given". Those two look identical from the connection status alone.
+describe('describeAuth', () => {
+	const isWarning = (text) => text.includes('⚠')
+	const auth = (state, extra = {}) => ({ auth: { state, scheme: 'digest', realm: 'Control', ...extra } })
+
+	// The panel line exists for the states a user has to do something about. A camera that never asks
+	// for a login is the ordinary case and gets no line at all — including before the first answer,
+	// when there is nothing to report either way.
+	it.each([['unknown'], ['none'], [undefined]])('says nothing at all about %s', (state) => {
+		expect(describeAuth(auth(state))).toBe('')
+	})
+
+	// The 'unsupported' case falls back to "a login method" when the camera named none, or named one
+	// that could not be answered. Anything truthy in `named` — the string "null" included — takes that
+	// fallback away and puts itself in the sentence instead.
+	it('does not name a method the camera never named', () => {
+		const text = describeAuth({ auth: { state: 'unsupported', scheme: null } })
+
+		expect(text).toContain('a login method')
+		expect(text).not.toContain('null')
+	})
+
+	it('names the method actually in use', () => {
+		expect(describeAuth(auth('authenticated'))).toContain('Digest')
+		expect(describeAuth(auth('authenticated', { scheme: 'basic' }))).toContain('Basic')
+		expect(describeAuth(auth('authenticated'))).toContain('"Control"')
+	})
+
+	// The three a user has to act on, and the reason the field exists. The panel strips style and class
+	// attributes from anything static text carries, so the sign and <mark> are the whole vocabulary
+	// available for saying "this one needs you" — there is no colouring it red.
+	it.each(['required', 'rejected', 'unsupported'])('marks %s as something to act on', (state) => {
+		const text = describeAuth(auth(state))
+
+		expect(isWarning(text)).toBe(true)
+		expect(text).toMatch(/^<mark>/)
+	})
+
+	it('leaves the one state that needs nothing unmarked', () => {
+		expect(describeAuth(auth('authenticated'))).not.toContain('<mark>')
+	})
+
+	it('tells the operator what to do about each of them', () => {
+		expect(describeAuth(auth('required'))).toContain('Fill in the user name and password above')
+		expect(describeAuth(auth('rejected'))).toContain('rejected')
+		expect(describeAuth(auth('unsupported'))).toContain("'Digest' or 'Basic'")
+	})
+
+	it('survives a connection that has no auth state at all', () => {
+		expect(describeAuth(undefined)).toBe('')
+	})
+})
+
+// Realm and model name arrive from the camera, and static text is rendered rather than printed. A
+// device on the configured address could otherwise write the panel it is described in.
+describe('text the camera supplies', () => {
+	it('shows a realm as text rather than letting it format the panel', () => {
+		const text = describeAuth({ auth: { state: 'authenticated', scheme: 'basic', realm: '<mark>Trusted</mark>' } })
+
+		expect(text).toContain('&lt;mark&gt;Trusted&lt;/mark&gt;')
+		expect(text).not.toContain('<mark>')
+	})
+
+	it('shows an unknown scheme as text as well', () => {
+		const text = describeAuth({ auth: { state: 'unsupported', scheme: '<b>x</b>' } })
+
+		expect(text).toContain('&lt;b&gt;x&lt;/b&gt;')
+	})
+
+	it('shows a model name the module does not know as text', () => {
+		const text = describeDetectedModel({}, { modelAuto: 'AW-<b>UE150</b>' })
+
+		expect(text).toContain('&lt;b&gt;UE150&lt;/b&gt;')
+		expect(text.match(/<b>/g)).toHaveLength(1) // the one this function writes itself
 	})
 })

@@ -88,9 +88,9 @@ export const e = {
 	ENUM_GAIN_UE100: gain(0, 42),
 	ENUM_GAIN_UE150: gain(-3, 42),
 	ENUM_GAIN_CX350: gain(-6, 42, 1, { manual: true }),
-	ENUM_GAIN_UE160: gain(-4, 12),
-	ENUM_GAIN_UB50: gain(-6, 62, 1, { auto: false }), // OSL:25 has no auto step; AGC separate (OSL:26)
-	ENUM_GAIN_UBX100: gain(-6, 18),
+	ENUM_GAIN_UE160: gain(-6, 12),
+	ENUM_GAIN_UB50: gain(-6, 62, 1, { auto: false }),
+	ENUM_GAIN_UBX100: gain(-6, 18, 3),
 	ENUM_GAIN_UB300: [
 		{ id: '01', label: 'LOW' },
 		{ id: '04', label: 'MID' },
@@ -393,6 +393,14 @@ export const e = {
 		{ id: '5', label: 'Preset 5600K' },
 		{ id: '9', label: 'VAR' },
 	],
+	ENUM_WHITEBALANCE_CX350: [
+		{ id: '0', label: 'ATW' },
+		{ id: '1', label: 'AWC A' },
+		{ id: '2', label: 'AWC B' },
+		{ id: '3', label: 'VAR' },
+		{ id: '4', label: 'Preset 3200K' },
+		{ id: '5', label: 'Preset 5600K' },
+	],
 	ENUM_WHITEBALANCE_HE2: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
@@ -403,13 +411,14 @@ export const e = {
 		{ id: '7', label: 'Preset 6000K' },
 		{ id: '8', label: 'Preset 2800K' },
 	],
-	ENUM_WHITEBALANCE_CX350: [
+	ENUM_WHITEBALANCE_UB50: [
 		{ id: '0', label: 'ATW' },
 		{ id: '1', label: 'AWC A' },
 		{ id: '2', label: 'AWC B' },
-		{ id: '3', label: 'VAR' },
 		{ id: '4', label: 'Preset 3200K' },
 		{ id: '5', label: 'Preset 5600K' },
+		{ id: '9', label: 'VAR' },
+		{ id: 'F', label: 'Other' },
 	],
 	// #########################
 	// #### Preset Look Ups ####

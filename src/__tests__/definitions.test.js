@@ -212,6 +212,10 @@ describe('pull coverage', () => {
 		// full would mean ~40 queries per cycle against a camera that may support none of them. It gets
 		// the small set almost any Panasonic PTZ answers; anyone needing more picks their actual model.
 		Other: '*',
+		// The AW-HE2 is the only camera that pushes OSD:4F and offers no query for it — "QSD:4F" appears
+		// nowhere in its specification. Its notification table carries Iris Follow, so the variable fills
+		// itself; asking would earn an ER1.
+		HE2: ['irisFollowPosition'],
 	}
 	const exempt = (series, name) => EXEMPT[series] === '*' || EXEMPT[series]?.includes(name)
 
@@ -678,12 +682,77 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 		})
 	})
 
+	// `pull` is only read when the subscription is off, so it may only carry what the camera pushes.
+	// Iris Follow is the counter-example: its Update notification column is empty in every spec that
+	// carries it, and it shipped in `pull` — so a subscribed connection read it once from camdata.html
+	// at init and reported that same value for the life of the connection.
+	describe('the iris follow position', () => {
+		it('is polled rather than pulled, because the camera never reports it again', () => {
+			if (!caps.irisFollowPosition) return
+
+			expect(caps.pull?.cam || [], series).not.toContain('QSD:4F')
+		})
+
+		// The AW-HE2 has no QSD:4F at all; it pushes OSD:4F instead, so it neither polls nor pulls.
+		it('is queried on every model that answers a query for it', () => {
+			if (!caps.irisFollowPosition || series === 'HE2' || series === 'Other') return
+
+			expect(caps.poll?.cam || [], series).toContain('QSD:4F')
+		})
+	})
+
+	// OSJ:D2 is read-only — the camera has no control command for it — and reports the filter in place,
+	// which is never "Auto". Only the two models whose specs carry it may publish it at all.
+	describe('the ND filter follow status', () => {
+		it('is offered only where the camera reports it, and always beside the setting', () => {
+			if (!caps.filterFollow) return
+
+			expect(['UE80', 'UR100'], series).toContain(series)
+			expect(caps.filter, series).toBeTruthy()
+			expect(
+				caps.filterFollow.dropdown.map((c) => c.id),
+				series,
+			).toEqual(['0', '1', '2', '3'])
+		})
+
+		it('is queried wherever it is declared, or the variable would never fill', () => {
+			if (!caps.filterFollow) return
+
+			const cam = [...(caps.pull?.cam || []), ...(caps.poll?.cam || [])] // `cam` is false, not absent, where unused
+			expect(cam, series).toContain('QSJ:D2')
+		})
+
+		it('is not queried where it is not declared', () => {
+			if (caps.filterFollow) return
+
+			const cam = [...(caps.pull?.cam || []), ...(caps.poll?.cam || [])] // `cam` is false, not absent, where unused
+			expect(cam, series).not.toContain('QSJ:D2')
+		})
+	})
+
 	describe('feedbacks', () => {
 		it('gives every boolean feedback a defaultStyle and drops the removed subscribe hook', () => {
 			for (const [feedbackId, def] of Object.entries(feedbacks)) {
 				expect(['boolean', 'advanced', 'value'], feedbackId).toContain(def.type)
 				if (def.type === 'boolean') expect(def.defaultStyle, feedbackId).toBeDefined()
 				expect(def, feedbackId).not.toHaveProperty('subscribe')
+			}
+		})
+
+		// An advanced feedback returns its style at runtime, so Companion cannot infer what it touches.
+		// Left undeclared it warns at every init and then offers the user an override for every style
+		// property there is, most of which this feedback will never set.
+		const STYLE_PROPERTIES = ['text', 'size', 'color', 'bgcolor', 'alignment', 'pngalignment', 'png64', 'imageBuffer']
+
+		it('tells Companion which style properties each advanced feedback overrides', () => {
+			for (const [feedbackId, def] of Object.entries(feedbacks)) {
+				if (def.type !== 'advanced') continue
+
+				expect(def.affectedProperties, feedbackId).toBeInstanceOf(Array)
+				expect(def.affectedProperties, feedbackId).not.toHaveLength(0)
+				for (const property of def.affectedProperties) {
+					expect(STYLE_PROPERTIES, feedbackId).toContain(property)
+				}
 			}
 		})
 	})
