@@ -73,7 +73,28 @@
 		"AG-CX200",
 		"AJ-UPX360",
 		"AJ-CX4000",
-		"AJ-UPX900"
+		"AJ-UPX900",
+		"AG-UCK20",
+		"AG-MDC20"
 	],
-	"keywords": ["Camera", "PTZ", "AW", "AJ", "AG", "AK", "CX", "UPX", "UB", "UE", "UN", "UR", "HE", "HN", "HR"]
+	"keywords": [
+		"Camera",
+		"PTZ",
+		"AW",
+		"AJ",
+		"AG",
+		"AK",
+		"CX",
+		"UPX",
+		"UB",
+		"UE",
+		"UN",
+		"UR",
+		"HE",
+		"HN",
+		"HR",
+		"POVCAM",
+		"UCK",
+		"MDC"
+	]
 }

@@ -4,8 +4,9 @@ Companion module for Panasonic's IP remote controllable cameras. It supports **a
 
 Current camera support is mainly based on "HD/4K Integrated Camera Interface Specifications" version 1.12 from Apr. 27, 2020,
 "HD/4K Integrated Camera Interface Specifications" Compatible model Table from Mar. 1, 2025,
-"CX350/CX4000 Control Using PTZ Control Protocol" Rev.3.00 from Jan. 25, 2022
-and the model specific "Supplement for Web Control" specifications.
+"CX350/CX4000 Control Using PTZ Control Protocol" Rev.3.00 from Jan. 25, 2022,
+the model specific "Supplement for Web Control" specifications
+and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Transmission / Clip Operation) version 1.0 from Sep. 11, 2017
 
 
 ## Supported camera models
@@ -42,6 +43,10 @@ and the model specific "Supplement for Web Control" specifications.
 **Camcorders**
 
 - **CX350 series:** AG-CX350, AG-CX200, AJ-CX4000, AJ-UPX360, AJ-UPX900
+
+**Compact Camera Heads**
+
+- **POVCAM series:** AG-UCK20, AG-MDC20
 
 
 **_Not all models support all actions, variables and feedbacks. The lists below cover the full feature set; the module auto-sorts them so that only the entries that work with your connected model are offered._**
