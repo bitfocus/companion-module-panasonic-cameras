@@ -151,6 +151,44 @@ describe('the movement range limit', () => {
 	})
 })
 
+// Chroma phase and noise reduction sit on OSJ:0B/OSD:3A everywhere except the POVCAM, which carries
+// them on OSK:03/OSK:05. The command moved into the capability so both can be served; these pin the
+// string that actually leaves, because building the action proves nothing about what it sends.
+describe('the commands that differ per model', () => {
+	const fire = async (model, id, options, data) => {
+		const self = mockInstance(model, data)
+		await getActionDefinitions(self)[id].callback({ actionId: id, options })
+		return self.sent
+	}
+
+	// Centred on 0x80. POVCAM's own table prints 62h for -31, but 9Fh is +31 and the HD Integrated
+	// specification gives 61h, so the low end is symmetric and that 62h is a slip in the POVCAM PDF.
+	it('sends chroma phase on the command the model uses', async () => {
+		expect(await fire('AG-UCK20', 'chromaPhase', { op: 's', set: 0 })).toEqual(['OSK:03:80'])
+		expect(await fire('AG-UCK20', 'chromaPhase', { op: 's', set: 31 })).toEqual(['OSK:03:9F'])
+		expect(await fire('AG-UCK20', 'chromaPhase', { op: 's', set: -31 })).toEqual(['OSK:03:61'])
+
+		expect(await fire('AW-UE150A', 'chromaPhase', { op: 's', set: 0 })).toEqual(['OSJ:0B:80'])
+		expect(await fire('AW-UE150A', 'chromaPhase', { op: 's', set: 31 })).toEqual(['OSJ:0B:9F'])
+	})
+
+	it('sends noise reduction on the command the model uses', async () => {
+		// POVCAM sets a level centred on 0x80; every other model picks one of three steps.
+		expect(await fire('AG-UCK20', 'dnr', { op: 's', set: '80' })).toEqual(['OSK:05:80'])
+		expect(await fire('AG-UCK20', 'dnr', { op: 's', set: '87' })).toEqual(['OSK:05:87'])
+
+		expect(await fire('AW-HE130', 'dnr', { op: 's', set: '02' })).toEqual(['OSD:3A:02'])
+		expect(await fire('AW-UE160', 'dnr', { op: 's', set: '1' })).toEqual(['OSD:3A:1'])
+	})
+
+	// Stepping reads the camera's last reported value, so a wrong command would also mean stepping
+	// from the wrong state rather than only writing to the wrong place.
+	it('steps from the reported value on the same command', async () => {
+		expect(await fire('AG-UCK20', 'dnr', { op: 1 }, { dnr: '80' })).toEqual(['OSK:05:81'])
+		expect(await fire('AW-HE130', 'dnr', { op: 1 }, { dnr: '00' })).toEqual(['OSD:3A:01'])
+	})
+})
+
 // Every other stepped action shares optSetStepped/resolveSetStep with colour temperature, so the
 // stepRange parameter added for the notch count must leave them measuring in their own unit.
 describe('the shared stepped options', () => {

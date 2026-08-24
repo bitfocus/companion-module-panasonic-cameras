@@ -599,7 +599,7 @@ export function getActionDefinitions(self) {
 			'Image - Chroma Phase',
 			'Setting',
 			caps.chromaPhase,
-			'OSJ:0B',
+			caps.chromaPhase.cmd,
 			() => self.data.chromaPhaseValue,
 		)
 	}
@@ -608,7 +608,7 @@ export function getActionDefinitions(self) {
 		actions.dnr = enumAction(
 			'Image - Digital Noise Reduction',
 			cam,
-			'OSD:3A:',
+			caps.dnr.cmd + ':',
 			caps.dnr.dropdown,
 			() => self.data.dnr,
 			{ nextPrev: true },

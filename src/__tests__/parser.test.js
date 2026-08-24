@@ -220,6 +220,18 @@ describe('parseUpdate', () => {
 		expect(parse('OSI', '46', data).errorCameraDetail).toBe(expected)
 	})
 
+	// The POVCAM series answers with OSK where the other cameras use OSJ/OSD, so these four fields have
+	// no other way in; without the case the actions work while the variables stay empty forever.
+	it('decodes the POVCAM OSK replies', () => {
+		expect(parse('OSK', '02', '9E').chromaLevel).toBe('9E')
+		expect(parse('OSK', '02', '0x9E').chromaLevel).toBe('9E')
+		expect(parse('OSK', '03', '80').chromaPhaseValue).toBe(0)
+		expect(parse('OSK', '03', '9F').chromaPhaseValue).toBe(31)
+		expect(parse('OSK', '03', '62').chromaPhaseValue).toBe(-30)
+		expect(parse('OSK', '05', '87').dnr).toBe('87')
+		expect(parse('OSK', '08', '8E').shutter).toBe('8E')
+	})
+
 	// One PTG stands in for five separate queries, so the pull lists of the models that support it
 	// depend on all five fields coming out of a single token.
 	it('decodes gain, colour temperature, shutter and ND from one PTG report', () => {

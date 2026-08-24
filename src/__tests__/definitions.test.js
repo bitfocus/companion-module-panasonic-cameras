@@ -168,9 +168,9 @@ describe('pull coverage', () => {
 		['panTiltLimit', () => ['LC1']],
 		['ois', () => ['QIS']],
 		['videoFormat', () => ['QSA:87']],
-		['dnr', () => ['QSD:3A']],
+		['dnr', (c) => ['Q' + c.dnr.cmd.slice(1)]],
 		['drs', () => ['QSE:33']],
-		['chromaPhase', () => ['QSJ:0B']],
+		['chromaPhase', (c) => ['Q' + c.chromaPhase.cmd.slice(1)]],
 		['install', () => ['INS']],
 		['night', () => ['D6']],
 		['error', () => ['RER']],
@@ -216,6 +216,9 @@ describe('pull coverage', () => {
 		// nowhere in its specification. Its notification table carries Iris Follow, so the variable fills
 		// itself; asking would earn an ER1.
 		HE2: ['irisFollowPosition'],
+		// POVCAM documents no QSA:87. Its camdata.html table carries OSA:87, and the bulk read runs on
+		// every connect, which is often enough for a format that only changes with the system frequency.
+		POVCAM: ['videoFormat'],
 	}
 	const exempt = (series, name) => EXEMPT[series] === '*' || EXEMPT[series]?.includes(name)
 

@@ -189,6 +189,10 @@ export async function getAllCameraStatus(self) {
 			'QSJ:29', // Preset Speed Unit
 			'QSJ:5C', // Camera Title
 			'QSJ:D2', // ND Filter Status
+			'QSK:02', // Chroma Level (POVCAM)
+			'QSK:03', // Chroma Phase (POVCAM)
+			'QSK:05', // NR Control (POVCAM)
+			'QSK:08', // Shutter Mode / Step Value (POVCAM)
 			'QSL:25', // Gain (UB50 only)
 			'QSL:2A', // ATW
 			'QSL:2B', // White Balance Mode

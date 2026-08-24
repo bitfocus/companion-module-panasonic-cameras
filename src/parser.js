@@ -301,6 +301,22 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 					break
 			}
 			break
+		case 'OSK':
+			switch (str[1]) {
+				case '02':
+					self.data.chromaLevel = str[2].replace('0x', '')
+					break
+				case '03':
+					self.data.chromaPhaseValue = parseInt(str[2], 16) - 0x80
+					break
+				case '05':
+					self.data.dnr = str[2].replace('0x', '')
+					break
+				case '08':
+					self.data.shutter = str[2].replace('0x', '')
+					break
+			}
+			break
 		case 'OSI':
 			switch (str[1]) {
 				case '18':
