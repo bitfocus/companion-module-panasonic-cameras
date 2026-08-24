@@ -17,14 +17,18 @@ const gain = (lowDb, highDb, stepDb = 1, { auto = true, manual = false } = {}) =
 	...(manual ? [{ id: '81', label: 'Manual' }] : []),
 ]
 
-// percentage centred on 0x80, plus OFF
-const chromaPercent = (lowPct, highPct) => [
-	{ id: '00', label: 'OFF' },
+// percentage centred on 0x80, plus optional OFF.
+const chromaPercent = (lowPct, highPct, { off = true } = {}) => [
+	...(off ? [{ id: '00', label: 'OFF' }] : []),
 	...range(lowPct, highPct).map((pct) => ({ id: hex(pct + 0x80, 2), label: `${signed(pct)}%` })),
 ]
 
 // discrete steps centred on 0x03
 const chromaSteps = (low, high) => range(low, high).map((v) => ({ id: hex(v + 3, 2), label: signed(v) }))
+
+// signed steps centred on an arbitrary hex origin, 0x80 being the usual one
+const centeredSteps = (low, high, center = 0x80) =>
+	range(low, high).map((v) => ({ id: hex(v + center, 2), label: signed(v) }))
 
 // speed n -> 250 + 25n, capped at 999
 const presetSpeeds = () => [
@@ -47,6 +51,18 @@ const COLOR_TEMPERATURE_NL = [
 	3360, 3420, 3450, 3510, 3570, 3600, 3660, 3720, 3780, 3840, 3870, 3930, 3990, 4050, 4110, 4170, 4240, 4320, 4360, 4440,
 	4520, 4600, 4680, 4760, 4840, 4920, 5000, 5100, 5200, 5300, 5400, 5500, 5600, 5750, 5850, 6000, 6150, 6300, 6450, 6650,
 	6800, 7000, 7150, 7400, 7600, 7800, 8100, 8300, 8600, 8900, 9200, 9600, 10000, 10500, 11000, 11500, 12000, 12500, 13000,
+	14000, 15000,
+]
+
+// POVCAM colour temps: the same 121-step grid as the HE130, but 14 of the values differ.
+// prettier-ignore
+const COLOR_TEMPERATURE_POVCAM = [
+	2000, 2010, 2020, 2040, 2050, 2070, 2080, 2090, 2110, 2120, 2140, 2150, 2170, 2180, 2200, 2210, 2230, 2250, 2260, 2280,
+	2300, 2310, 2330, 2350, 2360, 2380, 2400, 2420, 2440, 2460, 2480, 2500, 2520, 2540, 2560, 2600, 2620, 2640, 2680, 2700,
+	2720, 2740, 2780, 2800, 2825, 2850, 2875, 2900, 2950, 2975, 3000, 3025, 3075, 3100, 3125, 3175, 3200, 3250, 3275, 3330,
+	3360, 3420, 3450, 3510, 3570, 3600, 3660, 3720, 3780, 3840, 3870, 3930, 3990, 4050, 4110, 4170, 4240, 4320, 4360, 4440,
+	4520, 4600, 4680, 4760, 4840, 4920, 5000, 5100, 5200, 5300, 5400, 5500, 5600, 5750, 5850, 6000, 6150, 6300, 6450, 6650,
+	6800, 7000, 7200, 7400, 7600, 7850, 8100, 8400, 8600, 8900, 9200, 9600, 10000, 10500, 11000, 11500, 12000, 12500, 13000,
 	14000, 15000,
 ]
 
@@ -91,6 +107,7 @@ export const e = {
 	ENUM_GAIN_UE160: gain(-6, 12),
 	ENUM_GAIN_UB50: gain(-6, 62, 1, { auto: false }),
 	ENUM_GAIN_UBX100: gain(-6, 18, 3),
+	ENUM_GAIN_POVCAM: gain(0, 30, 1),
 	ENUM_GAIN_UB300: [
 		{ id: '01', label: 'LOW' },
 		{ id: '04', label: 'MID' },
@@ -103,6 +120,37 @@ export const e = {
 	// ##########################
 	// #### Shutter Look Ups ####
 	// ##########################
+	ENUM_SHUTTER_POVCAM: [
+		{ id: '00', label: 'Auto' },
+		{ id: '74', label: 'Step 1/2' },
+		{ id: '75', label: 'Step 1/3 (23.98p, 50Hz only)' },
+		{ id: '76', label: 'Step 1/4 (59.94Hz, 29.97p only)' },
+		{ id: '77', label: 'Step 1/6 (23.98p, 50Hz only)' },
+		{ id: '78', label: 'Step 1/8 (59.94Hz, 29.97p only)' },
+		{ id: '79', label: 'Step 1/12 (23.98p, 50Hz only)' },
+		{ id: '7A', label: 'Step 1/15 (59.94Hz, 29.97p only)' },
+		{ id: '7B', label: 'Step 1/24 (23.98p only)' },
+		{ id: '7C', label: 'Step 1/25 (50Hz only)' },
+		{ id: '7D', label: 'Step 1/30 (59.94Hz, 29.97p only)' },
+		{ id: '7E', label: 'Step 1/48 (23.98p only)' },
+		{ id: '7F', label: 'Step 1/50 (29.97p, 23.98p, 50Hz only)' },
+		{ id: '80', label: 'Step 1/60' },
+		{ id: '81', label: 'Step 1/100' },
+		{ id: '82', label: 'Step 1/120 (59.94Hz, 29.97p, 23.98p only)' },
+		{ id: '83', label: 'Step 1/125 (50Hz only)' },
+		{ id: '84', label: 'Step 1/180' },
+		{ id: '85', label: 'Step 1/250' },
+		{ id: '86', label: 'Step 1/350' },
+		{ id: '87', label: 'Step 1/500' },
+		{ id: '88', label: 'Step 1/750' },
+		{ id: '89', label: 'Step 1/1000' },
+		{ id: '8A', label: 'Step 1/1500' },
+		{ id: '8B', label: 'Step 1/2000' },
+		{ id: '8C', label: 'Step 1/3000' },
+		{ id: '8D', label: 'Step 1/4000' },
+		{ id: '8E', label: 'Step 1/8000' },
+		{ id: 'FF', label: 'Syncro Scan' },
+	],
 	ENUM_SHUTTER_HE40: [
 		{ id: '0', label: 'OFF' },
 		{ id: '3', label: 'Step 1/100 (59.94Hz) or 1/120 (50Hz)' },
@@ -259,6 +307,7 @@ export const e = {
 	// ####################################
 	ENUM_COLOR_TEMPERATURE_LINEAR: range(0, 75).map((i) => ({ id: hex(i, 3), label: `${2400 + i * 100}K` })),
 	ENUM_COLOR_TEMPERATURE_NONLINEAR: COLOR_TEMPERATURE_NL.map((k, i) => ({ id: hex(i, 3), label: `${k}K` })),
+	ENUM_COLOR_TEMPERATURE_POVCAM: COLOR_TEMPERATURE_POVCAM.map((k, i) => ({ id: hex(i, 3), label: `${k}K` })),
 
 	// ###############################
 	// #### Chroma Level Look Ups ####
@@ -268,6 +317,7 @@ export const e = {
 	ENUM_CHROMA_PCT_40: chromaPercent(-99, 40),
 	ENUM_CHROMA_PCT_99: chromaPercent(-99, 99),
 	ENUM_CHROMA_PCT_UBX100: chromaPercent(-100, 80),
+	ENUM_CHROMA_PCT_POVCAM: chromaPercent(-70, 30, { off: false }), // OSK:02, 0x3A..0x9E, no OFF step
 
 	// ######################################
 	// #### Dynamic Range Stretch (DRS) #####
@@ -292,6 +342,7 @@ export const e = {
 		{ id: '01', label: 'Low' },
 		{ id: '02', label: 'High' },
 	],
+	ENUM_NR_LEVEL_7: centeredSteps(-7, 7), // OSK:05, 0x79..0x87 — a level, not the three-step table
 
 	// #######################################
 	// #### Video Format Look Ups (OSA:87) ###
@@ -337,7 +388,6 @@ export const e = {
 		{ id: '50', label: '1080/59.94p CROP' },
 		{ id: '51', label: '1080/50p CROP' },
 		{ id: '80', label: 'Auto' },
-		// 90h+ reported by UB50/UB10 box cameras only
 		{ id: '90', label: '3328x2496/59.94p' },
 		{ id: '91', label: '3328x2496/50p' },
 		{ id: '92', label: '3328x2496/48p' },
@@ -400,6 +450,15 @@ export const e = {
 		{ id: '3', label: 'VAR' },
 		{ id: '4', label: 'Preset 3200K' },
 		{ id: '5', label: 'Preset 5600K' },
+	],
+	ENUM_WHITEBALANCE_POVCAM: [
+		{ id: '0', label: 'ATW' },
+		{ id: '1', label: 'AWC A' },
+		{ id: '2', label: 'AWC B' },
+		{ id: '4', label: 'Preset 3200K' },
+		{ id: '5', label: 'Preset 5600K' },
+		{ id: '9', label: 'VAR' },
+		{ id: 'E', label: 'ATW Lock' },
 	],
 	ENUM_WHITEBALANCE_HE2: [
 		{ id: '0', label: 'ATW' },

@@ -51,6 +51,8 @@ export const MODELS = [
 	{ id: 'AJ-UPX360', series: 'CX350', label: 'AJ-UPX360' },
 	{ id: 'AJ-CX4000', series: 'CX350', label: 'AJ-CX4000' },
 	{ id: 'AJ-UPX900', series: 'CX350', label: 'AJ-UPX900' },
+	{ id: 'AG-UCK20', series: 'POVCAM', label: 'AG-UCK20' },
+	{ id: 'AG-MDC20', series: 'POVCAM', label: 'AG-MDC20' },
 	{ id: 'Other', series: 'Other', label: 'Other Cameras' },
 ]
 
@@ -60,14 +62,14 @@ export const MODELS = [
 const BASE_CAPABILITIES = {
 	audioVolumeLevel: { maxch: 2, min: -40, max: 20, step: 1 }, // Has Audio Volume Level control (OSA:D5)
 	chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 }, // Has Chroma Level control (OCG)
-	chromaPhase: { offset: 0x80, limit: 31, step: 1, hexlen: 2 }, // Has Chroma Phase (OSJ:0B)
+	chromaPhase: { cmd: 'OSJ:0B', offset: 0x80, limit: 31, step: 1, hexlen: 2 }, // Has Chroma Phase (OSJ:0B or OSK:03)
 	colorGain: { cmd: { red: 'ORI', blue: 'OBI' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 }, // Has numbered red/blue Gain (ORG and OBG)
 	colorPedestal: { cmd: { red: 'ORP', blue: 'OBP' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 }, // Has numbered red/blue Pedestal (ORP or OBP)
 	colorTemperature: {
 		advanced: { inc: 'OSI:1E', dec: 'OSI:1F', set: 'OSI:20', min: 2000, max: 15000, maxStep: 10 },
 	}, // Has Color Temperature (OSD:B1 or OSI:20)
 	colorbar: true, // Has Color Bar Generator (DCB)
-	dnr: { dropdown: e.ENUM_DNR }, // Has Digital Noise Reduction (OSD:3A)
+	dnr: { cmd: 'OSD:3A', dropdown: e.ENUM_DNR }, // Has Digital Noise Reduction (OSD:3A or OSK:05)
 	drs: { dropdown: e.ENUM_DRS }, // Has Dynamic Range Stretch (OSE:33)
 	error: true, // Camera can return enumerated error messages (rER)
 	errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature', 'Lens', 'Pan/Tilt', 'Sensor'] }, // Has error state bitmask (QSI:46 or QER)
@@ -614,7 +616,7 @@ export const SERIES_SPECS = [
 				hexlen: 3,
 			},
 			colorTemperature: false,
-			dnr: { dropdown: e.ENUM_OFF_ON },
+			dnr: { cmd: 'OSD:3A', dropdown: e.ENUM_OFF_ON },
 			drs: false,
 			error: false,
 			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
@@ -691,7 +693,7 @@ export const SERIES_SPECS = [
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 1000, step: 1, hexlen: 3 },
 			colorPedestal: { cmd: { red: 'OSG:4C', blue: 'OSG:4E' }, offset: 0x800, limit: 800, step: 1, hexlen: 3 },
 			colorTemperature: { advanced: { inc: 'OSI:1E', dec: 'OSI:1F', maxStep: 1 } }, // one notch per command
-			dnr: { dropdown: e.ENUM_OFF_ON },
+			dnr: { cmd: 'OSD:3A', dropdown: e.ENUM_OFF_ON },
 			drs: false,
 			error: false,
 			errorCamera: { cmd: 'QER', bits: ['Fan'] },
@@ -1488,7 +1490,7 @@ export const SERIES_SPECS = [
 				step: 1,
 				hexlen: 3,
 			},
-			dnr: { dropdown: e.ENUM_OFF_ON },
+			dnr: { cmd: 'OSD:3A', dropdown: e.ENUM_OFF_ON },
 			drs: false,
 			filter: { dropdown: e.ENUM_FILTER_3 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE160 },
@@ -1545,6 +1547,67 @@ export const SERIES_SPECS = [
 			recordSD: false,
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			trackingAuto: false,
+		},
+	},
+	{
+		// Specific for the POVCAM series
+		id: 'POVCAM',
+		capabilities: {
+			...BASE_CAPABILITIES,
+			audioVolumeLevel: false,
+			chromaLevel: { cmd: 'OSK:02', dropdown: e.ENUM_CHROMA_PCT_POVCAM },
+			chromaPhase: { cmd: 'OSK:03', offset: 0x80, limit: 31, step: 1, hexlen: 2 },
+			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
+			colorPedestal: false,
+			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_POVCAM } },
+			dnr: { cmd: 'OSK:05', dropdown: e.ENUM_NR_LEVEL_7 },
+			error: false,
+			errorCamera: false,
+			filter: { dropdown: e.ENUM_FILTER_3 },
+			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_POVCAM },
+			install: true,
+			irisFollowPosition: false,
+			night: true,
+			panTilt: false,
+			panTiltPosition: false,
+			panTiltLimit: false,
+			pedestal: { cmd: 'OTD', offset: 0x1e, limit: 15, step: 1, hexlen: 2 },
+			poll: { ptz: false, cam: false, web: ['get_state'] },
+			preset: false,
+			presetScope: false,
+			presetSpeed: false,
+			presetTime: false,
+			pull: {
+				ptz: ['O', 'AXZ', 'AXF', 'AXI', 'D6', 'INS'],
+				cam: [
+					'QAF',
+					'QAW',
+					'QBR',
+					'QFT',
+					'QGB',
+					'QGR',
+					'QGU',
+					'QIS',
+					'QRS',
+					'QSD:B1',
+					'QSE:33',
+					'QSK:02',
+					'QSK:03',
+					'QSK:05',
+					'QSK:08',
+					'QTD',
+				],
+				web: false,
+			},
+			shutter: { cmd: 'OSK:08', dropdown: e.ENUM_SHUTTER_POVCAM },
+			streamRTMP: false,
+			streamSRT: false,
+			streamTS: false,
+			tally: false,
+			tally2: false,
+			tally3: false,
+			trackingAuto: false,
+			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_POVCAM },
 		},
 	},
 ]
