@@ -89,6 +89,50 @@ export async function getCameraStatusOnce(self, generation) {
 	}
 }
 
+// Twelve banks of nine presets each (the last one holds preset 100 alone) cover all hundred slots.
+const PRESET_COUNTER_BANKS = Array.from({ length: 12 }, (_, i) => i.toString(16).toUpperCase().padStart(2, '0'))
+
+// Reads the OSJ:3C change counters for every preset. Cheap next to the alternative: without them a
+// single preset overwritten in place means refetching all hundred thumbnails, since the entry bitmap
+// gives nothing away. parser.js compares the answers and fetches only what actually moved.
+export async function refreshPresetCounters(self) {
+	const caps = self.SERIES?.capabilities
+	if (!caps?.presetThumbnails && !caps?.presetNames) return
+
+	// The three pE lines arrive one by one and would each start a run. Coalesce instead: a request
+	// landing mid-run schedules exactly one more pass, so the last state is always the one read.
+	if (self.presetCounterRun) {
+		self.presetCounterRunAgain = true
+		return
+	}
+	self.presetCounterRun = true
+
+	const generation = self.generation
+
+	try {
+		do {
+			self.presetCounterRunAgain = false
+
+			for (const bank of PRESET_COUNTER_BANKS) {
+				if (self.stopped(generation) || self.auth?.blocked) return
+
+				await self.getCam('QSJ:3C:' + bank)
+				await sleep(self.config.pollDelay)
+			}
+		} while (self.presetCounterRunAgain)
+	} finally {
+		// Not if the connection moved on: teardown already cleared the flag, and a run started for the
+		// new camera in the meantime must keep its own claim on it.
+		if (self.current(generation)) self.presetCounterRun = false
+	}
+}
+
+// Fire-and-forget entry point. Nothing that triggers a counter read wants to wait twelve queries for
+// it: a preset button would sit blocked for over a second, and a notification is parsed synchronously.
+export function requestPresetCounters(self) {
+	refreshPresetCounters(self).catch((err) => self.log('error', 'Preset counter read failed: ' + String(err)))
+}
+
 // Reference used when bringing up a new model, to see what the device answers before models.js is
 // filled in. Deliberately unused — do not delete as dead code; getCameraStatusOnce is the runtime path.
 export async function getAllCameraStatus(self) {
@@ -187,6 +231,8 @@ export async function getAllCameraStatus(self) {
 			'QSJ:0F', // Master Pedestal
 			'QSJ:10', // G Pedestal
 			'QSJ:29', // Preset Speed Unit
+			'QSJ:35:00', // Preset Name, one query per preset (00-99)
+			'QSJ:3C:00', // Preset Name / Preset Thumbnail Counter, one query per bank of nine (00-0B)
 			'QSJ:5C', // Camera Title
 			'QSJ:D2', // ND Filter Status
 			'QSK:02', // Chroma Level (POVCAM)

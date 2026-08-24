@@ -8,6 +8,15 @@ import {
 	optPresetNumber,
 	parsePresetNumber,
 } from './common.js'
+import { requestPresetCounters } from './polling.js'
+
+const PRESET_NAME_LENGTH = 15
+const presetNameOnWire = (name) =>
+	String(name ?? '')
+		.trim()
+		.replace(/[^A-Za-z0-9_ ]/g, '')
+		.slice(0, PRESET_NAME_LENGTH)
+		.padEnd(PRESET_NAME_LENGTH, ' ')
 
 const SPEED_OFFSET = 50
 const SPEED_MIN = 0
@@ -760,6 +769,10 @@ export function getActionDefinitions(self) {
 				const idx = parsePresetNumber(action.options.val, caps.preset)
 				if (idx === null) return
 				await ptz(action.options.op + idx.toString(10).padStart(2, '0'))
+
+				// Storing over an occupied slot leaves the entry bitmap untouched, so the pE notification
+				// alone would not say anything moved. Recalling changes nothing worth re-reading.
+				if (action.options.op !== 'R') requestPresetCounters(self)
 			},
 		}
 
@@ -800,8 +813,53 @@ export function getActionDefinitions(self) {
 				if (!action.options.confirm) return
 				for (let i = 0; i < caps.preset; i++) {
 					await ptz('C' + i.toString(10).padStart(2, '0'))
+					self.data.presetThumbnails[i] = undefined
+					self.data.presetNames[i] = undefined
+					self.data.presetCounters[i] = undefined
 				}
+				self.checkVariables()
+				self.checkAllFeedbacks()
 			},
+		}
+
+		if (caps.presetNames) {
+			actions.presetName = {
+				name: 'Preset - Name',
+				description:
+					`Stores or clears the name the camera keeps for a preset. Names are limited to ${PRESET_NAME_LENGTH} ` +
+					'characters; letters, digits, underscore and space are kept and anything else is dropped.',
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Action',
+						id: 'op',
+						disableAutoExpression: true,
+						default: 'set',
+						choices: [
+							{ id: 'set', label: 'Set' },
+							{ id: 'clear', label: 'Clear' },
+						],
+					},
+					optPresetNumber('val', caps.preset),
+					{
+						id: 'name',
+						type: 'textinput',
+						label: 'Name',
+						default: '',
+						isVisibleExpression: '$(options:op) == "set"',
+					},
+				],
+				callback: async (action) => {
+					const idx = parsePresetNumber(action.options.val, caps.preset)
+					if (idx === null) return
+					const n = idx.toString(10).padStart(2, '0')
+
+					if (action.options.op === 'clear') await cam('OSJ:36:' + n)
+					else await cam(`OSJ:35:${n}:${presetNameOnWire(action.options.name)}`)
+
+					requestPresetCounters(self)
+				},
+			}
 		}
 	}
 

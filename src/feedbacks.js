@@ -306,6 +306,22 @@ export function getFeedbackDefinitions(self) {
 				},
 			}
 		}
+
+		if (caps.presetNames) {
+			feedbacks.presetName = {
+				type: 'advanced',
+				name: 'Preset - Name',
+				description: 'Provides the preset name stored in the camera as the button text',
+				affectedProperties: ['text'],
+				options: optPreset(caps.preset),
+				callback: (feedback) => {
+					const idx = parsePresetIdx(feedback, caps.preset)
+					if (idx === null) return {}
+					const name = self.data.presetNames[idx]
+					return name ? { text: name } : {}
+				},
+			}
+		}
 	}
 
 	// ---- Exposure ----

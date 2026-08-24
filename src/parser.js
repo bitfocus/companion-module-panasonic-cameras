@@ -1,8 +1,51 @@
 import { createModuleLogger } from '@companion-module/base'
 
+import { requestPresetCounters } from './polling.js'
+
 const logger = createModuleLogger('parser')
 
 const REFUSAL = /^[eE]R([123]):(.*)$/
+
+// pE bank -> [state key, first preset index, number of presets reported].
+const PRESET_BANKS = {
+	'00': ['presetEntries0', 0, 40],
+	'01': ['presetEntries1', 40, 40],
+	'02': ['presetEntries2', 80, 20],
+}
+
+function clearPresetCache(self, idx) {
+	self.data.presetThumbnails[idx] = undefined
+	self.data.presetNames[idx] = undefined
+	// Dropped too, so that refilling the slot always reads as a change however the counter lands.
+	self.data.presetCounters[idx] = undefined
+}
+
+// OSJ:3C:[bank]:[9 hex digits] — one 4-bit counter per preset, bumped by the camera whenever that
+// preset's name or thumbnail changed. This is the only signal that distinguishes an overwritten
+// preset from an untouched one: the pE entry bitmap reads the same either way, so without the
+// counters the module has to refetch all hundred thumbnails or none of them.
+function applyPresetCounters(self, bank, digits) {
+	const caps = self.SERIES?.capabilities
+	if (!caps || typeof digits !== 'string') return
+
+	digits = digits.replace('0x', '')
+
+	// Banks 00h-0Ah carry nine presets each; bank 0Bh carries preset 100 alone.
+	for (let i = 0; i < 9; i++) {
+		const idx = bank * 9 + i
+		if (idx >= 100 || i >= digits.length) break
+
+		if (self.data.presetCounters[idx] === digits[i]) continue
+		self.data.presetCounters[idx] = digits[i]
+
+		// An empty slot has no name and no thumbnail to read; pE has already dropped its cache.
+		if (self.data.presetEntries[idx] !== '1') continue
+
+		// Fire and forget, as the thumbnail fetch has always been: each answer parses on its own.
+		if (caps.presetThumbnails) self.getThumbnail(idx)
+		if (caps.presetNames) self.getCam('QSJ:35:' + idx.toString(10).padStart(2, '0'))
+	}
+}
 
 // Reads a camera reply as a refusal, or returns null if it is an ordinary answer.
 export function parseRefusal(str) {
@@ -11,7 +54,7 @@ export function parseRefusal(str) {
 	return match ? { code: Number(match[1]), command: match[2] } : null
 }
 
-export function parseUpdate(self, str, { echo = false } = {}) {
+export function parseUpdate(self, str, { echo = false, pushed = false } = {}) {
 	if (str[0].substring(0, 3) === 'rER') {
 		self.data.error = str[0].substring(3)
 	}
@@ -84,28 +127,34 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 	}
 
 	if (str[0].substring(0, 2) === 'pE') {
-		switch (str[0].substring(2, 4)) {
-			case '00':
-				self.data.presetEntries0 = parseInt(str[0].substring(4), 16).toString(2).padStart(40, 0).split('').reverse()
-				self.data.presetEntries0.forEach((p, i) =>
-					p === '1' ? self.getThumbnail(i) : (self.data.presetThumbnails[i] = undefined),
-				)
-				break
-			case '01':
-				self.data.presetEntries1 = parseInt(str[0].substring(4), 16).toString(2).padStart(40, 0).split('').reverse()
-				self.data.presetEntries1.forEach((p, i) =>
-					p === '1' ? self.getThumbnail(i + 40) : (self.data.presetThumbnails[i + 40] = undefined),
-				)
-				break
-			case '02':
-				self.data.presetEntries2 = parseInt(str[0].substring(4), 16).toString(2).padStart(20, 0).split('').reverse()
-				self.data.presetEntries2.forEach((p, i) =>
-					p === '1' ? self.getThumbnail(i + 80) : (self.data.presetThumbnails[i + 80] = undefined),
-				)
-				break
+		let readCounters = false
+		const bank = PRESET_BANKS[str[0].substring(2, 4)]
+		if (bank) {
+			const [key, base, width] = bank
+			const previous = self.data[key]
+			const entries = parseInt(str[0].substring(4), 16).toString(2).padStart(width, 0).split('').reverse()
+			self.data[key] = entries
+
+			// A freed slot is dropped here and now; a filled one is left to the OSJ:3C counters, which know
+			// whether its name and thumbnail are still the ones already cached.
+			let moved = false
+			entries.forEach((p, i) => {
+				if (p === previous[i]) return
+				moved = true
+				if (p !== '1') clearPresetCache(self, base + i)
+			})
+
+			// Reading the counters costs twelve queries, so it is worth being picky about when to.
+			// A push means something happened even when the bitmap came back identical - overwriting a
+			// preset in place is exactly that case. Without a subscription the same three lines arrive on
+			// every poll cycle, and re-reading them each time would be the periodic polling this avoids.
+			readCounters = moved || pushed
 		}
 
 		self.data.presetEntries = self.data.presetEntries0.concat(self.data.presetEntries1.concat(self.data.presetEntries2))
+
+		// Only now: the counters skip empty slots, and that verdict comes from the merged array above.
+		if (readCounters) requestPresetCounters(self)
 
 		if (self.data.presetSelectedIdx !== null) {
 			if (self.data.presetEntries[self.data.presetSelectedIdx] === '0') {
@@ -402,7 +451,14 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 				case '29':
 					self.data.presetSpeedUnit = str[2]
 					break
-				//case '3C': break; // Preset Name / Preset Thumbnail Counter
+				case '35': {
+					const idx = parseInt(str[2], 10)
+					if (idx >= 0 && idx < 100) self.data.presetNames[idx] = str.slice(3).join(':').trim()
+					break
+				}
+				case '3C':
+					applyPresetCounters(self, parseInt(str[2].replace('0x', ''), 16), str[3])
+					break
 				case '4A':
 					self.data.awbColorTempLabel =
 						(str[3] === '1' ? '<' : str[3] === '2' ? '>' : '') + parseInt(str[2], 16).toString() + 'K'

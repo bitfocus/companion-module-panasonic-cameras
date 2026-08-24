@@ -88,6 +88,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.pollGen = 0
 		this.pollImage = false
 		this.pollImageGen = 0
+		this.presetCounterRun = false
+		this.presetCounterRunAgain = false
 
 		// True from the moment a reconnect is committed until it starts, so nothing withdraws it.
 		this.reconnecting = false
@@ -256,6 +258,8 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.pollImage = false
 		this.pollGen++
 		this.pollImageGen++
+		this.presetCounterRun = false // the run itself stops on the generation check
+		this.presetCounterRunAgain = false
 		this.timeoutID = clearTimeout(this.timeoutID) // a retry owed to the old connection is not the new one's
 		this.reconnecting = false // ...and neither is the reconnect that retry was committed to
 
@@ -377,7 +381,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 							this.log('debug', `Received Update: ${command}  (${source})`)
 						}
 
-						this.parseSafely(command, () => parseUpdate(this, command.split(':')))
+						this.parseSafely(command, () => parseUpdate(this, command.split(':'), { pushed: true }))
 					}
 
 					// Once for the whole batch: a coalesced burst is one redraw.

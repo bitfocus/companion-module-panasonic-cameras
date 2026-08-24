@@ -144,6 +144,12 @@ export function setVariables(self) {
 		}
 	}
 
+	if (caps.presetNames && caps.preset) {
+		for (let n = 1; n <= caps.preset; n++) {
+			variables[`presetName${n}`] = { name: `Preset ${n} Name` }
+		}
+	}
+
 	return variables
 }
 
@@ -293,6 +299,15 @@ export function checkVariables(self) {
 		zSpeed: self.zSpeed,
 		fSpeed: self.fSpeed,
 	})
+
+	if (SERIES.capabilities.presetNames && SERIES.capabilities.preset) {
+		const presetVars = {}
+		for (let i = 0; i < SERIES.capabilities.preset; i++) {
+			// An unread or never-named preset reads blank rather than stale, same reasoning as above.
+			presetVars[`presetName${i + 1}`] = self.data.presetNames[i] || null
+		}
+		self.setVariableValues(presetVars)
+	}
 
 	if (SERIES.capabilities.audioVolumeLevel && self.data.audioVolumeLevels) {
 		const audioVars = {}

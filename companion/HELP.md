@@ -103,6 +103,7 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 **Preset**
 
 - Preset - Memory Operation (Recall / Memorize / Clear)
+- Preset - Name (Set / Clear)
 - Preset - Reset Selected / Completed State
 - Preset - Recall Scope
 - Preset - Clear All
@@ -188,6 +189,7 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 - Preset - Recall Completion Notification
 - Preset - Memory State
 - Preset - Thumbnail
+- Preset - Name
 
 **Auto Tracking**
 
@@ -282,6 +284,7 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 | `$(presetCompleted)` | Preset # Completed |
 | `$(presetSelected)` | Preset # Selected |
 | `$(presetMemory)` | Used Preset Memory slots |
+| `$(presetName1…N)` | Preset Name per Preset, as stored in the camera |
 | `$(presetSpeed)` | Preset Recall Speed/Time |
 | `$(presetSpeedTable)` | Preset Recall Speed Table |
 | `$(presetSpeedUnit)` | Preset Recall Speed Unit |

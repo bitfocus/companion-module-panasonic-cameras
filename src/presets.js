@@ -78,6 +78,7 @@ const set = (elementId, elementProperty, value) => ({
 })
 
 const advancedImage = [set(IMAGE, 'base64Image', 'png64')]
+const advancedText = [set(TEXT, 'text', 'text')]
 
 const overrides = (style) => {
 	const { color, bgcolor, png64 } = style ?? {}
@@ -1339,6 +1340,15 @@ export function getPresetDefinitions(self) {
 								feedbackId: 'presetThumbnail',
 								options: presetFeedbackOptions(),
 								styleOverrides: advancedImage,
+							},
+						]
+					: []),
+				...(SERIES.capabilities.presetNames
+					? [
+							{
+								feedbackId: 'presetName',
+								options: presetFeedbackOptions(),
+								styleOverrides: advancedText,
 							},
 						]
 					: []),
