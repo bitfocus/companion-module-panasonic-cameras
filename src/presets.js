@@ -851,7 +851,9 @@ export function getPresetDefinitions(self) {
 		presets['image-awb'] = momentaryPreset(
 			'Image',
 			'Execute Auto White Balance',
-			'AWB\\n$(generic-module:awbResult)',
+			SERIES.capabilities.awbColorTemperature
+				? 'AWB\\n$(generic-module:awbColorTemperature)\\n$(generic-module:awbResult)'
+				: 'AWB\\n$(generic-module:awbResult)',
 			'whiteBalanceExecAWB',
 			undefined,
 			{ color: colorBlack, bgcolor: colorWhite },
