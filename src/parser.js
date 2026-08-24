@@ -401,7 +401,11 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 					break
 				//case '3C': break; // Preset Name / Preset Thumbnail Counter
 				case '4A':
-					self.data.awbColorTempLabel = parseInt(str[2], 16).toString() + 'K'
+					// Data2 says the reading ran off the end of what the camera can express: 1 below it, 2 above.
+					// Carried as a leading < or > on the temperature rather than as a reading of its own, so a
+					// button showing the value shows its qualification with it.
+					self.data.awbColorTempLabel =
+						(str[3] === '1' ? '<' : str[3] === '2' ? '>' : '') + parseInt(str[2], 16).toString() + 'K'
 					break
 				case 'D2':
 					self.data.filterFollow = str[2]

@@ -167,9 +167,17 @@ describe('parseUpdate', () => {
 	})
 
 	// The AWB temperature is a reading in its own right, so it is kept — just not in the field that
-	// carries the temperature in effect.
-	it('keeps the AWB colour temperature in its own field', () => {
-		expect(parse('OSJ', '4A', '00C80', '0').awbColorTempLabel).toBe('3200K')
+	// carries the temperature in effect. Data2 qualifies it: a reading the camera could not express
+	// within its range comes out marked, so the value never reads as exact when it is not.
+	it.each([
+		['0', '3200K'], // valid
+		['1', '<3200K'], // under
+		['2', '>3200K'], // over
+		[undefined, '3200K'], // a camera that reports Data1 alone
+	])('reads the AWB colour temperature with Data2 %s as %s', (validity, expected) => {
+		const message = ['OSJ', '4A', '00C80', validity].filter((part) => part !== undefined)
+
+		expect(parse(...message).awbColorTempLabel).toBe(expected)
 	})
 
 	// Iris Follow is the lens's own position, 00h closed to FFh open. It shipped in three poll lists
