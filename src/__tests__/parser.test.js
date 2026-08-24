@@ -97,6 +97,62 @@ describe('parseUpdate', () => {
 		expect(parse('OSI', '20', data, '0').colorTempLabel).toBe(expected)
 	})
 
+	// The camera reports the result of a balance run only over the notification channel — no query
+	// returns it, and camdata.html carries neither OWS nor OAS. With res=1 it answers "OWS" the moment it
+	// accepts the request, seconds before the balance has run, so reading that echo as success would
+	// report an outcome the camera has not reached yet.
+	describe('AWB/ABB result', () => {
+		it.each([
+			['OWS', 'awbResult'],
+			['OAS', 'abbResult'],
+		])('reads a pushed %s as success', (command, key) => {
+			expect(parse(command)[key]).toBe('OK')
+		})
+
+		// A pushed refusal is a verdict on the run: the camera took the command and is reporting that the
+		// balance itself came out NG.
+		it.each([
+			['ER3', 'OWS', 'awbResult', 'NG'],
+			['ER2', 'OWS', 'awbResult', 'NG (Busy)'],
+			['ER3', 'OAS', 'abbResult', 'NG'],
+			['ER2', 'OAS', 'abbResult', 'NG (Busy)'],
+		])('reads a pushed %s:%s as %s = %s', (code, command, key, expected) => {
+			expect(parse(code, command)[key]).toBe(expected)
+		})
+
+		// Everything the camera says in reply to the command clears instead, whether it takes the request
+		// or turns it down: nothing has been balanced yet either way, and the OK of an earlier run must not
+		// stand there as if it were this one's outcome.
+		it.each([
+			[['OWS'], 'awbResult'],
+			[['OAS'], 'abbResult'],
+			[['ER3', 'OWS'], 'awbResult'],
+			[['ER2', 'OWS'], 'awbResult'],
+			[['ER3', 'OAS'], 'abbResult'],
+			[['ER2', 'OAS'], 'abbResult'],
+		])('clears the previous result on the %s echo', (message, key) => {
+			const data = initialData()
+
+			parseUpdate({ data }, [key === 'awbResult' ? 'OWS' : 'OAS'])
+			expect(data[key]).toBe('OK')
+
+			parseUpdate({ data }, message, { echo: true })
+			expect(data[key]).toBeNull()
+		})
+
+		// ER1 does mean "I have no such command" — a model without ABB, say — and is not an outcome.
+		it('leaves the result alone for an unsupported-command refusal', () => {
+			expect(parse('ER1', 'OWS').awbResult).toBeNull()
+		})
+
+		it('leaves both results alone for a refusal of some other command', () => {
+			const data = parse('ER3', 'OGU')
+
+			expect(data.awbResult).toBeNull()
+			expect(data.abbResult).toBeNull()
+		})
+	})
+
 	// OSJ:4A is the AWB A/AWB B "Color TEMP. Setting"; OSI:20 is the VAR colour temperature this module
 	// controls. A camera reports both and camdata.html puts OSJ:4A last, so parsing it into the same field
 	// replaced the temperature in effect with the one that is not: an AW-UE150 in VAR at 4060K showed the
@@ -108,6 +164,12 @@ describe('parseUpdate', () => {
 		parseUpdate({ data }, ['OSJ', '4A', '00C80', '0'])
 
 		expect(data.colorTempLabel).toBe('4060K')
+	})
+
+	// The AWB temperature is a reading in its own right, so it is kept — just not in the field that
+	// carries the temperature in effect.
+	it('keeps the AWB colour temperature in its own field', () => {
+		expect(parse('OSJ', '4A', '00C80', '0').awbColorTempLabel).toBe('3200K')
 	})
 
 	// Iris Follow is the lens's own position, 00h closed to FFh open. It shipped in three poll lists

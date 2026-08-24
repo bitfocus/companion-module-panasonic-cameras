@@ -19,7 +19,10 @@ export function setVariables(self) {
 		[(c) => c.tally && c.tally2 && c.tally3, { tally3: 'Yellow Tally Status' }],
 		['focusAuto', { focusMode: 'Focus Mode' }],
 		[(c) => c.whiteBalance && c.whiteBalance.dropdown, { whiteBalance: 'White Balance Mode' }],
+		['whiteBalance', { awbResult: 'AWC/AWB Result' }],
+		['blackBalance', { abbResult: 'ABC/ABB Result' }],
 		['colorTemperature', { colorTemperature: 'Color Temperature' }],
+		['awbColorTemperature', { awbColorTemperature: 'AWB Color Temperature' }],
 		['filter', { filter: 'ND Filter' }],
 		['filterFollow', { filterFollow: 'ND Filter Follow' }],
 		['gain', { gain: 'Gain' }],
@@ -227,6 +230,9 @@ export function checkVariables(self) {
 				? null
 				: errorBits.filter((_, i) => errorCameraValue & (1 << i)).join(', '),
 
+		awbResult: self.data.awbResult,
+		abbResult: self.data.abbResult,
+
 		customResponse: self.data.customResponse,
 		// null, not undefined, for a direction the camera has not reported: setVariableValues treats an
 		// undefined value as "leave as it was", which would keep a stale label after a reconnect.
@@ -279,6 +285,7 @@ export function checkVariables(self) {
 
 		// Direct temperature reading takes precedence over the indexed dropdown.
 		colorTemperature: self.data.colorTempLabel ? self.data.colorTempLabel : labelled.colorTemperature,
+		awbColorTemperature: self.data.awbColorTempLabel,
 
 		ptSpeed: self.ptSpeed,
 		pSpeed: self.pSpeed,

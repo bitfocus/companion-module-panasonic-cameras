@@ -286,6 +286,49 @@ describe('pull coverage', () => {
 		})
 	})
 
+	// Black balance is its own capability rather than a rider on white balance: these models take OWS but
+	// answer ER3 to OAS, each spec saying so outright ("UE4 does not ABB function", and UB10/UB50 never
+	// mention OAS at all). Offering the button there would leave the result reading NG for good.
+	it.each(['UE4', 'UE5', 'UE20', 'UB50', 'HE50'])('%s claims no black balance', (id) => {
+		expect(SERIES_SPECS.find((s) => s.id === id).capabilities.blackBalance).toBe(false)
+	})
+
+	it('offers no ABB action, feedback or preset on a camera that cannot black balance', () => {
+		const self = mockInstance('AW-UE4')
+
+		expect(getActionDefinitions(self).whiteBalanceExecABB).toBeUndefined()
+		expect(getFeedbackDefinitions(self).abbResultOk).toBeUndefined()
+		expect(getFeedbackDefinitions(self).abbResultNg).toBeUndefined()
+		expect(getPresetDefinitions(self).presets['image-abb']).toBeUndefined()
+
+		// The white balance side of the same block is untouched.
+		expect(getActionDefinitions(self).whiteBalanceExecAWB).toBeDefined()
+		expect(getFeedbackDefinitions(self).awbResultOk).toBeDefined()
+		expect(getFeedbackDefinitions(self).awbResultNg).toBeDefined()
+		expect(getPresetDefinitions(self).presets['image-awb']).toBeDefined()
+	})
+
+	// The reading follows the balance command, not the notification channel: a camera that cannot push —
+	// the camcorders are the case in point — still answers a failed run with ER3 in the reply, and where
+	// it reports nothing the variable simply stays empty rather than the entry going missing.
+	it('offers the balance result even on a camera that cannot push updates', () => {
+		const self = mockInstance('AG-CX350')
+
+		expect(seriesSpec('CX350').capabilities.subscription).toBe(false)
+		expect(getFeedbackDefinitions(self).awbResultOk).toBeDefined()
+		expect(getFeedbackDefinitions(self).abbResultOk).toBeDefined()
+		expect(setVariables(self).awbResult).toBeDefined()
+		expect(getActionDefinitions(self).whiteBalanceExecAWB).toBeDefined()
+	})
+
+	// Nothing has been reported yet, so neither feedback may claim a verdict.
+	it('leaves both balance feedbacks dark until the camera reports something', () => {
+		const feedbacks = getFeedbackDefinitions(mockInstance('AW-UE150'))
+
+		expect(feedbacks.awbResultOk.callback({})).toBe(false)
+		expect(feedbacks.awbResultNg.callback({})).toBe(false)
+	})
+
 	// The movement range limit needs a pan/tilt head, so the box cameras and the camcorder cannot have
 	// it, and the AW-UE4 is the one PT model the compatible model table marks --- for #LC.
 	it.each(['UB300', 'UB50', 'UBX100', 'CX350', 'UE4', 'UE5', 'HE2'])('%s claims no movement range limit', (id) => {

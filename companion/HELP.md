@@ -172,6 +172,10 @@ and the model specific "Supplement for Web Control" specifications.
 - Image - Digital Noise Reduction
 - Image - Dynamic Range Stretch
 - Image - White Balance
+- Image - AWC/AWB Result OK
+- Image - AWC/AWB Result NG
+- Image - ABC/ABB Result OK
+- Image - ABC/ABB Result NG
 
 **Preset**
 
@@ -219,7 +223,10 @@ and the model specific "Supplement for Web Control" specifications.
 | `$(tally3)` | Yellow Tally Status |
 | `$(focusMode)` | Focus Mode |
 | `$(whiteBalance)` | White Balance Mode |
+| `$(awbResult)` | AWC/AWB Result |
+| `$(abbResult)` | ABC/ABB Result |
 | `$(colorTemperature)` | Color Temperature |
+| `$(awbColorTemperature)` | AWB Color Temperature |
 | `$(filter)` | ND Filter |
 | `$(filterFollow)` | ND Filter Follow |
 | `$(gain)` | Gain |

@@ -673,6 +673,9 @@ export function getActionDefinitions(self) {
 		}
 
 		actions.whiteBalanceExecAWB = simpleAction('Image - Execute AWC/AWB', cam, 'OWS')
+	}
+
+	if (caps.blackBalance) {
 		actions.whiteBalanceExecABB = simpleAction('Image - Execute ABC/ABB', cam, 'OAS')
 	}
 
