@@ -97,6 +97,20 @@ describe('parseUpdate', () => {
 		expect(parse('OSI', '20', data, '0').colorTempLabel).toBe(expected)
 	})
 
+	// Data2 says whether the temperature beside it is the one in effect. The CX350 camcorders send 1
+	// while ATW is on, and the reading is then a leftover rather than the working value — bracketed, so
+	// the button keeps showing a number without claiming it is in force.
+	it.each([
+		['0', '4000K'], // valid
+		['1', '(4000K)'], // CX350 with ATW on
+		['2', '(4000K)'], // the protocol's third value, unused by any model here
+		[undefined, '4000K'], // a camera that reports Data1 alone
+	])('reads the colour temperature with Data2 %s as %s', (validity, expected) => {
+		const message = ['OSI', '20', '00FA0', validity].filter((part) => part !== undefined)
+
+		expect(parse(...message).colorTempLabel).toBe(expected)
+	})
+
 	// The camera reports the result of a balance run only over the notification channel — no query
 	// returns it, and camdata.html carries neither OWS nor OAS. With res=1 it answers "OWS" the moment it
 	// accepts the request, seconds before the balance has run, so reading that echo as success would

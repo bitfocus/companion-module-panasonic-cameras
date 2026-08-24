@@ -325,7 +325,10 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 					self.data.irisPosition = parseInt(str[4], 16) - 0x555
 					break
 				case '20':
-					self.data.colorTempLabel = parseInt(str[2], 16).toString() + 'K'
+					self.data.colorTempLabel =
+						str[3] === undefined || str[3] === '0'
+							? parseInt(str[2], 16).toString() + 'K'
+							: '(' + parseInt(str[2], 16).toString() + 'K)'
 					break // VAR
 				case '30':
 					self.data.shootingMode = str[2]
@@ -401,9 +404,6 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 					break
 				//case '3C': break; // Preset Name / Preset Thumbnail Counter
 				case '4A':
-					// Data2 says the reading ran off the end of what the camera can express: 1 below it, 2 above.
-					// Carried as a leading < or > on the temperature rather than as a reading of its own, so a
-					// button showing the value shows its qualification with it.
 					self.data.awbColorTempLabel =
 						(str[3] === '1' ? '<' : str[3] === '2' ? '>' : '') + parseInt(str[2], 16).toString() + 'K'
 					break
