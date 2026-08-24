@@ -194,13 +194,14 @@ const momentaryPreset = (
 	actionId,
 	options,
 	{ color = colorWhite, bgcolor = colorBlack } = {},
+	feedbacks = [],
 ) => ({
 	type: 'layered',
 	category,
 	name,
 	elements: layers({ text, color, bgcolor }),
 	steps: [{ down: [{ actionId, ...(options ? { options } : {}) }], up: [] }],
-	feedbacks: [],
+	feedbacks,
 })
 
 // Text-labelled jog: drive while held, stop on release.
@@ -847,60 +848,73 @@ export function getPresetDefinitions(self) {
 			}
 		}
 
-		// Knob only turns; unsupported options (e.g. UB300 step size) dropped at build.
-		if (SERIES.capabilities.colorTemperature) {
-			presets['image-colortemp'] = {
-				type: 'layered',
-				category: 'Image',
-				name: 'Color Temperature',
-				elements: layers({
-					text: 'Temp.\\n$(generic-module:colorTemperature)',
-					color: colorBlack,
-					bgcolor: colorWhite,
-				}),
-				steps: [
-					{
-						down: [],
-						up: [],
-						rotate_left: [
-							{
-								actionId: 'colorTemperature',
-								options: {
-									op: -1,
-									step: 1,
-								},
-							},
-						],
-						rotate_right: [
-							{
-								actionId: 'colorTemperature',
-								options: {
-									op: 1,
-									step: 1,
-								},
-							},
-						],
-					},
-				],
-				feedbacks: [],
-			}
-		}
-
 		presets['image-awb'] = momentaryPreset(
 			'Image',
 			'Execute Auto White Balance',
-			'Execute\\nAWB',
+			SERIES.capabilities.awbColorTemperature
+				? 'AWB\\n$(generic-module:awbColorTemperature)\\n$(generic-module:awbResult)'
+				: 'AWB\\n$(generic-module:awbResult)',
 			'whiteBalanceExecAWB',
 			undefined,
 			{ color: colorBlack, bgcolor: colorWhite },
+			[
+				{ feedbackId: 'awbResultOk', styleOverrides: overrides({ color: colorWhite, bgcolor: colorDarkGreen }) },
+				{ feedbackId: 'awbResultNg', styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }) },
+			],
 		)
+	}
 
+	// Knob only turns; unsupported options (e.g. UB300 step size) dropped at build.
+	if (SERIES.capabilities.colorTemperature) {
+		presets['image-colortemp'] = {
+			type: 'layered',
+			category: 'Image',
+			name: 'Color Temperature',
+			elements: layers({
+				text: 'Temp.\\n$(generic-module:colorTemperature)',
+				color: colorBlack,
+				bgcolor: colorWhite,
+			}),
+			steps: [
+				{
+					down: [],
+					up: [],
+					rotate_left: [
+						{
+							actionId: 'colorTemperature',
+							options: {
+								op: -1,
+								step: 1,
+							},
+						},
+					],
+					rotate_right: [
+						{
+							actionId: 'colorTemperature',
+							options: {
+								op: 1,
+								step: 1,
+							},
+						},
+					],
+				},
+			],
+			feedbacks: [],
+		}
+	}
+
+	if (SERIES.capabilities.blackBalance) {
 		presets['image-abb'] = momentaryPreset(
 			'Image',
 			'Execute Auto Black Balance',
-			'Execute\\nABB',
+			'ABB\\n$(generic-module:abbResult)',
 			'whiteBalanceExecABB',
 			undefined,
+			undefined,
+			[
+				{ feedbackId: 'abbResultOk', styleOverrides: overrides({ color: colorWhite, bgcolor: colorDarkGreen }) },
+				{ feedbackId: 'abbResultNg', styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }) },
+			],
 		)
 	}
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'fs'
 import { InstanceBase } from '@companion-module/base'
 import PanasonicCameraInstance from '../index.js'
+import { initialData } from '../data.js'
 
 // A call to a method InstanceBase lacks fails only when Companion runs the module — lint and
 // definition tests never catch it. The 2.0 migration left a subscribeFeedbacks() call that died on connect.
@@ -47,6 +48,63 @@ describe('instance API', () => {
 			(name) => !baseMethods.has(name) && !ownMethods.has(name) && !ownFields.includes(name),
 		)
 		expect(unknown, 'these are called on the instance but exist neither on InstanceBase nor on the module').toEqual([])
+	})
+
+	// A balance command turned down in the reply leaves no result: the camera never ran one. It has to
+	// reach parseUpdate all the same, so that the OK of an earlier run is cleared rather than left
+	// standing as if it belonged to the attempt just refused — a getCam that stopped at the refusal
+	// branch would keep it. Measured on an AW-HE40 V2.1: with the white balance mode set to VAR, AWB is
+	// ruled out and the camera answers ER3:OWS to the request itself, pushing nothing afterwards.
+	describe('getCam and a refused balance command', () => {
+		const call = async (cmd, body, seed = {}) => {
+			const reported = []
+			const self = {
+				generation: 0,
+				current: () => true,
+				config: { host: '1.2.3.4', httpPort: 80 },
+				data: { ...initialData(), ...seed },
+				httpGet: async () => ({ body }),
+				traced: () => {},
+				parseSafely: (line, parse) => parse(),
+				reportRefusal: (refusal) => reported.push(refusal),
+				checkVariables: () => {},
+				checkAllFeedbacks: () => {},
+				onRequestSucceeded: () => {},
+			}
+
+			await PanasonicCameraInstance.prototype.getCam.call(self, cmd)
+			return { data: self.data, reported }
+		}
+
+		it.each([
+			['OWS', 'OWS', 'awbResult'], // taken on
+			['OWS', 'ER3:OWS', 'awbResult'], // turned down
+			['OWS', 'ER2:OWS', 'awbResult'],
+			['OAS', 'OAS', 'abbResult'],
+			['OAS', 'ER3:OAS', 'abbResult'],
+		])('clears the result when %s is answered with %s', async (cmd, body, key) => {
+			const { data } = await call(cmd, body, { [key]: 'OK' })
+
+			expect(data[key]).toBeNull()
+		})
+
+		it('still logs a refusal, so the operator sees it in the log too', async () => {
+			const { reported } = await call('OWS', 'ER3:OWS')
+
+			expect(reported).toEqual([{ code: 3, command: 'OWS' }])
+		})
+
+		it('says nothing about a command the camera simply took on', async () => {
+			const { reported } = await call('OWS', 'OWS')
+
+			expect(reported).toHaveLength(0)
+		})
+
+		it('leaves the result alone when the model has no such command', async () => {
+			const { data } = await call('OAS', 'ER1:OAS', { abbResult: 'OK' })
+
+			expect(data.abbResult).toBe('OK')
+		})
 	})
 
 	it('does not call the feedback subscribe hooks that 2.0 removed', () => {

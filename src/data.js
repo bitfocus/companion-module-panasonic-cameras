@@ -79,6 +79,9 @@ export function initialData() {
 		zoomSpeedValue: 0,
 
 		// other strings
+		abbResult: null,
+		awbResult: null,
+		awbColorTempLabel: null,
 		colorTempLabel: null,
 		irisLabel: null,
 		shutterStepLabel: null,

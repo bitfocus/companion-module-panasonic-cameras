@@ -400,6 +400,36 @@ export function getFeedbackDefinitions(self) {
 		)
 	}
 
+	if (caps.whiteBalance) {
+		feedbacks.awbResultOk = stateFeedback(
+			'Image - AWC/AWB Result OK',
+			'Indicates that the last automatic white balance the camera reported succeeded',
+			() => self.data.awbResult === 'OK',
+			STYLE_GREEN,
+		)
+
+		feedbacks.awbResultNg = stateFeedback(
+			'Image - AWC/AWB Result NG',
+			'Indicates that the last automatic white balance the camera reported failed',
+			() => self.data.awbResult?.startsWith('NG') === true,
+		)
+	}
+
+	if (caps.blackBalance) {
+		feedbacks.abbResultOk = stateFeedback(
+			'Image - ABC/ABB Result OK',
+			'Indicates that the last automatic black balance the camera reported succeeded',
+			() => self.data.abbResult === 'OK',
+			STYLE_GREEN,
+		)
+
+		feedbacks.abbResultNg = stateFeedback(
+			'Image - ABC/ABB Result NG',
+			'Indicates that the last automatic black balance the camera reported failed',
+			() => self.data.abbResult?.startsWith('NG') === true,
+		)
+	}
+
 	// ---- Recording and streaming ----
 
 	if (caps.recordSD) {

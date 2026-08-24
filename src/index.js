@@ -487,7 +487,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				// A refusal is not an update; it answers 200 all the same.
 				const refusal = parseRefusal(str)
 				if (refusal) this.reportRefusal(refusal)
-				else this.parseSafely(str, () => parseUpdate(this, str.split(':')))
+				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
 				this.checkVariables()
 				this.checkAllFeedbacks()
@@ -526,7 +526,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 				// A refusal is not an update; it answers 200 all the same.
 				const refusal = parseRefusal(str)
 				if (refusal) this.reportRefusal(refusal)
-				else this.parseSafely(str, () => parseUpdate(this, str.split(':'), { echo }))
+				this.parseSafely(str, () => parseUpdate(this, str.split(':'), { echo }))
 
 				this.checkVariables()
 				this.checkAllFeedbacks()

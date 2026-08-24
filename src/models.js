@@ -61,6 +61,8 @@ export const MODELS = [
 // When integrating a new camera model, start here and override only what differs.
 const BASE_CAPABILITIES = {
 	audioVolumeLevel: { maxch: 2, min: -40, max: 20, step: 1 }, // Has Audio Volume Level control (OSA:D5)
+	awbColorTemperature: false, // Reports the colour temperature the AWB arrived at (QSJ:4A)
+	blackBalance: true, // Has ABC/ABB execution (OAS)
 	chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_3 }, // Has Chroma Level control (OCG)
 	chromaPhase: { cmd: 'OSJ:0B', offset: 0x80, limit: 31, step: 1, hexlen: 2 }, // Has Chroma Phase (OSJ:0B or OSK:03)
 	colorGain: { cmd: { red: 'ORI', blue: 'OBI' }, offset: 0x96, limit: 150, step: 1, hexlen: 3 }, // Has numbered red/blue Gain (ORG and OBG)
@@ -314,6 +316,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
+			blackBalance: false,
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'ORG', blue: 'OBG' }, offset: 0x1e, limit: 30, step: 1, hexlen: 2 },
 			colorPedestal: false,
@@ -762,6 +765,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
+			blackBalance: false,
 			chromaLevel: false,
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
@@ -831,6 +835,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
+			blackBalance: false,
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_10 },
 			chromaPhase: false,
 			colorGain: false,
@@ -871,6 +876,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
+			blackBalance: false,
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_10 },
 			chromaPhase: false,
 			colorGain: false,
@@ -916,6 +922,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
+			blackBalance: false,
 			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_10 },
 			chromaPhase: false,
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 30, step: 1, hexlen: 3 },
@@ -972,6 +979,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 2, min: -36, max: 12, step: 3 },
+			awbColorTemperature: true,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: false,
@@ -1020,6 +1028,7 @@ export const SERIES_SPECS = [
 					'QSJ:0B',
 					'QSJ:0F',
 					'QSJ:29',
+					'QSJ:4A',
 					'QSL:B6',
 					'QSL:B7',
 					'QSL:BB',
@@ -1103,6 +1112,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 2, min: -36, max: 12, step: 3 },
+			awbColorTemperature: true,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: false,
@@ -1154,6 +1164,7 @@ export const SERIES_SPECS = [
 					'QSJ:0F',
 					'QSJ:29',
 					'QSJ:D2',
+					'QSJ:4A',
 					'QSL:B6',
 					'QSL:B7',
 					'QSL:BB',
@@ -1170,6 +1181,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
+			awbColorTemperature: true,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: {
@@ -1231,6 +1243,7 @@ export const SERIES_SPECS = [
 					'QSJ:0F',
 					'QSJ:10',
 					'QSJ:29',
+					'QSJ:4A',
 				],
 				web: false,
 			},
@@ -1246,6 +1259,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 2, min: -30, max: 20, step: 1 },
+			awbColorTemperature: true,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: {
@@ -1309,6 +1323,7 @@ export const SERIES_SPECS = [
 					'QSJ:10',
 					'QSJ:29',
 					'QSJ:D2',
+					'QSJ:4A',
 				],
 				web: false,
 			},
@@ -1323,6 +1338,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
+			awbColorTemperature: true,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: {
@@ -1383,6 +1399,7 @@ export const SERIES_SPECS = [
 					'QSJ:0F',
 					'QSJ:10',
 					'QSJ:29',
+					'QSJ:4A',
 				],
 				web: false,
 			},
@@ -1398,6 +1415,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: { maxch: 1, min: -36, max: 12, step: 3 },
+			awbColorTemperature: true,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_99 },
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: {
@@ -1458,6 +1476,7 @@ export const SERIES_SPECS = [
 					'QSJ:0F',
 					'QSJ:10',
 					'QSJ:29',
+					'QSJ:4A',
 					'QSL:B6',
 					'QSL:B7',
 					'QSL:BB',
@@ -1474,6 +1493,7 @@ export const SERIES_SPECS = [
 		id: 'UE160',
 		capabilities: {
 			...BASE_CAPABILITIES,
+			awbColorTemperature: true,
 			chromaLevel: { cmd: 'OSD:B0', dropdown: e.ENUM_CHROMA_PCT_40 },
 			chromaPhase: false,
 			colorGain: {
@@ -1538,6 +1558,7 @@ export const SERIES_SPECS = [
 					'QSI:46',
 					'QSJ:0F',
 					'QSJ:29',
+					'QSJ:4A',
 					'QSL:36',
 					'QSL:37',
 					'QSL:38',

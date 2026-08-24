@@ -212,6 +212,26 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		case 'd61':
 			self.data.nightMode = '1'
 			break
+		case 'ER2':
+			switch (str[1]) {
+				case 'OWS':
+					self.data.awbResult = echo ? null : 'NG (Busy)'
+					break
+				case 'OAS':
+					self.data.abbResult = echo ? null : 'NG (Busy)'
+					break
+			}
+			break
+		case 'ER3':
+			switch (str[1]) {
+				case 'OWS':
+					self.data.awbResult = echo ? null : 'NG'
+					break
+				case 'OAS':
+					self.data.abbResult = echo ? null : 'NG'
+					break
+			}
+			break
 		case 'DCB':
 		case 'OBR':
 			self.data.colorbar = str[1]
@@ -240,18 +260,14 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		case 'OAF':
 			self.data.focusMode = str[1]
 			break
-		case 'OER':
-			self.data.errorCamera = parseInt(str[1], 16)
+		case 'OAS':
+			self.data.abbResult = echo ? null : 'OK'
 			break
-		// The camera reports White Balance in a confirmation encoding that is not the one it takes for
-		// control (see the capability), so a reported mode is mapped back onto the settable ids. Mapped
-		// here, at the one place the value enters, so the variable label, the feedback and the
-		// Toggle/Next actions all read the same mode rather than each needing to know.
-		//
-		// Except on an echo: there the camera is repeating what an action just set, already in the
-		// control encoding, and mapping it again would turn the ATW that was sent into an AWC B.
 		case 'OAW':
 			self.data.whiteBalance = echo ? str[1] : (self.SERIES?.capabilities.whiteBalance?.confirm?.[str[1]] ?? str[1])
+			break
+		case 'OER':
+			self.data.errorCamera = parseInt(str[1], 16)
 			break
 		case 'OIF':
 			self.data.irisLabel = str[1] === 'FF' ? 'CLOSE' : 'f/' + (parseInt(str[1], 16) / 10).toFixed(1)
@@ -309,7 +325,10 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 					self.data.irisPosition = parseInt(str[4], 16) - 0x555
 					break
 				case '20':
-					self.data.colorTempLabel = parseInt(str[2], 16).toString() + 'K'
+					self.data.colorTempLabel =
+						str[3] === undefined || str[3] === '0'
+							? parseInt(str[2], 16).toString() + 'K'
+							: '(' + parseInt(str[2], 16).toString() + 'K)'
 					break // VAR
 				case '30':
 					self.data.shootingMode = str[2]
@@ -384,7 +403,10 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 					self.data.presetSpeedUnit = str[2]
 					break
 				//case '3C': break; // Preset Name / Preset Thumbnail Counter
-				//case '4A': break // AWB Color Temperature
+				case '4A':
+					self.data.awbColorTempLabel =
+						(str[3] === '1' ? '<' : str[3] === '2' ? '>' : '') + parseInt(str[2], 16).toString() + 'K'
+					break
 				case 'D2':
 					self.data.filterFollow = str[2]
 					break
@@ -449,6 +471,9 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 			break
 		case 'OBP':
 			self.data.bluePedValue = parseInt(str[1], 16) - 0x96
+			break
+		case 'OWS':
+			self.data.awbResult = echo ? null : 'OK'
 			break
 		case 'TITLE':
 			self.data.title = str[1]
