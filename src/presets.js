@@ -912,8 +912,8 @@ export function getPresetDefinitions(self) {
 			undefined,
 			undefined,
 			[
-				{ feedbackId: 'abbResultOk', styleOverrides: overrides({ color: colorBlack, bgcolor: colorDarkGreen }) },
-				{ feedbackId: 'abbResultNg', styleOverrides: overrides({ color: colorBlack, bgcolor: colorRed }) },
+				{ feedbackId: 'abbResultOk', styleOverrides: overrides({ color: colorWhite, bgcolor: colorDarkGreen }) },
+				{ feedbackId: 'abbResultNg', styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }) },
 			],
 		)
 	}
