@@ -95,7 +95,6 @@ export function initialData() {
 		presetEntries: Array(100),
 		presetThumbnails: Array(100),
 		presetNames: Array(100),
-		presetCounters: Array(100),
 
 		// live image
 		image: null,

@@ -8,7 +8,6 @@ import {
 	optPresetNumber,
 	parsePresetNumber,
 } from './common.js'
-import { requestPresetCounters } from './polling.js'
 
 const PRESET_NAME_LENGTH = 15
 const presetNameOnWire = (name) =>
@@ -769,10 +768,6 @@ export function getActionDefinitions(self) {
 				const idx = parsePresetNumber(action.options.val, caps.preset)
 				if (idx === null) return
 				await ptz(action.options.op + idx.toString(10).padStart(2, '0'))
-
-				// Storing over an occupied slot leaves the entry bitmap untouched, so the pE notification
-				// alone would not say anything moved. Recalling changes nothing worth re-reading.
-				if (action.options.op !== 'R') requestPresetCounters(self)
 			},
 		}
 
@@ -815,7 +810,6 @@ export function getActionDefinitions(self) {
 					await ptz('C' + i.toString(10).padStart(2, '0'))
 					self.data.presetThumbnails[i] = undefined
 					self.data.presetNames[i] = undefined
-					self.data.presetCounters[i] = undefined
 				}
 				self.checkVariables()
 				self.checkAllFeedbacks()
@@ -856,8 +850,6 @@ export function getActionDefinitions(self) {
 
 					if (action.options.op === 'clear') await cam('OSJ:36:' + n)
 					else await cam(`OSJ:35:${n}:${presetNameOnWire(action.options.name)}`)
-
-					requestPresetCounters(self)
 				},
 			}
 		}

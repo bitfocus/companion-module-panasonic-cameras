@@ -260,7 +260,7 @@ describe('Custom Command responses', () => {
 // the trimmed name, which is why parser.js trims the answer straight back off.
 describe('preset names (AW-UE150A)', () => {
 	async function name(options) {
-		const self = mockInstance('AW-UE150A', { presetNames: [], presetCounters: [] })
+		const self = mockInstance('AW-UE150A', { presetNames: [] })
 		await getActionDefinitions(self).presetName.callback({ actionId: 'presetName', options })
 		return self.sent
 	}
@@ -293,18 +293,16 @@ describe('preset names (AW-UE150A)', () => {
 // Wiping the presets wipes what was cached about them. The camera reports the empty slots back through
 // pE soon enough, but on a model without a subscription that is a whole poll cycle of stale thumbnails.
 describe('clearing every preset (AW-UE150A)', () => {
-	it('drops the cached names, thumbnails and counters with them', async () => {
+	it('drops the cached names and thumbnails with them', async () => {
 		const self = mockInstance('AW-UE150A', {
 			presetThumbnails: ['png', 'png'],
 			presetNames: ['Wide', 'Tight'],
-			presetCounters: ['1', '2'],
 		})
 
 		await getActionDefinitions(self).presetClearAll.callback({ actionId: 'presetClearAll', options: { confirm: true } })
 
 		expect(self.data.presetThumbnails.filter(Boolean)).toEqual([])
 		expect(self.data.presetNames.filter(Boolean)).toEqual([])
-		expect(self.data.presetCounters.filter(Boolean)).toEqual([])
 	})
 
 	it('keeps them when the confirmation is not given', async () => {

@@ -517,123 +517,6 @@ describe('the ND filter follow status', () => {
 	})
 })
 
-// OSJ:3C is the camera's own cache key for preset names and thumbnails: one 4-bit counter per preset,
-// bumped whenever either changed. It exists because the pE entry bitmap cannot express "same slot, new
-// content" — storing over an occupied preset leaves it byte-identical. Before the counters the module
-// answered that by refetching every occupied preset of the bank the notification carried: forty HTTP
-// requests and Jimp decodes for one preset that moved, and all three banks on every poll cycle of a
-// camera without a subscription.
-describe('the preset name/thumbnail counters', () => {
-	// A camera answering the counters, with the fetches it triggers recorded rather than performed.
-	function counterInstance(capabilities = { presetThumbnails: true, presetNames: true, preset: 100 }) {
-		const self = {
-			data: initialData(),
-			SERIES: { capabilities },
-			thumbnails: [],
-			queries: [],
-			log: () => {},
-			getThumbnail: (idx) => self.thumbnails.push(idx),
-			getCam: (cmd) => self.queries.push(cmd),
-		}
-		// Every preset occupied, so an untouched counter is the only reason not to fetch.
-		self.data.presetEntries = Array(100).fill('1')
-		return self
-	}
-
-	const bank = (self, n, digits) => parseUpdate(self, ['OSJ', '3C', n, digits])
-
-	it('maps the nine nibbles of a bank onto nine consecutive presets', () => {
-		const self = counterInstance()
-
-		bank(self, '01', '123456789') // bank 01h is presets 010-018, index 9-17
-
-		expect(self.thumbnails).toEqual([9, 10, 11, 12, 13, 14, 15, 16, 17])
-		expect(self.data.presetCounters.slice(9, 18)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9'])
-	})
-
-	// Eleven full banks plus preset 100 on its own; the eight nibbles beside it are padding, and reading
-	// them as presets would run off the end of the hundred slots the module keeps.
-	it('reads only preset 100 out of the last bank', () => {
-		const self = counterInstance()
-
-		bank(self, '0B', '100000000')
-
-		expect(self.thumbnails).toEqual([99])
-		expect(self.data.presetCounters[99]).toBe('1')
-	})
-
-	it('fetches nothing for a counter that stayed put', () => {
-		const self = counterInstance()
-
-		bank(self, '00', '111111111')
-		self.thumbnails = []
-		self.queries = []
-		bank(self, '00', '111111112') // only the last preset of the bank moved
-
-		expect(self.thumbnails).toEqual([8])
-		expect(self.queries).toEqual(['QSJ:35:08'])
-	})
-
-	it('leaves an empty slot alone, counter or no counter', () => {
-		const self = counterInstance()
-		self.data.presetEntries[3] = '0'
-
-		bank(self, '00', '111111111')
-
-		expect(self.thumbnails).not.toContain(3)
-		expect(self.queries).not.toContain('QSJ:35:03')
-		// Still recorded, so refilling the slot is not mistaken for an unchanged one.
-		expect(self.data.presetCounters[3]).toBe('1')
-	})
-
-	it('reads the digits whether or not the 0x survived', () => {
-		const stripped = counterInstance()
-		const raw = counterInstance()
-
-		bank(stripped, '00', '123456789')
-		bank(raw, '0x00', '0x123456789')
-
-		expect(raw.data.presetCounters).toEqual(stripped.data.presetCounters)
-	})
-
-	it('asks only for what the model has', () => {
-		const namesOnly = counterInstance({ presetThumbnails: false, presetNames: true, preset: 100 })
-		const thumbsOnly = counterInstance({ presetThumbnails: true, presetNames: false, preset: 100 })
-
-		// First sight of a bank: every counter differs from the nothing that was there, so all nine read.
-		bank(namesOnly, '00', '123456789')
-		bank(thumbsOnly, '00', '123456789')
-
-		expect(namesOnly.thumbnails).toEqual([])
-		expect(namesOnly.queries).toEqual([
-			'QSJ:35:00',
-			'QSJ:35:01',
-			'QSJ:35:02',
-			'QSJ:35:03',
-			'QSJ:35:04',
-			'QSJ:35:05',
-			'QSJ:35:06',
-			'QSJ:35:07',
-			'QSJ:35:08',
-		])
-		expect(thumbsOnly.thumbnails).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8])
-		expect(thumbsOnly.queries).toEqual([])
-	})
-
-	// OSI:3C (Black Gamma SW) and OSL:3C (RGB Gain R Gain Bch) are real readings from real cameras -
-	// AK-UB300 and AW-UE160 both send OSI:3C in camdata.html. Sharing the subcommand number with a
-	// different OS family must not put them through the counter path.
-	it('is not confused with OSI:3C or OSL:3C', () => {
-		const self = counterInstance()
-
-		parseUpdate(self, ['OSI', '3C', '1'])
-		parseUpdate(self, ['OSL', '3C', '0x800'])
-
-		expect(self.thumbnails).toEqual([])
-		expect(self.data.presetCounters.filter((c) => c !== undefined)).toEqual([])
-	})
-})
-
 // Names are the other half of what the counters guard: nothing else on the wire says a name changed,
 // so without OSJ:3C a rename made in the camera's own web UI would never reach the module.
 describe('preset names', () => {
@@ -654,47 +537,82 @@ describe('preset names', () => {
 	})
 })
 
-// The entry bitmap used to drive the thumbnail cache directly: every pE notification refetched each
-// occupied preset. That is what the counters replaced, so the bitmap's remaining job is the one thing
-// it can still answer on its own — a slot that was freed has nothing left to show.
+// The bitmap says which slots hold a preset, not what is in them: storing over an occupied slot leaves
+// it byte-identical. The camera pushes the bank either way, so an occupied slot is refetched whenever
+// its bank reports in. Names are not read along with it — storing a preset does not touch the name, and
+// a name that changes says so through OSJ:35/36/37.
 describe('the preset entry bitmap', () => {
 	// 40 bits per bank, least significant first, so 0x…1 is preset 1 of that bank.
-	const entryInstance = () => ({ data: initialData(), thumbnails: [], getThumbnail() {}, log() {} })
+	const entryInstance = () => {
+		const self = {
+			data: initialData(),
+			SERIES: { capabilities: { presetNames: true, presetThumbnails: true, preset: 100 } },
+			thumbnails: [],
+			queries: [],
+			getThumbnail: (idx) => self.thumbnails.push(idx),
+			getCam: (cmd) => self.queries.push(cmd),
+			log() {},
+		}
+		return self
+	}
 
 	it('drops the cache of a preset that was cleared', () => {
 		const self = entryInstance()
 		parseUpdate(self, ['pE000000000001'])
 		self.data.presetThumbnails[0] = 'png'
 		self.data.presetNames[0] = 'Wide Shot'
-		self.data.presetCounters[0] = '4'
 
 		parseUpdate(self, ['pE000000000000'])
 
 		expect(self.data.presetThumbnails[0]).toBeUndefined()
 		expect(self.data.presetNames[0]).toBeUndefined()
-		// The counter too: whatever the camera reports for a refilled slot has to read as a change.
-		expect(self.data.presetCounters[0]).toBeUndefined()
 	})
 
-	it('keeps the cache of a preset that is still there', () => {
+	it('refetches the thumbnails of the presets the bank holds', () => {
 		const self = entryInstance()
-		parseUpdate(self, ['pE000000000001'])
-		self.data.presetThumbnails[0] = 'png'
-		self.data.presetNames[0] = 'Wide Shot'
 
-		parseUpdate(self, ['pE000000000001'])
+		parseUpdate(self, ['pE000000000005']) // presets 1 and 3
 
-		expect(self.data.presetThumbnails[0]).toBe('png')
-		expect(self.data.presetNames[0]).toBe('Wide Shot')
+		expect(self.thumbnails).toEqual([0, 2])
 	})
 
-	it('no longer fetches thumbnails by itself', () => {
+	it('keeps refetching them on a bank that reads the same as before', () => {
 		const self = entryInstance()
-		self.getThumbnail = (idx) => self.thumbnails.push(idx)
+		parseUpdate(self, ['pE000000000001'])
+		self.thumbnails = []
+
+		parseUpdate(self, ['pE000000000001'])
+
+		expect(self.thumbnails).toEqual([0])
+	})
+
+	it('places the second and third bank behind the first', () => {
+		const self = entryInstance()
+
+		parseUpdate(self, ['pE010000000001']) // preset 41
+		parseUpdate(self, ['pE020000000001']) // preset 81
+
+		expect(self.thumbnails).toEqual([40, 80])
+	})
+
+	it('reads a name only for a slot that was not occupied before', () => {
+		const self = entryInstance()
+
+		parseUpdate(self, ['pE000000000001'])
+		expect(self.queries).toEqual(['QSJ:35:00'])
+
+		parseUpdate(self, ['pE000000000003']) // preset 2 joins it
+		expect(self.queries).toEqual(['QSJ:35:00', 'QSJ:35:01'])
+	})
+
+	it('reads no names on a model without them', () => {
+		const self = entryInstance()
+		self.SERIES.capabilities.presetNames = false
 
 		parseUpdate(self, ['pE00FFFFFFFFFF'])
 
-		expect(self.thumbnails).toEqual([])
+		expect(self.queries).toEqual([])
+		expect(self.thumbnails).toHaveLength(40)
 	})
 })
 
