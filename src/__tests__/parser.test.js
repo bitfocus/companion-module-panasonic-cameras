@@ -546,6 +546,7 @@ describe('the preset entry bitmap', () => {
 		const self = {
 			data: initialData(),
 			SERIES: { capabilities: { presetNames: true, presetThumbnails: true, preset: 100 } },
+			config: { subscriptionEnable: true },
 			thumbnails: [],
 			queries: [],
 			getThumbnail: (idx) => self.thumbnails.push(idx),
@@ -594,14 +595,39 @@ describe('the preset entry bitmap', () => {
 		expect(self.thumbnails).toEqual([40, 80])
 	})
 
-	it('reads a name only for a slot that was not occupied before', () => {
+	it('reads a name once for a slot that fills, and not again', () => {
 		const self = entryInstance()
 
 		parseUpdate(self, ['pE000000000001'])
 		expect(self.queries).toEqual(['QSJ:35:00'])
+		self.data.presetNames[0] = 'Wide Shot'
 
 		parseUpdate(self, ['pE000000000003']) // preset 2 joins it
 		expect(self.queries).toEqual(['QSJ:35:00', 'QSJ:35:01'])
+	})
+
+	// The first read can simply not come back. Keying off the occupancy transition alone would leave that
+	// preset nameless until the connection is rebuilt, because the slot never changes state again.
+	it('asks again while a name it asked for has not arrived', () => {
+		const self = entryInstance()
+
+		parseUpdate(self, ['pE000000000001'])
+		parseUpdate(self, ['pE000000000001'])
+
+		expect(self.queries).toEqual(['QSJ:35:00', 'QSJ:35:00'])
+	})
+
+	// Without a subscription there are no OSJ:35/36/37 notifications, so a name changed by another
+	// controller has nothing to announce it. The bank is re-read every poll cycle; the names ride along.
+	it('re-reads the names on every bank report when running without a subscription', () => {
+		const self = entryInstance()
+		self.config.subscriptionEnable = false
+
+		parseUpdate(self, ['pE000000000001'])
+		self.data.presetNames[0] = 'Wide Shot'
+		parseUpdate(self, ['pE000000000001'])
+
+		expect(self.queries).toEqual(['QSJ:35:00', 'QSJ:35:00'])
 	})
 
 	it('reads no names on a model without them', () => {

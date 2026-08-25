@@ -105,7 +105,6 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		const bank = PRESET_BANKS[str[0].substring(2, 4)]
 		if (bank) {
 			const [key, base, width] = bank
-			const previous = self.data[key]
 			const entries = parseInt(str[0].substring(4), 16).toString(2).padStart(width, 0).split('').reverse()
 			self.data[key] = entries
 
@@ -114,10 +113,17 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 				if (p !== '1') return clearPresetCache(self, idx)
 
 				// Storing a preset regenerates its thumbnail without changing this bitmap, so an occupied
-				// slot is refetched whenever the bank reports in. The name is not touched by storing, and
-				// changes to it arrive as OSJ:35/36/37, so it is only read where there is nothing cached.
+				// slot is refetched whenever the bank reports in.
 				self.getThumbnail(idx)
-				if (previous[i] !== '1' && self.SERIES?.capabilities.presetNames) {
+
+				// The name is another matter: storing does not touch it, and a change to it arrives as
+				// OSJ:35/36/37. So it is read where there is none cached - a slot that has just filled, or
+				// one whose first read never came back - and on every bank report where those notifications
+				// do not exist, which is a connection running without a subscription.
+				if (
+					self.SERIES?.capabilities.presetNames &&
+					(self.data.presetNames[idx] === undefined || !self.config?.subscriptionEnable)
+				) {
 					self.getCam('QSJ:35:' + idx.toString(10).padStart(2, '0'))
 				}
 			})
