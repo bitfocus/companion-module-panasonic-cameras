@@ -517,8 +517,7 @@ describe('the ND filter follow status', () => {
 	})
 })
 
-// Names are the other half of what the counters guard: nothing else on the wire says a name changed,
-// so without OSJ:3C a rename made in the camera's own web UI would never reach the module.
+// Preset names are fixed-width on the wire; parsing removes that padding before caching the name.
 describe('preset names', () => {
 	it('drops the padding the camera stores the name in', () => {
 		// Fifteen characters, fixed width, whatever the name actually is.
