@@ -194,9 +194,6 @@ export function parseUpdate(self, str, { echo = false, pushed = false } = {}) {
 		self.data.presetSpeed = str[0].substring(4)
 	}
 
-	// A short or non-numeric notification would otherwise store NaN, which publishes as a NaN
-	// variable, satisfies the "is the lens moving" feedback (NaN != 0) so the button latches lit, and
-	// feeds back out as a literal "#ZNaN" on the wire. Keep the last known speed instead.
 	if (str[0].substring(0, 2) === 'fS') {
 		const speed = parseInt(str[0].substring(2, 4), 10)
 		if (Number.isFinite(speed)) self.data.focusSpeedValue = speed - 50
@@ -582,8 +579,6 @@ export function parseWeb(self, str, cmd) {
 // says the camera did it. 503 used to be accepted here too, as if it were a second flavour of "no
 // content", but it is the opposite: these cameras answer 503 when the command's precondition does not
 // hold — SRT control while RTMP is the selected protocol, a record command with the card not ready.
-// An ordinary operating state, and not one to write down as a stream that started. (The branch could
-// never fire in any case: got rejects a 503 before this is called, and always has.)
 export function parseWebCode(self, code, cmd) {
 	if (code === 204) {
 		switch (cmd) {

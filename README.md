@@ -284,7 +284,6 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 | `$(presetCompleted)` | Preset # Completed |
 | `$(presetSelected)` | Preset # Selected |
 | `$(presetMemory)` | Used Preset Memory slots |
-| `$(presetName1…N)` | Preset Name per Preset, as stored in the camera |
 | `$(presetSpeed)` | Preset Recall Speed/Time |
 | `$(presetSpeedTable)` | Preset Recall Speed Table |
 | `$(presetSpeedUnit)` | Preset Recall Speed Unit |

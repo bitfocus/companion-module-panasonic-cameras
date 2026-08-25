@@ -75,10 +75,9 @@ describe('documented variables', () => {
 		MODELS.filter((m) => m.id !== 'Auto').flatMap((m) => Object.keys(setVariables(mockInstance(m.id)))),
 	)
 
-	// The per-channel audio variables and the per-preset names each get one collective row,
-	// `$(audioVolumeLevel1…N)` and `$(presetName1…N)`, because how many there are depends on the model.
-	// The ellipsis keeps them out of the match above.
-	const collective = /^(audioVolumeLevel|presetName)\d+$/
+	// The per-channel audio variables get one collective row, `$(audioVolumeLevel1…N)`, because how many
+	// there are depends on the model. The ellipsis keeps it out of the match above.
+	const collective = /^audioVolumeLevel\d+$/
 
 	it.each(DOCS)('%s lists every variable the module publishes', (file) => {
 		const missing = [...published].filter((v) => !documented(file).has(v) && !collective.test(v))
