@@ -92,9 +92,10 @@ export async function getCameraStatusOnce(self, generation) {
 // Twelve banks of nine presets each (the last one holds preset 100 alone) cover all hundred slots.
 const PRESET_COUNTER_BANKS = Array.from({ length: 12 }, (_, i) => i.toString(16).toUpperCase().padStart(2, '0'))
 
-// Reads the OSJ:3C change counters for every preset. Cheap next to the alternative: the entry bitmap
-// gives nothing away about a preset overwritten in place, so acting on it at all means refetching a
-// whole bank of forty. parser.js compares the answers and fetches only what actually moved.
+// Reads the OSJ:3C change counters for every preset. Unlike its neighbours OSJ:35-3B the camera never
+// sends this one by itself, so it takes twelve queries to read — which is why this is the fallback
+// rather than the usual path: the initial sync, where neither the names nor the counters appear in
+// camdata.html, and cameras polled without a subscription. parser.js fetches only what moved.
 export async function refreshPresetCounters(self) {
 	const caps = self.SERIES?.capabilities
 	if (!caps?.presetThumbnails && !caps?.presetNames) return

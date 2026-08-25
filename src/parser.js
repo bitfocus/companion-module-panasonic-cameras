@@ -13,6 +13,12 @@ const PRESET_BANKS = {
 	'02': ['presetEntries2', 80, 20],
 }
 
+// Preset number as the OSJ preset commands carry it: two decimal digits, 00 being preset 1.
+function presetIndex(value) {
+	const idx = parseInt(value, 10)
+	return idx >= 0 && idx < 100 ? idx : null
+}
+
 function clearPresetCache(self, idx) {
 	self.data.presetThumbnails[idx] = undefined
 	self.data.presetNames[idx] = undefined
@@ -20,9 +26,9 @@ function clearPresetCache(self, idx) {
 }
 
 // OSJ:3C:[bank]:[9 hex digits] — one 4-bit counter per preset, bumped by the camera whenever that
-// preset's name or thumbnail changed. This is the only signal that distinguishes an overwritten
-// preset from an untouched one: the pE entry bitmap reads the same either way, so without the
-// counters the module has to refetch every occupied preset of a bank or none of it.
+// preset's name or thumbnail changed. Read at connect, and as the catch-all for a preset stored over
+// an occupied slot: #M carries no notification of its own and leaves the pE entry bitmap unchanged,
+// so the counter is what says the thumbnail behind it is a different one now.
 function applyPresetCounters(self, bank, digits) {
 	const caps = self.SERIES?.capabilities
 	if (!caps || typeof digits !== 'string') return
@@ -440,11 +446,35 @@ export function parseUpdate(self, str, { echo = false, pushed = false } = {}) {
 				case '29':
 					self.data.presetSpeedUnit = str[2]
 					break
+				// 35-3B are all sent as update notifications, naming the preset that changed. They arrive
+				// whoever made the change, so a rename or a new thumbnail needs no counter sweep to be seen.
 				case '35': {
-					const idx = parseInt(str[2], 10)
-					if (idx >= 0 && idx < 100) self.data.presetNames[idx] = str.slice(3).join(':').trim()
+					const idx = presetIndex(str[2])
+					if (idx !== null) self.data.presetNames[idx] = str.slice(3).join(':').trim()
 					break
 				}
+				case '36': {
+					const idx = presetIndex(str[2])
+					if (idx !== null) self.data.presetNames[idx] = undefined
+					break
+				}
+				case '37':
+					self.data.presetNames.fill(undefined)
+					break
+				case '39': {
+					const idx = presetIndex(str[2])
+					if (idx !== null) self.getThumbnail(idx)
+					break
+				}
+				case '3A': {
+					const idx = presetIndex(str[2])
+					if (idx !== null) self.data.presetThumbnails[idx] = undefined
+					break
+				}
+				case '3B':
+					self.data.presetThumbnails.fill(undefined)
+					break
+				// The one command here that is query-only, hence the sweep it takes to read it.
 				case '3C':
 					applyPresetCounters(self, parseInt(str[2].replace('0x', ''), 16), str[3])
 					break

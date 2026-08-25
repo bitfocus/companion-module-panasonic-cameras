@@ -144,9 +144,6 @@ export function setVariables(self) {
 		}
 	}
 
-	// One variable per preset is a hundred rows in the picker for every camera, rewritten on every
-	// checkVariables() call. The 'Preset - Name' feedback covers the button text without any of that,
-	// so this stays parked until something turns up that the feedback cannot do.
 	// if (caps.presetNames && caps.preset) {
 	// 	for (let n = 1; n <= caps.preset; n++) {
 	// 		variables[`presetName${n}`] = { name: `Preset ${n} Name` }
@@ -303,7 +300,6 @@ export function checkVariables(self) {
 		fSpeed: self.fSpeed,
 	})
 
-	// Parked with the declarations in setVariables(); self.data.presetNames still feeds the feedback.
 	// if (SERIES.capabilities.presetNames && SERIES.capabilities.preset) {
 	// 	const presetVars = {}
 	// 	for (let i = 0; i < SERIES.capabilities.preset; i++) {

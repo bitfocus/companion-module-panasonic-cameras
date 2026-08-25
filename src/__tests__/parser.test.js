@@ -697,3 +697,73 @@ describe('the preset entry bitmap', () => {
 		expect(self.thumbnails).toEqual([])
 	})
 })
+
+// The camera sends OSJ:35 through OSJ:3B as update notifications naming the preset that changed,
+// whoever changed it. QSJ:3C is the odd one out, query-only, which is why it takes a sweep to read.
+// Acting on the notifications keeps that sweep for what it is actually needed for: the initial sync,
+// and cameras polled without a subscription.
+describe('the preset name and thumbnail notifications', () => {
+	const notified = () => ({ data: initialData(), thumbnails: [], getThumbnail() {}, log() {} })
+
+	it('drops one name on OSJ:36', () => {
+		const self = notified()
+		self.data.presetNames[7] = 'Wide Shot'
+
+		parseUpdate(self, ['OSJ', '36', '07'])
+
+		expect(self.data.presetNames[7]).toBeUndefined()
+	})
+
+	it('drops every name on OSJ:37', () => {
+		const self = notified()
+		self.data.presetNames[0] = 'Wide Shot'
+		self.data.presetNames[42] = 'Tight'
+
+		parseUpdate(self, ['OSJ', '37'])
+
+		expect(self.data.presetNames.filter(Boolean)).toEqual([])
+	})
+
+	it('refetches the one thumbnail OSJ:39 names', () => {
+		const self = notified()
+		self.getThumbnail = (idx) => self.thumbnails.push(idx)
+
+		parseUpdate(self, ['OSJ', '39', '12'])
+
+		expect(self.thumbnails).toEqual([12])
+	})
+
+	it('drops one thumbnail on OSJ:3A and every one on OSJ:3B', () => {
+		const self = notified()
+		self.data.presetThumbnails[3] = 'png'
+		self.data.presetThumbnails[8] = 'png'
+
+		parseUpdate(self, ['OSJ', '3A', '03'])
+		expect(self.data.presetThumbnails[3]).toBeUndefined()
+		expect(self.data.presetThumbnails[8]).toBe('png')
+
+		parseUpdate(self, ['OSJ', '3B'])
+		expect(self.data.presetThumbnails.filter(Boolean)).toEqual([])
+	})
+
+	// 00 is preset 1 and 99 is preset 100; anything else is not a preset number the module can place.
+	it.each(['OSJ:36', 'OSJ:3A'])('%s ignores a preset number it cannot place', (cmd) => {
+		const self = notified()
+		self.data.presetNames[0] = 'Wide Shot'
+		self.data.presetThumbnails[0] = 'png'
+
+		parseUpdate(self, [...cmd.split(':'), 'xx'])
+
+		expect(self.data.presetNames[0]).toBe('Wide Shot')
+		expect(self.data.presetThumbnails[0]).toBe('png')
+	})
+
+	it('fetches nothing for a thumbnail notification it cannot place', () => {
+		const self = notified()
+		self.getThumbnail = (idx) => self.thumbnails.push(idx)
+
+		parseUpdate(self, ['OSJ', '39', '100'])
+
+		expect(self.thumbnails).toEqual([])
+	})
+})
