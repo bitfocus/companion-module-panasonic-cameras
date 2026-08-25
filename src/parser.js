@@ -16,14 +16,13 @@ const PRESET_BANKS = {
 function clearPresetCache(self, idx) {
 	self.data.presetThumbnails[idx] = undefined
 	self.data.presetNames[idx] = undefined
-	// Dropped too, so that refilling the slot always reads as a change however the counter lands.
 	self.data.presetCounters[idx] = undefined
 }
 
 // OSJ:3C:[bank]:[9 hex digits] — one 4-bit counter per preset, bumped by the camera whenever that
 // preset's name or thumbnail changed. This is the only signal that distinguishes an overwritten
 // preset from an untouched one: the pE entry bitmap reads the same either way, so without the
-// counters the module has to refetch all hundred thumbnails or none of them.
+// counters the module has to refetch every occupied preset of a bank or none of it.
 function applyPresetCounters(self, bank, digits) {
 	const caps = self.SERIES?.capabilities
 	if (!caps || typeof digits !== 'string') return
@@ -135,25 +134,18 @@ export function parseUpdate(self, str, { echo = false, pushed = false } = {}) {
 			const entries = parseInt(str[0].substring(4), 16).toString(2).padStart(width, 0).split('').reverse()
 			self.data[key] = entries
 
-			// A freed slot is dropped here and now; a filled one is left to the OSJ:3C counters, which know
-			// whether its name and thumbnail are still the ones already cached.
-			let moved = false
+			let changed = false
 			entries.forEach((p, i) => {
 				if (p === previous[i]) return
-				moved = true
+				changed = true
 				if (p !== '1') clearPresetCache(self, base + i)
 			})
 
-			// Reading the counters costs twelve queries, so it is worth being picky about when to.
-			// A push means something happened even when the bitmap came back identical - overwriting a
-			// preset in place is exactly that case. Without a subscription the same three lines arrive on
-			// every poll cycle, and re-reading them each time would be the periodic polling this avoids.
-			readCounters = moved || pushed
+			readCounters = changed || pushed
 		}
 
 		self.data.presetEntries = self.data.presetEntries0.concat(self.data.presetEntries1.concat(self.data.presetEntries2))
 
-		// Only now: the counters skip empty slots, and that verdict comes from the merged array above.
 		if (readCounters) requestPresetCounters(self)
 
 		if (self.data.presetSelectedIdx !== null) {

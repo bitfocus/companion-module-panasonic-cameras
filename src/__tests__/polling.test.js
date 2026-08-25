@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { refreshPresetCounters } from '../polling.js'
 
-// Twelve QSJ:3C queries is what stands between "one preset changed" and refetching all hundred
+// Twelve QSJ:3C queries is what stands between "one preset changed" and refetching a whole bank of
 // thumbnails. Cheap, but not free — so who asks, and how often, is the whole point of this loop.
 function counterInstance(capabilities) {
 	const self = {

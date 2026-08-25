@@ -520,8 +520,9 @@ describe('the ND filter follow status', () => {
 // OSJ:3C is the camera's own cache key for preset names and thumbnails: one 4-bit counter per preset,
 // bumped whenever either changed. It exists because the pE entry bitmap cannot express "same slot, new
 // content" — storing over an occupied preset leaves it byte-identical. Before the counters the module
-// answered that by refetching every occupied thumbnail on each pE notification, up to a hundred HTTP
-// requests and Jimp decodes for one preset that moved.
+// answered that by refetching every occupied preset of the bank the notification carried: forty HTTP
+// requests and Jimp decodes for one preset that moved, and all three banks on every poll cycle of a
+// camera without a subscription.
 describe('the preset name/thumbnail counters', () => {
 	// A camera answering the counters, with the fetches it triggers recorded rather than performed.
 	function counterInstance(capabilities = { presetThumbnails: true, presetNames: true, preset: 100 }) {
