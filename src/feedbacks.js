@@ -519,5 +519,57 @@ export function getFeedbackDefinitions(self) {
 		)
 	}
 
+	// ---- Housing ----
+
+	if (caps.housing) {
+		feedbacks.housingHeaterState = stateFeedback(
+			'Housing - Heater State',
+			'Indicates if the housing heater is currently running',
+			() => self.data.heaterStatus === '1',
+			STYLE_ORANGE,
+		)
+
+		feedbacks.housingHeaterMode = selectionFeedback(
+			'Housing - Heater Mode',
+			'Indicates if the housing heater is set to the selected mode',
+			'Mode',
+			e.ENUM_AUTO_ON,
+			() => self.data.heater,
+			{ defaultIndex: 1, style: STYLE_GREY },
+		)
+
+		feedbacks.housingDefrosterState = stateFeedback(
+			'Housing - Defroster State',
+			'Indicates if the housing defroster is currently running',
+			() => self.data.defrosterStatus === '1',
+			STYLE_ORANGE,
+		)
+
+		feedbacks.housingDefrosterMode = selectionFeedback(
+			'Housing - Defroster Mode',
+			'Indicates if the housing defroster is set to the selected mode',
+			'Mode',
+			e.ENUM_AUTO_ON,
+			() => self.data.defroster,
+			{ defaultIndex: 1, style: STYLE_GREY },
+		)
+
+		feedbacks.housingWiperState = selectionFeedback(
+			'Housing - Wiper State',
+			'Indicates if the wiper is currently at the configured setting',
+			'Wiper',
+			e.ENUM_WIPER,
+			() => self.data.wiper,
+			{ defaultIndex: 1, style: STYLE_BLUE },
+		)
+
+		feedbacks.housingWasherState = stateFeedback(
+			'Housing - Washer State',
+			'Indicates if the washer is currently running',
+			() => self.data.washer === '1',
+			STYLE_BLUE,
+		)
+	}
+
 	return feedbacks
 }

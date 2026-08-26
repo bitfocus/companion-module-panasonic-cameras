@@ -138,6 +138,13 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 - Streaming - MPEG-TS Output Control
 - Streaming - RTMP Push Control
 
+**Housing**
+
+- Housing - Heater
+- Housing - Defroster
+- Housing - Wiper
+- Housing - Washer
+
 **Other**
 
 - Custom Command
@@ -209,6 +216,15 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 **Audio**
 
 - Audio - Volume Level
+
+**Housing**
+
+- Housing - Heater State
+- Housing - Heater Mode
+- Housing - Defroster State
+- Housing - Defroster Mode
+- Housing - Wiper State
+- Housing - Washer State
 
 
 ## Variables
@@ -299,4 +315,10 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 | `$(autotrackingMode)` | Autotracking Mode |
 | `$(autotrackingAngle)` | Autotracking Angle |
 | `$(autotrackingStatus)` | Autotracking Status |
+| `$(heater)` | Housing Heater |
+| `$(heaterStatus)` | Housing Heater Status |
+| `$(defroster)` | Housing Defroster |
+| `$(defrosterStatus)` | Housing Defroster Status |
+| `$(wiper)` | Housing Wiper |
+| `$(washer)` | Housing Washer |
 | `$(audioVolumeLevel1…N)` | Audio Volume Level per Channel (dB) |
