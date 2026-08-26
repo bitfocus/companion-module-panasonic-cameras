@@ -365,3 +365,46 @@ describe('preset names on a model without them', () => {
 		expect(getActionDefinitions(mockInstance(model)).presetName).toBeUndefined()
 	})
 })
+
+// The outdoor housing commands all go to aw_ptz, and the toggle/step operations read the camera's
+// current state, so the same button sends a different command depending on what it last reported.
+describe('the housing functions (AW-UR100)', () => {
+	const housing = (action, options, data = {}) => {
+		const self = mockInstance('AW-UR100', data)
+		return Promise.resolve(getActionDefinitions(self)[action].callback({ actionId: action, options })).then(
+			() => self.sent,
+		)
+	}
+
+	it('sets the wiper to an absolute speed', async () => {
+		expect(await housing('housingWiper', { op: 's', set: '2' })).toEqual(['#WIP2'])
+		expect(await housing('housingWiper', { op: 's', set: '0' })).toEqual(['#WIP0'])
+	})
+
+	// Three states, so stepping is what a knob does; the next one is relative to what the camera says.
+	it('steps the wiper on from where the camera is', async () => {
+		expect(await housing('housingWiper', { op: 1 }, { wiper: '0' })).toEqual(['#WIP1'])
+		expect(await housing('housingWiper', { op: 1 }, { wiper: '1' })).toEqual(['#WIP2'])
+		expect(await housing('housingWiper', { op: -1 }, { wiper: '2' })).toEqual(['#WIP1'])
+	})
+
+	it('toggles the heater and defroster against their reported setting', async () => {
+		expect(await housing('housingHeater', { op: 't' }, { heater: '0' })).toEqual(['#D91'])
+		expect(await housing('housingHeater', { op: 't' }, { heater: '1' })).toEqual(['#D90'])
+		expect(await housing('housingDefroster', { op: 't' }, { defroster: '0' })).toEqual(['#D71'])
+	})
+
+	it('starts and stops the washer', async () => {
+		expect(await housing('housingWasher', { op: 's', set: '1' })).toEqual(['#WAS1'])
+		expect(await housing('housingWasher', { op: 's', set: '0' })).toEqual(['#WAS0'])
+	})
+
+	// The PT command table marks every housing command "---" for the indoor models.
+	it('is not offered on a camera without a housing', () => {
+		const actions = getActionDefinitions(mockInstance('AW-UE160'))
+
+		for (const id of ['housingHeater', 'housingDefroster', 'housingWiper', 'housingWasher']) {
+			expect(actions, id).not.toHaveProperty(id)
+		}
+	})
+})

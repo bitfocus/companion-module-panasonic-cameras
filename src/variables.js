@@ -128,6 +128,17 @@ export function setVariables(self) {
 				autotrackingStatus: 'Autotracking Status',
 			},
 		],
+		[
+			'housing',
+			{
+				heater: 'Housing Heater',
+				heaterStatus: 'Housing Heater Status',
+				defroster: 'Housing Defroster',
+				defrosterStatus: 'Housing Defroster Status',
+				wiper: 'Housing Wiper',
+				washer: 'Housing Washer',
+			},
+		],
 	]
 
 	const variables = {}
@@ -164,6 +175,8 @@ export function checkVariables(self) {
 		['chromaLevel', 'chromaLevel', (cap) => cap.dropdown],
 		['colorbar', 'colorbar', e.ENUM_OFF_ON],
 		['colorTemperature', 'colorTemperature', (cap) => cap.index?.dropdown],
+		['defroster', 'housing', e.ENUM_AUTO_ON],
+		['defrosterStatus', 'housing', e.ENUM_OFF_ON],
 		['dnr', 'dnr', (cap) => cap.dropdown],
 		['drs', 'drs', (cap) => cap.dropdown],
 		['error', 'error', e.ENUM_ERROR],
@@ -171,6 +184,8 @@ export function checkVariables(self) {
 		['filterFollow', 'filterFollow', (cap) => cap.dropdown],
 		['focusMode', 'focusAuto', e.ENUM_MAN_AUTO],
 		['gain', 'gain', (cap) => cap.dropdown],
+		['heater', 'housing', e.ENUM_AUTO_ON],
+		['heaterStatus', 'housing', e.ENUM_OFF_ON],
 		['installMode', 'install', e.ENUM_INSTALL_POSITION],
 		['irisMode', 'irisAuto', e.ENUM_MAN_AUTO],
 		['nightMode', 'night', e.ENUM_OFF_ON],
@@ -190,7 +205,9 @@ export function checkVariables(self) {
 		['tally2', 'tally2', e.ENUM_OFF_ON],
 		['tally3', 'tally3', e.ENUM_OFF_ON],
 		['videoFormat', 'videoFormat', e.ENUM_VIDEO_FORMAT],
+		['washer', 'housing', e.ENUM_OFF_ON],
 		['whiteBalance', 'whiteBalance', (cap) => cap.dropdown],
+		['wiper', 'housing', e.ENUM_WIPER],
 	]
 
 	const labelled = {}

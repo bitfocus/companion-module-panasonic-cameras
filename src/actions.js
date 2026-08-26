@@ -1052,6 +1052,19 @@ export function getActionDefinitions(self) {
 		actions.rtmpStreamCtrl = webToggleAction('Streaming - RTMP Push Control', 'rtmp_ctrl?cmd=', () => self.data.rtmp)
 	}
 
+	// #########################
+	// #### Housing Actions ####
+	// #########################
+
+	if (caps.housing) {
+		actions.housingHeater = enumAction('Housing - Heater', ptz, 'D9', e.ENUM_AUTO_ON, () => self.data.heater)
+		actions.housingDefroster = enumAction('Housing - Defroster', ptz, 'D7', e.ENUM_AUTO_ON, () => self.data.defroster)
+		actions.housingWiper = enumAction('Housing - Wiper', ptz, 'WIP', e.ENUM_WIPER, () => self.data.wiper, {
+			nextPrev: true,
+		})
+		actions.housingWasher = enumAction('Housing - Washer', ptz, 'WAS', e.ENUM_OFF_ON, () => self.data.washer)
+	}
+
 	actions.customCommand = {
 		name: 'Custom Command',
 		description:

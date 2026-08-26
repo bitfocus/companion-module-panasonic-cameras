@@ -172,6 +172,9 @@ describe('pull coverage', () => {
 		['drs', () => ['QSE:33']],
 		['chromaPhase', (c) => ['Q' + c.chromaPhase.cmd.slice(1)]],
 		['install', () => ['INS']],
+		// Every housing sub-flag has its own pair of commands; the focused describe below checks them
+		// one by one, so here it is enough that the group is queried at all.
+		['housing', () => ['D7', 'D9', 'DS', 'HS', 'WIP', 'WAS']],
 		['night', () => ['D6']],
 		['error', () => ['RER']],
 		['power', () => ['O']],
@@ -773,6 +776,55 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 
 			const cam = [...(caps.pull?.cam || []), ...(caps.poll?.cam || [])] // `cam` is false, not absent, where unused
 			expect(cam, series).not.toContain('QSJ:D2')
+		})
+	})
+
+	// The weatherproof housing of the two outdoor models. The PT command table marks every one of
+	// these "---" for every other camera, so offering them elsewhere would only earn an ER1.
+	describe('the housing functions', () => {
+		const ptzQueries = () => [...(caps.pull?.ptz || []), ...(caps.poll?.ptz || [])] // `ptz` is false, not absent, where unused
+		const COMMANDS = ['D7', 'D9', 'DS', 'HS', 'WIP', 'WAS']
+
+		it('is offered only on the outdoor models', () => {
+			if (!caps.housing) return
+
+			expect(['UR100', 'HR140'], series).toContain(series)
+		})
+
+		// Setting and status are separate commands, and both feed a variable: asking for only one of
+		// them would leave the other blank forever.
+		it('queries every setting and every status it offers', () => {
+			if (!caps.housing) return
+
+			expect(ptzQueries(), series).toEqual(expect.arrayContaining(COMMANDS))
+		})
+
+		// The washer is the only one the specification gives no update notification for, so it is the
+		// only one that still has to be asked for while the subscription is running.
+		it('polls the washer and pulls the rest', () => {
+			if (!caps.housing) return
+
+			expect(caps.poll?.ptz || [], series).toContain('WAS')
+			expect(caps.pull?.ptz || [], series).not.toContain('WAS')
+		})
+
+		it('offers the wiper the three speeds the camera actually has', () => {
+			if (!caps.housing) return
+
+			const choices = actions.housingWiper.options.find((o) => o.id === 'set').choices
+			expect(
+				choices.map((c) => c.id),
+				series,
+			).toEqual(['0', '1', '2'])
+		})
+
+		it('is not queried where it is not declared', () => {
+			if (caps.housing) return
+
+			const queries = ptzQueries()
+			for (const cmd of COMMANDS) {
+				expect(queries, `${series} / ${cmd}`).not.toContain(cmd)
+			}
 		})
 	})
 
