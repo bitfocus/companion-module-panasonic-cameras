@@ -138,6 +138,16 @@ export function getFeedbackDefinitions(self) {
 		)
 	}
 
+	if (caps.videoFormat) {
+		feedbacks.videoFormat = selectionFeedback(
+			'System - Video Format',
+			'Indicates if the selected video format is currently active',
+			'Video Format',
+			caps.videoFormat.dropdown,
+			() => self.data.videoFormat,
+		)
+	}
+
 	if (caps.imageTransmission) {
 		feedbacks.liveImage = {
 			type: 'advanced',

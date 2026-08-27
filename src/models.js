@@ -80,6 +80,7 @@ const BASE_CAPABILITIES = {
 	focus: true, // Has Focus control and position (Fxx and AXFxxx)
 	focusAuto: true, // Has (switchable) Auto Focus (OAF)
 	focusPushAuto: true, // Has Push Auto Focus feature (OSE:69:1)
+	frequency: { dropdown: e.ENUM_FREQUENCY_2 }, // Has System Frequency control (OSE:77), set only
 	gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_CX350 }, // Has Gain (OGU or OGS)
 	imageTransmission: { cmd: 'view.cgi?action=snapshot' }, // Has a JPEG one-shot image request (view.cgi)
 	install: true, // Has support for Desktop or Hanging Install Position (iNSx)
@@ -118,7 +119,7 @@ const BASE_CAPABILITIES = {
 	tally3: true, // Has Yellow Tally (TLY)
 	trackingAuto: true, // Has internal Autotracking features (OSL:B6 - OSL:C2)
 	version: true, // Camera provides software version (from initial getinfo or QSV, OSV)
-	videoFormat: true, // Camera reports current video format (OSA:87)
+	videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT }, // Has Video Format control and status (OSA:87); readOnly where it can only be queried
 	whiteBalance: { dropdown: e.ENUM_WHITEBALANCE, confirm: { 2: '1', 3: '2' } }, // Has White Balance Modes (OAW)
 	zoom: true, // Has Zoom control and position (Zxx and AXZxxx)
 }
@@ -150,6 +151,7 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: false,
 			filter: { dropdown: e.ENUM_FILTER_3 },
+			frequency: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_CX350 },
 			install: false,
 			night: false,
@@ -240,6 +242,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_HE2 },
 			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_HE2 },
 			zoom: false,
 		},
@@ -308,6 +311,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_HE40 },
 		},
 	},
 	{
@@ -324,6 +328,7 @@ export const SERIES_SPECS = [
 			drs: { dropdown: e.ENUM_DRS_OFF_LOW_HIGH },
 			errorCamera: false,
 			filter: false,
+			frequency: { dropdown: e.ENUM_FREQUENCY_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HE50 },
 			imageTransmission: false,
 			ois: false,
@@ -377,6 +382,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_HE50 },
 		},
 	},
 	{
@@ -446,6 +452,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_HE120 },
 		},
 	},
 	{
@@ -517,6 +524,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_HE130 },
 		},
 	},
 	{
@@ -531,6 +539,7 @@ export const SERIES_SPECS = [
 			colorTemperature: { index: { cmd: 'OSD:B1', dropdown: e.ENUM_COLOR_TEMPERATURE_NONLINEAR } },
 			errorCamera: { cmd: 'QER', bits: ['Fan'] },
 			filter: { dropdown: e.ENUM_FILTER_2 },
+			frequency: { dropdown: e.ENUM_FREQUENCY_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HR140 },
 			imageTransmission: { cmd: 'camera?resolution=320' }, // no view.cgi, see HE130
 			ois: { dropdown: e.ENUM_OIS_HR140 },
@@ -594,6 +603,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_HR140 },
 		},
 	},
 	{
@@ -681,6 +691,7 @@ export const SERIES_SPECS = [
 			streamSRT: false,
 			streamTS: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UBX100 },
 			whiteBalance: true, // OWS/OAS execute, but no OAW mode dropdown
 			zoom: false, // special implementation req. 'OSM:77', 'OZP'
 		},
@@ -704,6 +715,7 @@ export const SERIES_SPECS = [
 			focus: false,
 			focusAuto: false,
 			focusPushAuto: false,
+			frequency: false,
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
 			install: false,
 			iris: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa },
@@ -755,6 +767,7 @@ export const SERIES_SPECS = [
 			tally3: false,
 			trackingAuto: false,
 			version: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UB300 },
 			whiteBalance: true, // no white balance mode
 			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZS:xx'
 		},
@@ -780,6 +793,7 @@ export const SERIES_SPECS = [
 			filter: false,
 			focus: false, // special implementation req. 'HFF', 'HFN', 'HFS', 'LFP:xxx', 'LFS:x'
 			focusAuto: false,
+			frequency: false,
 			gain: { cmd: 'OSL:25', dropdown: e.ENUM_GAIN_UB50 },
 			install: false,
 			iris: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa },
@@ -825,6 +839,7 @@ export const SERIES_SPECS = [
 			tally3: false, // TLY is query only
 			trackingAuto: false,
 			version: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UB50, readOnly: true }, // only QSA:87, no control command
 			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_UB50, confirm: { 2: '1', 3: '2' } },
 			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZP:xxx', 'LZS:x'
 		},
@@ -847,6 +862,7 @@ export const SERIES_SPECS = [
 			filter: false,
 			focusAuto: false,
 			focusPushAuto: false,
+			frequency: { dropdown: e.ENUM_FREQUENCY_60 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE4 },
 			irisFollowPosition: false,
 			night: false,
@@ -868,6 +884,7 @@ export const SERIES_SPECS = [
 			streamSRT: false,
 			streamTS: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE5 },
 		},
 	},
 	{
@@ -889,6 +906,7 @@ export const SERIES_SPECS = [
 			focus: false,
 			focusAuto: false,
 			focusPushAuto: false,
+			frequency: { dropdown: e.ENUM_FREQUENCY_60 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE4 },
 			iris: false,
 			irisAuto: false, // supports only 1 (Auto)
@@ -914,6 +932,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE4 },
 		},
 	},
 	{
@@ -932,6 +951,7 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: false,
 			filter: false,
+			frequency: { dropdown: e.ENUM_FREQUENCY_60 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
 			irisF: true,
 			night: false,
@@ -971,6 +991,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE20 },
 		},
 	},
 	{
@@ -984,6 +1005,7 @@ export const SERIES_SPECS = [
 			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
 			colorPedestal: false,
 			filter: false,
+			frequency: { dropdown: e.ENUM_FREQUENCY_24 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
 			irisF: true,
 			night: false,
@@ -1037,6 +1059,7 @@ export const SERIES_SPECS = [
 			},
 			recordSD: false,
 			tally3: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE50 },
 		},
 	},
 	{
@@ -1104,6 +1127,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE70 },
 		},
 	},
 	{
@@ -1118,6 +1142,7 @@ export const SERIES_SPECS = [
 			colorPedestal: false,
 			filter: { dropdown: e.ENUM_FILTER_3A },
 			filterFollow: { dropdown: e.ENUM_FILTER_3 },
+			frequency: { dropdown: e.ENUM_FREQUENCY_24 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
 			irisF: true,
 			ois: { dropdown: e.ENUM_OIS_UE80 },
@@ -1173,6 +1198,7 @@ export const SERIES_SPECS = [
 			},
 			recordSD: false,
 			tally3: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE150 },
 		},
 	},
 	{
@@ -1192,6 +1218,7 @@ export const SERIES_SPECS = [
 				hexlen: 3,
 			},
 			filter: { dropdown: e.ENUM_FILTER_3 },
+			frequency: { dropdown: e.ENUM_FREQUENCY_24 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
 			irisF: true,
 			ois: { dropdown: e.ENUM_OIS_UE100 },
@@ -1251,6 +1278,7 @@ export const SERIES_SPECS = [
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE150 },
 		},
 	},
 	{
@@ -1271,6 +1299,7 @@ export const SERIES_SPECS = [
 			},
 			filter: { dropdown: e.ENUM_FILTER_3A },
 			filterFollow: { dropdown: e.ENUM_FILTER_3 },
+			frequency: { dropdown: e.ENUM_FREQUENCY_24 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
 			irisF: true,
 			ois: { dropdown: e.ENUM_OIS_UE100 },
@@ -1330,6 +1359,7 @@ export const SERIES_SPECS = [
 			recordSD: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE150 },
 		},
 	},
 	{
@@ -1349,6 +1379,7 @@ export const SERIES_SPECS = [
 				hexlen: 3,
 			},
 			filter: { dropdown: e.ENUM_FILTER_3 },
+			frequency: { dropdown: e.ENUM_FREQUENCY_24 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE150 },
 			irisF: true,
 			poll: {
@@ -1407,6 +1438,7 @@ export const SERIES_SPECS = [
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE150 },
 		},
 	},
 	{
@@ -1426,6 +1458,7 @@ export const SERIES_SPECS = [
 				hexlen: 3,
 			},
 			filter: { dropdown: e.ENUM_FILTER_3 },
+			frequency: { dropdown: e.ENUM_FREQUENCY_24 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE150 },
 			irisF: true,
 			poll: {
@@ -1486,6 +1519,7 @@ export const SERIES_SPECS = [
 			recordSD: false,
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			tally3: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE150A },
 		},
 	},
 	{
@@ -1513,6 +1547,7 @@ export const SERIES_SPECS = [
 			dnr: { cmd: 'OSD:3A', dropdown: e.ENUM_OFF_ON },
 			drs: false,
 			filter: { dropdown: e.ENUM_FILTER_3 },
+			frequency: { dropdown: e.ENUM_FREQUENCY },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE160 },
 			irisF: true,
 			ois: { dropdown: e.ENUM_OIS_UE160 },
@@ -1568,6 +1603,7 @@ export const SERIES_SPECS = [
 			recordSD: false,
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_UE160 },
 		},
 	},
 	{
@@ -1628,6 +1664,7 @@ export const SERIES_SPECS = [
 			tally2: false,
 			tally3: false,
 			trackingAuto: false,
+			videoFormat: { dropdown: e.ENUM_VIDEO_FORMAT_POVCAM },
 			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_POVCAM },
 		},
 	},

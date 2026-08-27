@@ -128,6 +128,8 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 - System - Red / Green / Yellow Tally (legacy models: single Tally)
 - System - Color Bar
 - System - Installation Position
+- System - Video Format
+- System - Frequency
 - System - SD Card Recording Control
 
 **Streaming**
@@ -150,6 +152,7 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 - System - Color Bar State
 - System - Red / Green / Yellow Tally State
 - System - Install Position
+- System - Video Format
 - System - Live Image
 
 **Pan/Tilt**

@@ -115,6 +115,56 @@ describe('generated enums', () => {
 	})
 })
 
+// Each model's list is a subset of the master table, picked by id. A typo in an id would otherwise
+// surface only when Companion renders the button, as an undefined choice.
+describe('video format tables', () => {
+	const TABLES = Object.entries(e).filter(([k]) => k.startsWith('ENUM_VIDEO_FORMAT_'))
+
+	it('is a set worth checking', () => {
+		expect(TABLES.length).toBeGreaterThan(15)
+	})
+
+	it.each(TABLES)('%s is built from the master table alone', (name, table) => {
+		expect(table.length, name).toBeGreaterThan(0)
+
+		for (const entry of table) {
+			expect(e.ENUM_VIDEO_FORMAT, `${name} / ${entry?.id}`).toContain(entry)
+		}
+	})
+
+	it.each(TABLES)('%s uses two-digit uppercase hex ids', (name, table) => {
+		for (const { id } of table) expect(id, name).toMatch(/^[0-9A-F]{2}$/)
+	})
+
+	// The values the AK-UB10/UB50 add on top of the PTZ models, as the one list that reaches into the
+	// 90h-B9h block - a truncated master table would go unnoticed everywhere else.
+	it('covers the large-sensor formats of the box cameras', () => {
+		const ids = e.ENUM_VIDEO_FORMAT_UB50.map((f) => f.id)
+
+		expect(ids).toEqual(expect.arrayContaining(['90', '9F', 'A0', 'A9', 'B0', 'B9']))
+	})
+})
+
+describe('system frequency tables', () => {
+	const TABLES = Object.entries(e).filter(([k]) => k.startsWith('ENUM_FREQUENCY'))
+
+	it.each(TABLES)('%s is a subset of the five frequencies', (name, table) => {
+		expect(table.length, name).toBeGreaterThan(0)
+
+		for (const entry of table) expect(e.ENUM_FREQUENCY, name).toContain(entry)
+	})
+
+	// 59.94Hz and 50Hz are the pair every camera with the setting has; the rest is what varies.
+	it('starts every table with the two frequencies all models share', () => {
+		for (const [name, table] of TABLES) {
+			expect(
+				table.slice(0, 2).map((f) => f.id),
+				name,
+			).toEqual(['0', '1'])
+		}
+	})
+})
+
 describe('models', () => {
 	it('lists each camera model exactly once', () => {
 		const ids = MODELS.map((m) => m.id)

@@ -1046,20 +1046,15 @@ export function getPresetDefinitions(self) {
 		)
 	}
 
-	if (SERIES.capabilities.videoFormat) {
-		presets['system-video-format'] = {
-			type: 'layered',
-			category: 'System',
-			name: 'Video Format',
-			elements: layers({ text: 'Format\\n$(generic-module:videoFormat)' }),
-			steps: [
-				{
-					down: [],
-					up: [],
-				},
-			],
-			feedbacks: [],
-		}
+	// Not on the AK-UB10/UB50: they report the format but have no command to set it, so they keep the
+	// variable and the feedback and get no button.
+	if (SERIES.capabilities.videoFormat && !SERIES.capabilities.videoFormat.readOnly) {
+		presets['system-video-format'] = enumKnobPreset(
+			'System',
+			'Video Format',
+			'Format\\n$(generic-module:videoFormat)',
+			'videoFormat',
+		)
 	}
 
 	if (SERIES.capabilities.recordSD) {

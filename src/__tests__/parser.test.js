@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseRefusal, parseUpdate, parseWeb, parseWebCode } from '../parser.js'
 import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
 import { initialData } from '../data.js'
+import { e } from '../enum.js'
 
 // parseUpdate mutates self.data in place from the camera's notification strings. The real shape, so a
 // branch writing into a container the module initialises (presetThumbnails, panTiltLimits) is exercised
@@ -514,5 +515,35 @@ describe('the ND filter follow status', () => {
 		parseUpdate({ data }, ['OFT', '0'])
 
 		expect(data.filterFollow).toBe('3')
+	})
+})
+
+// OSA:87 is spelled inconsistently across the range: camdata.html prefixes 0x, aw_cam does not, and
+// the older models' specifications write the value single-digit (1h, 4h, Ah). The look-up table is
+// two-digit upper case throughout, so everything has to arrive in that shape or the label, the
+// feedback and the action's Next/Previous all miss.
+describe('the video format', () => {
+	it('reads the padded, 0x-prefixed form the camdata dumps carry', () => {
+		expect(parse('OSA', '87', '0x05').videoFormat).toBe('05')
+		expect(parse('OSA', '87', '0x1a').videoFormat).toBe('1A')
+	})
+
+	it('reads the bare two-digit form', () => {
+		expect(parse('OSA', '87', '11').videoFormat).toBe('11')
+	})
+
+	it('pads a single-digit value onto the two-digit ids', () => {
+		expect(parse('OSA', '87', '5').videoFormat).toBe('05')
+		expect(parse('OSA', '87', 'a').videoFormat).toBe('0A')
+	})
+
+	it('lands on an id the look-up table actually has', () => {
+		for (const reply of ['0x05', '05', '5', '0x1a']) {
+			const id = parse('OSA', '87', reply).videoFormat
+			expect(
+				e.ENUM_VIDEO_FORMAT.map((f) => f.id),
+				reply,
+			).toContain(id)
+		}
 	})
 })

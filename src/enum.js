@@ -66,6 +66,112 @@ const COLOR_TEMPERATURE_POVCAM = [
 	14000, 15000,
 ]
 
+const VIDEO_FORMAT = [
+	{ id: '00', label: '720/60p' },
+	{ id: '01', label: '720/59.94p' },
+	{ id: '02', label: '720/50p' },
+	{ id: '03', label: '1080/60i' },
+	{ id: '04', label: '1080/59.94i' },
+	{ id: '05', label: '1080/50i' },
+	{ id: '07', label: '1080/29.97PsF' },
+	{ id: '08', label: '1080/25PsF' },
+	{ id: '0A', label: '1080/23.98PsF' },
+	{ id: '0B', label: '480/59.94i' },
+	{ id: '0D', label: '576/50i' },
+	{ id: '10', label: '1080/59.94p' },
+	{ id: '11', label: '1080/50p' },
+	{ id: '12', label: '480/59.94p' },
+	{ id: '13', label: '576/50p' },
+	{ id: '14', label: '1080/29.97p' },
+	{ id: '15', label: '1080/25p' },
+	{ id: '16', label: '1080/23.98p (59.94i)' },
+	{ id: '17', label: '2160/29.97p' },
+	{ id: '18', label: '2160/25p' },
+	{ id: '19', label: '2160/59.94p' },
+	{ id: '1A', label: '2160/50p' },
+	{ id: '1B', label: '2160/23.98p' },
+	{ id: '1C', label: '2160/29.97PsF' },
+	{ id: '1D', label: '2160/25PsF' },
+	{ id: '1E', label: '2160/23.98PsF' },
+	{ id: '1F', label: '2160/60p' },
+	{ id: '20', label: '1080/60p' },
+	{ id: '21', label: '2160/24p' },
+	{ id: '22', label: '1080/24p' },
+	{ id: '23', label: '1080/23.98p' },
+	{ id: '24', label: '2160/30p' },
+	{ id: '25', label: '1080/30p' },
+	{ id: '26', label: '1080/119.88p' },
+	{ id: '27', label: '1080/100p' },
+	{ id: '44', label: '1080/59.94i CROP' },
+	{ id: '45', label: '1080/50i CROP' },
+	{ id: '50', label: '1080/59.94p CROP' },
+	{ id: '51', label: '1080/50p CROP' },
+	{ id: '80', label: 'Auto' },
+	{ id: '90', label: '3328x2496/59.94p' },
+	{ id: '91', label: '3328x2496/50p' },
+	{ id: '92', label: '3328x2496/48p' },
+	{ id: '93', label: '3328x2496/47.95p' },
+	{ id: '94', label: '3328x2496/29.97p' },
+	{ id: '95', label: '3328x2496/25p' },
+	{ id: '96', label: '3328x2496/24p' },
+	{ id: '97', label: '3328x2496/23.98p' },
+	{ id: '98', label: '4096x2160/59.94p' },
+	{ id: '99', label: '4096x2160/50p' },
+	{ id: '9A', label: '4096x2160/48p' },
+	{ id: '9B', label: '4096x2160/47.95p' },
+	{ id: '9C', label: '4096x2160/29.97p' },
+	{ id: '9D', label: '4096x2160/25p' },
+	{ id: '9E', label: '4096x2160/24p' },
+	{ id: '9F', label: '4096x2160/23.98p' },
+	{ id: 'A0', label: '3680x2760/59.94p' },
+	{ id: 'A1', label: '3680x2760/50p' },
+	{ id: 'A2', label: '3680x2760/29.97p' },
+	{ id: 'A3', label: '3680x2760/25p' },
+	{ id: 'A4', label: '3680x2760/23.98p' },
+	{ id: 'A5', label: '4128x2176/59.94p' },
+	{ id: 'A6', label: '4128x2176/50p' },
+	{ id: 'A7', label: '4128x2176/29.97p' },
+	{ id: 'A8', label: '4128x2176/25p' },
+	{ id: 'A9', label: '4128x2176/23.98p' },
+	{ id: 'AA', label: '3536x2656/50p' },
+	{ id: 'AB', label: '3536x2656/29.97p' },
+	{ id: 'AC', label: '3536x2656/25p' },
+	{ id: 'AD', label: '3536x2656/23.98p' },
+	{ id: 'AE', label: '5888x3312/29.97p' },
+	{ id: 'AF', label: '5888x3312/25p' },
+	{ id: 'B0', label: '5888x3312/24p' },
+	{ id: 'B1', label: '5888x3312/23.98p' },
+	{ id: 'B2', label: '5376x3584/29.97p' },
+	{ id: 'B3', label: '5376x3584/25p' },
+	{ id: 'B4', label: '5952x3968/24p' },
+	{ id: 'B5', label: '5952x3968/23.98p' },
+	{ id: 'B6', label: '1080/48p' },
+	{ id: 'B7', label: '1080/47.95p' },
+	{ id: 'B8', label: '2160/48p' },
+	{ id: 'B9', label: '2160/47.95p' },
+]
+
+// A model's formats, grouped by the system frequency they belong to. The camera refuses a value from
+// another group with ER3, so the groups are kept apart here and concatenated in that order: stepping
+// through the action then walks one frequency at a time and only crosses at a group boundary.
+const formats = (...groups) =>
+	groups.flat().map((id) => {
+		const format = VIDEO_FORMAT.find((f) => f.id === id)
+		if (!format) throw new Error(`unknown video format id ${id}`)
+		return format
+	})
+
+// The five system frequencies (OSE:77). Every model supports 59.94Hz and 50Hz; the rest is a subset.
+const FREQUENCY = [
+	{ id: '0', label: '59.94 Hz' },
+	{ id: '1', label: '50.00 Hz' },
+	{ id: '2', label: '24.00 Hz' },
+	{ id: '3', label: '23.98 Hz' },
+	{ id: '4', label: '60.00 Hz' },
+]
+
+const frequencies = (...ids) => FREQUENCY.filter((f) => ids.includes(f.id))
+
 export const e = {
 	// ##########################
 	// #### Generic Look Ups ####
@@ -334,9 +440,9 @@ export const e = {
 		{ id: '3', label: 'High' },
 	],
 
-	// ##########################################
-	// #### Digital Noise Reduction (DNR) #######
-	// ##########################################
+	// #######################################
+	// #### Digital Noise Reduction (DNR) ####
+	// #######################################
 	ENUM_DNR: [
 		{ id: '00', label: 'Off' },
 		{ id: '01', label: 'Low' },
@@ -344,93 +450,133 @@ export const e = {
 	],
 	ENUM_NR_LEVEL_7: centeredSteps(-7, 7), // OSK:05, 0x79..0x87 — a level, not the three-step table
 
-	// #######################################
-	// #### Video Format Look Ups (OSA:87) ###
-	// #######################################
-	ENUM_VIDEO_FORMAT: [
-		{ id: '00', label: '720/60p' },
-		{ id: '01', label: '720/59.94p' },
-		{ id: '02', label: '720/50p' },
-		{ id: '03', label: '1080/60i' },
-		{ id: '04', label: '1080/59.94i' },
-		{ id: '05', label: '1080/50i' },
-		{ id: '07', label: '1080/29.97PsF' },
-		{ id: '08', label: '1080/25PsF' },
-		{ id: '0A', label: '1080/23.98PsF' },
-		{ id: '0B', label: '480/59.94i' },
-		{ id: '0D', label: '576/50i' },
-		{ id: '10', label: '1080/59.94p' },
-		{ id: '11', label: '1080/50p' },
-		{ id: '12', label: '480/59.94p' },
-		{ id: '13', label: '576/50p' },
-		{ id: '14', label: '1080/29.97p' },
-		{ id: '15', label: '1080/25p' },
-		{ id: '16', label: '1080/23.98p (59.94i)' },
-		{ id: '17', label: '2160/29.97p' },
-		{ id: '18', label: '2160/25p' },
-		{ id: '19', label: '2160/59.94p' },
-		{ id: '1A', label: '2160/50p' },
-		{ id: '1B', label: '2160/23.98p' },
-		{ id: '1C', label: '2160/29.97PsF' },
-		{ id: '1D', label: '2160/25PsF' },
-		{ id: '1E', label: '2160/23.98PsF' },
-		{ id: '1F', label: '2160/60p' },
-		{ id: '20', label: '1080/60p' },
-		{ id: '21', label: '2160/24p' },
-		{ id: '22', label: '1080/24p' },
-		{ id: '23', label: '1080/23.98p' },
-		{ id: '24', label: '2160/30p' },
-		{ id: '25', label: '1080/30p' },
-		{ id: '26', label: '1080/119.88p' },
-		{ id: '27', label: '1080/100p' },
-		{ id: '44', label: '1080/59.94i CROP' },
-		{ id: '45', label: '1080/50i CROP' },
-		{ id: '50', label: '1080/59.94p CROP' },
-		{ id: '51', label: '1080/50p CROP' },
-		{ id: '80', label: 'Auto' },
-		{ id: '90', label: '3328x2496/59.94p' },
-		{ id: '91', label: '3328x2496/50p' },
-		{ id: '92', label: '3328x2496/48p' },
-		{ id: '93', label: '3328x2496/47.95p' },
-		{ id: '94', label: '3328x2496/29.97p' },
-		{ id: '95', label: '3328x2496/25p' },
-		{ id: '96', label: '3328x2496/24p' },
-		{ id: '97', label: '3328x2496/23.98p' },
-		{ id: '98', label: '4096x2160/59.94p' },
-		{ id: '99', label: '4096x2160/50p' },
-		{ id: '9A', label: '4096x2160/48p' },
-		{ id: '9B', label: '4096x2160/47.95p' },
-		{ id: '9C', label: '4096x2160/29.97p' },
-		{ id: '9D', label: '4096x2160/25p' },
-		{ id: '9E', label: '4096x2160/24p' },
-		{ id: '9F', label: '4096x2160/23.98p' },
-		{ id: 'A0', label: '3680x2760/59.94p' },
-		{ id: 'A1', label: '3680x2760/50p' },
-		{ id: 'A2', label: '3680x2760/29.97p' },
-		{ id: 'A3', label: '3680x2760/25p' },
-		{ id: 'A4', label: '3680x2760/23.98p' },
-		{ id: 'A5', label: '4128x2176/59.94p' },
-		{ id: 'A6', label: '4128x2176/50p' },
-		{ id: 'A7', label: '4128x2176/29.97p' },
-		{ id: 'A8', label: '4128x2176/25p' },
-		{ id: 'A9', label: '4128x2176/23.98p' },
-		{ id: 'AA', label: '3536x2656/50p' },
-		{ id: 'AB', label: '3536x2656/29.97p' },
-		{ id: 'AC', label: '3536x2656/25p' },
-		{ id: 'AD', label: '3536x2656/23.98p' },
-		{ id: 'AE', label: '5888x3312/29.97p' },
-		{ id: 'AF', label: '5888x3312/25p' },
-		{ id: 'B0', label: '5888x3312/24p' },
-		{ id: 'B1', label: '5888x3312/23.98p' },
-		{ id: 'B2', label: '5376x3584/29.97p' },
-		{ id: 'B3', label: '5376x3584/25p' },
-		{ id: 'B4', label: '5952x3968/24p' },
-		{ id: 'B5', label: '5952x3968/23.98p' },
-		{ id: 'B6', label: '1080/48p' },
-		{ id: 'B7', label: '1080/47.95p' },
-		{ id: 'B8', label: '2160/48p' },
-		{ id: 'B9', label: '2160/47.95p' },
-	],
+	// ###############################
+	// #### Video Format Look Ups ####
+	// ###############################
+	ENUM_VIDEO_FORMAT: VIDEO_FORMAT,
+
+	ENUM_VIDEO_FORMAT_HE2: formats(
+		['01', '04', '10', '12'], // 59.94Hz
+		['02', '05', '11', '13'], // 50Hz
+	),
+
+	// HE40Series. The SDI models have neither 10h nor 11h; Auto is a control value only, never reported.
+	ENUM_VIDEO_FORMAT_HE40: formats(
+		['01', '04', '07', '10', '14'], // 59.94Hz
+		['02', '05', '08', '11', '15'], // 50Hz
+		['80'], // Auto — listed under both frequencies, so it belongs to neither group
+	),
+
+	// AW-HE50 + AW-HE60, union over their H/S/N/E,MC sub-models.
+	ENUM_VIDEO_FORMAT_HE50: formats(
+		['01', '04', '07', '0B', '10', '12'], // 59.94Hz
+		['02', '05', '08', '0D', '11', '13'], // 50Hz
+	),
+
+	ENUM_VIDEO_FORMAT_HE120: formats(
+		['01', '04', '0B', '10', '12'], // 59.94Hz
+		['02', '05', '0D', '11', '13'], // 50Hz
+	),
+
+	ENUM_VIDEO_FORMAT_HE130: formats(
+		['01', '04', '07', '0A', '10', '12', '14', '16'], // 59.94Hz
+		['02', '05', '08', '11', '13', '15'], // 50Hz
+	),
+
+	ENUM_VIDEO_FORMAT_HR140: formats(
+		['01', '04', '07', '0A', '10', '14', '16'], // 59.94Hz
+		['02', '05', '08', '11', '15'], // 50Hz
+	),
+
+	ENUM_VIDEO_FORMAT_UBX100: formats(
+		['10', '14', '17', '19', '1B', '23'], // 59.94Hz — the 23.98p formats sit in this group here
+		['11', '15', '18', '1A'], // 50Hz
+	),
+
+	ENUM_VIDEO_FORMAT_UB300: formats(
+		['00', '01', '04', '07', '0A', '10', '16', '17', '19', '1B', '1C', '1E', '1F', '20', '44', '50'], // 59.94Hz
+		['02', '05', '08', '11', '18', '1A', '1D', '45', '51'], // 50Hz
+	),
+
+	// AK-UB10 + AK-UB50, union. The UB10 has no interlace (04h/05h), no 119.88p/100p (26h/27h) and no
+	// 48p/47.95p, but is the only one with the 3680x2760 sizes (A0h-A4h). Query-only on both.
+	ENUM_VIDEO_FORMAT_UB50: formats(
+		['04', '10', '14', '17', '19', '26', '90', '94', '98', '9C', 'A0', 'A2', 'A5', 'A7', 'AB', 'AE', 'B2'], // 59.94Hz
+		['05', '11', '15', '18', '1A', '27', '91', '95', '99', '9D', 'A1', 'A3', 'A6', 'A8', 'AA', 'AC', 'AF', 'B3'], // 50Hz
+		// prettier-ignore
+		['1B', '21', '22', '23', '92', '93', '96', '97', '9A', '9B', '9E', '9F', 'A4', 'A9', 'AD', 'B0', 'B1', 'B4', 'B5', 'B6', 'B7', 'B8', 'B9'], // 24Hz
+	),
+
+	ENUM_VIDEO_FORMAT_UE4: formats(
+		['01', '10', '14', '17'], // 59.94Hz
+		['02', '11', '15', '18'], // 50Hz
+		['00', '20', '24', '25'], // 60Hz
+	),
+
+	ENUM_VIDEO_FORMAT_UE5: formats(
+		['01', '10', '14', '17', '19'], // 59.94Hz
+		['02', '11', '15', '18', '1A'], // 50Hz
+		['00', '1F', '20', '24', '25'], // 60Hz
+	),
+
+	// AW-UE20 + AW-HE20. The HE20 has no 4K, i.e. no 17h, 18h and 24h.
+	ENUM_VIDEO_FORMAT_UE20: formats(
+		['01', '04', '10', '14', '17'], // 59.94Hz
+		['02', '05', '11', '15', '18'], // 50Hz
+		['00', '03', '20', '24', '25'], // 60Hz
+	),
+
+	// AW-UE30/UE40/UE50. The UE30 and UE40 have neither the PsF formats (07h, 08h, 0Ah) nor 16h.
+	ENUM_VIDEO_FORMAT_UE50: formats(
+		['01', '04', '07', '10', '14', '16', '17'], // 59.94Hz
+		['02', '05', '08', '11', '15', '18'], // 50Hz
+		['21', '22'], // 24Hz
+		['0A', '1B', '23'], // 23.98Hz
+	),
+
+	// UE70series + HE42series. The HE42 models have neither 17h nor 18h.
+	ENUM_VIDEO_FORMAT_UE70: formats(
+		['01', '04', '07', '10', '14', '17'], // 59.94Hz
+		['02', '05', '08', '11', '15', '18'], // 50Hz
+		['80'], // Auto — listed under both frequencies, so it belongs to neither group
+	),
+
+	// AW-UE80, AW-UR100, AW-UE100 and the UE150 series share one list. The AW-HE145 in that series is
+	// HD-only, i.e. it has none of 17h, 18h, 19h, 1Ah, 1Bh and 21h.
+	ENUM_VIDEO_FORMAT_UE150: formats(
+		['01', '04', '07', '10', '14', '16', '17', '19'], // 59.94Hz
+		['02', '05', '08', '11', '15', '18', '1A'], // 50Hz
+		['21', '22'], // 24Hz
+		['0A', '1B', '23'], // 23.98Hz
+	),
+
+	ENUM_VIDEO_FORMAT_UE150A: formats(
+		['01', '04', '10', '14', '17', '19'], // 59.94Hz
+		['02', '05', '11', '15', '18', '1A'], // 50Hz
+		['21', '22'], // 24Hz
+		['1B', '23'], // 23.98Hz
+	),
+
+	ENUM_VIDEO_FORMAT_UE160: formats(
+		['01', '10', '14', '17', '19', '26'], // 59.94Hz
+		['02', '11', '15', '18', '1A', '27'], // 50Hz
+		['21', '22'], // 24Hz
+		['1B', '23'], // 23.98Hz
+		['1F', '20'], // 60.00Hz
+	),
+
+	ENUM_VIDEO_FORMAT_POVCAM: formats(
+		['01', '04', '12'], // 59.94Hz
+		['02', '05', '13'], // 50Hz
+	),
+
+	// ###################################
+	// #### System Frequency Look Ups ####
+	// ###################################
+	ENUM_FREQUENCY: FREQUENCY,
+	ENUM_FREQUENCY_2: frequencies('0', '1'),
+	ENUM_FREQUENCY_24: frequencies('0', '1', '2', '3'),
+	ENUM_FREQUENCY_60: frequencies('0', '1', '4'),
 
 	// ################################
 	// #### White Balance Look Ups ####

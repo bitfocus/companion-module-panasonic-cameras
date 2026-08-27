@@ -277,8 +277,10 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 			break
 		case 'OSA':
 			switch (str[1]) {
+				// The older models' values are written single-digit in the specification (1h, 4h, Ah) while
+				// every camdata dump is padded, so normalise to the two-digit form the look-up table uses.
 				case '87':
-					self.data.videoFormat = str[2].replace('0x', '')
+					self.data.videoFormat = str[2].replace('0x', '').padStart(2, '0').toUpperCase()
 					break
 				case 'D5':
 					self.data.audioVolumeLevels[parseInt(str[2])] = parseInt(str[3], 16) - 0x80

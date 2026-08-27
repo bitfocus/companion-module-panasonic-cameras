@@ -252,3 +252,104 @@ describe('Custom Command responses', () => {
 		expect(self.data.customResponse).toBeNull()
 	})
 })
+
+// OSA:87 is the one setting whose valid values depend on another setting: the camera answers ER3 to a
+// format that belongs to a different system frequency. The choice lists are therefore per model and
+// ordered by frequency group, and OSE:77 is the only way to reach another group at all.
+describe('the video format', () => {
+	const format = (model, options, data = {}) => {
+		const self = mockInstance(model, data)
+		return Promise.resolve(getActionDefinitions(self).videoFormat.callback({ actionId: 'videoFormat', options })).then(
+			() => self.sent,
+		)
+	}
+
+	it('sets a format by its two-digit value', async () => {
+		expect(await format('AW-UE160', { op: 's', set: '11' })).toEqual(['OSA:87:11'])
+		expect(await format('AW-HE130', { op: 's', set: '0A' })).toEqual(['OSA:87:0A'])
+	})
+
+	// The lists are concatenated frequency group by frequency group, so a step lands on a format the
+	// camera can actually take until the end of that group is reached.
+	it('steps within the frequency group it starts in', async () => {
+		expect(await format('AW-UE160', { op: 1 }, { videoFormat: '01' })).toEqual(['OSA:87:10'])
+		expect(await format('AW-UE160', { op: 1 }, { videoFormat: '10' })).toEqual(['OSA:87:14'])
+		expect(await format('AW-UE160', { op: -1 }, { videoFormat: '15' })).toEqual(['OSA:87:11'])
+	})
+
+	it('offers each model only the formats its specification lists', () => {
+		const choices = (model) =>
+			getActionDefinitions(mockInstance(model))
+				.videoFormat.options.find((o) => o.id === 'set')
+				.choices.map((c) => c.id)
+
+		expect(choices('AW-UE160')).toEqual([
+			'01',
+			'10',
+			'14',
+			'17',
+			'19',
+			'26',
+			'02',
+			'11',
+			'15',
+			'18',
+			'1A',
+			'27',
+			'21',
+			'22',
+			'1B',
+			'23',
+			'1F',
+			'20',
+		])
+		expect(choices('AW-HE2')).toEqual(['01', '04', '10', '12', '02', '05', '11', '13'])
+		// Auto is a control-only value on these, so it sits outside the frequency groups, at the end.
+		expect(choices('AW-UE70').at(-1)).toBe('80')
+	})
+
+	// The AK-UB10/UB50 report the format but have no control command for it, and the AG-CX350 line has
+	// neither - offering the action there would only earn an ER1.
+	it('is not offered where the camera cannot be told', () => {
+		expect(getActionDefinitions(mockInstance('AK-UB50'))).not.toHaveProperty('videoFormat')
+		expect(getActionDefinitions(mockInstance('AG-CX350'))).not.toHaveProperty('videoFormat')
+	})
+})
+
+describe('the system frequency', () => {
+	const frequency = (model, options) => {
+		const self = mockInstance(model)
+		return Promise.resolve(getActionDefinitions(self).frequency.callback({ actionId: 'frequency', options })).then(
+			() => self.sent,
+		)
+	}
+
+	it('sets the frequency once the change is confirmed', async () => {
+		expect(await frequency('AW-UE160', { set: '1', confirm: true })).toEqual(['OSE:77:1'])
+		expect(await frequency('AW-UE160', { set: '4', confirm: true })).toEqual(['OSE:77:4'])
+	})
+
+	// It reboots the camera on most models, so an unchecked button has to be a no-op rather than a
+	// surprise - same guard as Preset - Clear All.
+	it('sends nothing without the confirmation', async () => {
+		expect(await frequency('AW-UE160', { set: '1', confirm: false })).toEqual([])
+	})
+
+	it('offers each model only the frequencies it has', () => {
+		const choices = (model) =>
+			getActionDefinitions(mockInstance(model))
+				.frequency.options.find((o) => o.id === 'set')
+				.choices.map((c) => c.id)
+
+		expect(choices('AW-UE160')).toEqual(['0', '1', '2', '3', '4'])
+		expect(choices('AW-UE100')).toEqual(['0', '1', '2', '3'])
+		expect(choices('AW-UE20')).toEqual(['0', '1', '4'])
+		expect(choices('AW-HE130')).toEqual(['0', '1'])
+	})
+
+	it('is not offered where the camera has no frequency setting', () => {
+		for (const model of ['AK-UB50', 'AK-UB300', 'AG-CX350']) {
+			expect(getActionDefinitions(mockInstance(model)), model).not.toHaveProperty('frequency')
+		}
+	})
+})

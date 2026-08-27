@@ -183,7 +183,7 @@ export function checkVariables(self) {
 		['tally', 'tally', e.ENUM_OFF_ON],
 		['tally2', 'tally2', e.ENUM_OFF_ON],
 		['tally3', 'tally3', e.ENUM_OFF_ON],
-		['videoFormat', 'videoFormat', e.ENUM_VIDEO_FORMAT],
+		['videoFormat', 'videoFormat', (cap) => cap.dropdown],
 		['whiteBalance', 'whiteBalance', (cap) => cap.dropdown],
 	]
 

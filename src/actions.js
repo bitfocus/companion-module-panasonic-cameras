@@ -274,8 +274,9 @@ export function getActionDefinitions(self) {
 
 	// ----- Action factories -----
 	// read is a getter: toggle/step are relative to the camera's current value, unknown at build time.
-	const enumAction = (name, send, command, choices, read, { nextPrev = false, label } = {}) => ({
+	const enumAction = (name, send, command, choices, read, { nextPrev = false, label, description } = {}) => ({
 		name,
+		...(description ? { description } : {}),
 		options: nextPrev ? optSetToggleNextPrev(choices, label) : optSetToggle(choices, label),
 		callback: async (action) => {
 			await send(command + cmdEnum(action, choices, read()))
@@ -968,6 +969,55 @@ export function getActionDefinitions(self) {
 			e.ENUM_INSTALL_POSITION,
 			() => self.data.installMode,
 		)
+	}
+
+	// readOnly on the AK-UB10/UB50, which report the format but have no command to set it.
+	if (caps.videoFormat && !caps.videoFormat.readOnly) {
+		actions.videoFormat = enumAction(
+			'System - Video Format',
+			cam,
+			'OSA:87:',
+			caps.videoFormat.dropdown,
+			() => self.data.videoFormat,
+			{
+				nextPrev: true,
+				label: 'Video Format',
+				description:
+					'Sets the video format. Only formats belonging to the system frequency the camera currently ' +
+					'runs on are valid; it answers ER3 to any other. The choices are listed grouped by frequency, ' +
+					'so stepping stays within one until the end of its group.',
+			},
+		)
+	}
+
+	// Set only, and deliberately without Toggle or Next: this is the setting that decides which video
+	// formats are valid at all, and on most models the camera reboots over it.
+	if (caps.frequency) {
+		actions.frequency = {
+			name: 'System - Frequency',
+			description:
+				'Sets the system frequency, which decides which video formats the camera accepts. Restarts the ' +
+				'camera on most models. Requires the confirmation option to be checked to take effect.',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Frequency',
+					id: 'set',
+					default: caps.frequency.dropdown[0].id,
+					choices: caps.frequency.dropdown,
+				},
+				{
+					id: 'confirm',
+					type: 'checkbox',
+					label: 'I understand this may restart the camera',
+					default: false,
+				},
+			],
+			callback: async (action) => {
+				if (!action.options.confirm) return
+				await cam('OSE:77:' + action.options.set)
+			},
+		}
 	}
 
 	if (caps.recordSD) {

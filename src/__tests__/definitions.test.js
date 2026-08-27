@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'fs'
+import { readFileSync, readdirSync } from 'fs'
 import { MODELS, SERIES_SPECS } from '../models.js'
 import { getPresetDefinitions } from '../presets.js'
 import { getActionDefinitions } from '../actions.js'
 import { getFeedbackDefinitions } from '../feedbacks.js'
 import { setVariables } from '../variables.js'
+import { e } from '../enum.js'
+import { parseUpdate } from '../parser.js'
+import { initialData } from '../data.js'
 
 // The option field types module-base 2.x accepts.
 const FIELD_TYPES = [
@@ -38,7 +41,10 @@ const seenSeries = new Set()
 const MODELS_BY_SERIES = MODELS.filter((m) => m.id !== 'Auto' && !seenSeries.has(m.series) && seenSeries.add(m.series))
 
 function mockInstance(model) {
-	return { config: { model }, data: { model: null, modelAuto: null, series: null, presetThumbnails: [] } }
+	return {
+		config: { model },
+		data: { ...initialData(), model: null, modelAuto: null, series: null, presetThumbnails: [] },
+	}
 }
 
 function seriesSpec(series) {
@@ -458,6 +464,39 @@ describe('web capability coverage', () => {
 	})
 })
 
+// Narrowing the format choices from the ~90-value master table to a per-model list is only safe if
+// every value a real camera reports is still in its model's list - a value that fell out would leave
+// $(videoFormat) stuck on whatever it said last, because setVariableValues reads undefined as "keep".
+// The dumps under Camera_Dumps are what those cameras actually answered.
+describe('the video format of the recorded cameras', () => {
+	const DUMPS = readdirSync(new URL('../../Camera_Dumps', import.meta.url))
+		.filter((f) => f.endsWith('_camdata.txt'))
+		.map((file) => {
+			const model = file.replace('_camdata.txt', '')
+			const line = readFileSync(new URL('../../Camera_Dumps/' + file, import.meta.url), 'utf8')
+				.split(/\r?\n/)
+				.find((l) => l.startsWith('OSA:87'))
+			return { model, line }
+		})
+		.filter((d) => d.line)
+
+	it('is a set worth checking', () => {
+		expect(DUMPS.length).toBeGreaterThan(5)
+	})
+
+	it.each(DUMPS)('$model answered $line, which its own list still carries', ({ model, line }) => {
+		const self = mockInstance(model)
+		// camdata.html strips to the bare value the same way index.js does before splitting.
+		parseUpdate(self, line.replace(':0x', ':').split(':'))
+
+		const dropdown = seriesSpec(MODELS.find((m) => m.id === model).series).capabilities.videoFormat.dropdown
+		expect(
+			dropdown.map((f) => f.id),
+			model,
+		).toContain(self.data.videoFormat)
+	})
+})
+
 describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => {
 	const self = mockInstance(id)
 	const caps = seriesSpec(series).capabilities
@@ -773,6 +812,78 @@ describe.each(MODELS_BY_SERIES)('series $series (via $id)', ({ id, series }) => 
 
 			const cam = [...(caps.pull?.cam || []), ...(caps.poll?.cam || [])] // `cam` is false, not absent, where unused
 			expect(cam, series).not.toContain('QSJ:D2')
+		})
+	})
+
+	// The one setting whose valid values depend on another setting. The choice list therefore has to be
+	// the model's own, and only the models with a control command may be offered the action at all.
+	describe('the video format', () => {
+		it('picks its choices out of the master table', () => {
+			if (!caps.videoFormat) return
+
+			expect(caps.videoFormat.dropdown, series).toBeDefined()
+			expect(caps.videoFormat.dropdown.length, series).toBeGreaterThan(0)
+			for (const entry of caps.videoFormat.dropdown) {
+				expect(e.ENUM_VIDEO_FORMAT, `${series} / ${entry?.id}`).toContain(entry)
+			}
+		})
+
+		it('lists no format twice', () => {
+			if (!caps.videoFormat) return
+
+			const ids = caps.videoFormat.dropdown.map((f) => f.id)
+			expect(new Set(ids).size, series).toBe(ids.length)
+		})
+
+		// Being unable to set the format is the exception, so it is worth naming who the exception is.
+		it('is settable everywhere except on the box cameras that only answer the query', () => {
+			if (!caps.videoFormat?.readOnly) return
+
+			expect(series).toBe('UB50')
+		})
+
+		// The AK-UB10/UB50 report the format and have no control command for it. Feedback and variable
+		// still apply, the action and the preset must not.
+		it('offers the action and the preset only where the format can be set', () => {
+			if (!caps.videoFormat) {
+				expect(actions, series).not.toHaveProperty('videoFormat')
+				expect(feedbacks, series).not.toHaveProperty('videoFormat')
+				expect(presets, series).not.toHaveProperty('system-video-format')
+				return
+			}
+
+			expect(feedbacks, series).toHaveProperty('videoFormat')
+			if (caps.videoFormat.readOnly) {
+				expect(actions, series).not.toHaveProperty('videoFormat')
+				expect(presets, series).not.toHaveProperty('system-video-format')
+			} else {
+				expect(actions, series).toHaveProperty('videoFormat')
+				expect(presets, series).toHaveProperty('system-video-format')
+			}
+		})
+	})
+
+	// Set only - the module never asks for it. Which frequency is active follows from the group the
+	// reported format sits in, so there is no QSE:77 anywhere and no variable to keep current.
+	describe('the system frequency', () => {
+		it('picks its choices out of the five there are', () => {
+			if (!caps.frequency) return
+
+			expect(caps.frequency.dropdown, series).toBeDefined()
+			for (const entry of caps.frequency.dropdown) {
+				expect(e.ENUM_FREQUENCY, series).toContain(entry)
+			}
+		})
+
+		it('is offered exactly where the camera has one', () => {
+			if (caps.frequency) expect(actions, series).toHaveProperty('frequency')
+			else expect(actions, series).not.toHaveProperty('frequency')
+		})
+
+		it('is never queried, so it never belongs in a pull or poll list', () => {
+			const queries = ['ptz', 'cam', 'web'].flatMap((k) => [...(caps.pull?.[k] || []), ...(caps.poll?.[k] || [])])
+
+			expect(queries, series).not.toContain('QSE:77')
 		})
 	})
 
