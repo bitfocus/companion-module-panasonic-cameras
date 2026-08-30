@@ -884,3 +884,58 @@ describe('reading a value back versus being told one', () => {
 		expect(self.data.whiteBalance).toBe('3') // still the ATW that was sent
 	})
 })
+
+// A connection whose camera never answers still has to be usable: its buttons keep their actions and
+// feedbacks, and its variables stay listed. Registration used to sit at the end of reInitAll, past the
+// guard that a timeout trips on its way to booking a reconnect, so an unreachable camera left the
+// connection with no definitions at all and every button on it reporting "This is not a known action".
+describe('a camera that never answers', () => {
+	beforeEach(() => vi.useFakeTimers())
+	afterEach(() => vi.useRealTimers())
+
+	const absent = () => {
+		const self = makeInstance()
+		self.SERIES = undefined
+		self.httpGet = vi.fn(async () => {
+			throw Object.assign(new Error('Timeout awaiting socket'), { code: 'ETIMEDOUT' })
+		})
+		return self
+	}
+
+	it('still publishes actions, feedbacks, variables and presets', async () => {
+		const self = absent()
+
+		await self.reInitAll()
+		self.timeoutID = clearTimeout(self.timeoutID) // the reconnect it booked is not this test's business
+
+		expect(self.setActionDefinitions).toHaveBeenCalledOnce()
+		expect(self.setFeedbackDefinitions).toHaveBeenCalledOnce()
+		expect(self.setVariableDefinitions).toHaveBeenCalledOnce()
+		expect(self.setPresetDefinitions).toHaveBeenCalledOnce()
+
+		// The generic set, since no camera named a model: enough to keep a button working.
+		expect(Object.keys(self.setActionDefinitions.mock.calls[0][0]).length).toBeGreaterThan(0)
+	})
+
+	it('publishes the set the manually configured model implies', async () => {
+		const self = absent()
+		self.config.model = 'AW-UE150' // a PTZ head, unlike the generic fallback
+
+		await self.reInitAll()
+		self.timeoutID = clearTimeout(self.timeoutID)
+
+		expect(self.setActionDefinitions.mock.calls[0][0]).toHaveProperty('ptLimit')
+	})
+
+	it('republishes once the camera does name its series', async () => {
+		const self = makeInstance()
+		self.SERIES = undefined
+		self.httpGet = vi.fn(async () => ({ body: 'OID:AW-UE150\r\n', statusCode: 200 }))
+
+		await self.reInitAll()
+
+		// Once blind, once with the answer: the second set is the one the camera's own model implies.
+		expect(self.setActionDefinitions).toHaveBeenCalledTimes(2)
+		expect(self.SERIES.id).not.toBe('Other')
+	})
+})

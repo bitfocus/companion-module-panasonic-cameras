@@ -722,7 +722,7 @@ describe('requests that the camera turns down', () => {
 // to carry on through the whole list against it — ending by starting a poll loop that the booked
 // attempt would then start a second time.
 describe('a camera that has vanished', () => {
-	it('gives up rather than working through the command list', async () => {
+	const gone = async () => {
 		const server = camera({ scheme: 'none' })
 		const port = await server.listen()
 		await server.close() // nothing is listening any more
@@ -730,12 +730,29 @@ describe('a camera that has vanished', () => {
 		const self = initialising(instance(port, {}))
 
 		await self.reInitAll()
+		clearTimeout(self.timeoutID) // the reconnect this booked belongs to nobody now
+
+		return self
+	}
+
+	it('gives up rather than working through the command list', async () => {
+		const self = await gone()
 
 		expect(self.reconnecting).toBe(true)
 		expect(self.poll).toBe(false)
-		expect(self.init_actions).not.toHaveBeenCalled()
+		expect(self.init_tcp).not.toHaveBeenCalled()
+	})
 
-		clearTimeout(self.timeoutID) // the reconnect this booked belongs to nobody now
+	// Giving up on the camera is not giving up on the connection: what Companion needs to keep the
+	// buttons working does not depend on an answer, and withholding it left every button using this
+	// connection reporting "This is not a known action".
+	it('publishes its definitions all the same, exactly once', async () => {
+		const self = await gone()
+
+		expect(self.init_actions).toHaveBeenCalledOnce()
+		expect(self.init_feedbacks).toHaveBeenCalledOnce()
+		expect(self.init_variables).toHaveBeenCalledOnce()
+		expect(self.init_presets).toHaveBeenCalledOnce()
 	})
 })
 
