@@ -805,23 +805,18 @@ export function getActionDefinitions(self) {
 				},
 			],
 			callback: async (action) => {
-				if (!action.options.confirm) return
+				if (!action.options.confirm) {
+					return self.log('warn', ' Clear All Preset Memories skipped, its confirmation option is not checked')
+				}
 				for (let i = 0; i < caps.preset; i++) {
 					await ptz('C' + i.toString(10).padStart(2, '0'))
-					self.data.presetThumbnails[i] = undefined
-					self.data.presetNames[i] = undefined
 				}
-				self.checkVariables()
-				self.checkAllFeedbacks()
 			},
 		}
 
 		if (caps.presetNames) {
 			actions.presetName = {
 				name: 'Preset - Name',
-				description:
-					`Stores or clears the name the camera keeps for a preset. Names are limited to ${PRESET_NAME_LENGTH} ` +
-					'characters; letters, digits, underscore and space are kept and anything else is dropped.',
 				options: [
 					{
 						type: 'dropdown',
@@ -831,10 +826,11 @@ export function getActionDefinitions(self) {
 						default: 'set',
 						choices: [
 							{ id: 'set', label: 'Set' },
-							{ id: 'clear', label: 'Clear' },
+							{ id: 'reset', label: 'Reset to Default' },
+							{ id: 'resetAll', label: 'Reset All to Default' },
 						],
 					},
-					optPresetNumber('val', caps.preset),
+					{ ...optPresetNumber('val', caps.preset), isVisibleExpression: '$(options:op) != "resetAll"' },
 					{
 						id: 'name',
 						type: 'textinput',
@@ -842,13 +838,28 @@ export function getActionDefinitions(self) {
 						default: '',
 						isVisibleExpression: '$(options:op) == "set"',
 					},
+					{
+						id: 'confirm',
+						type: 'checkbox',
+						label: 'I understand this will instantly reset all presets names',
+						default: false,
+						isVisibleExpression: '$(options:op) == "resetAll"',
+					},
 				],
 				callback: async (action) => {
+					if (action.options.op === 'resetAll') {
+						if (!action.options.confirm) {
+							return self.log('warn', 'Reset All Preset Names skipped, its confirmation option is not checked')
+						}
+						await cam('OSJ:37')
+						return
+					}
+
 					const idx = parsePresetNumber(action.options.val, caps.preset)
 					if (idx === null) return
 					const n = idx.toString(10).padStart(2, '0')
 
-					if (action.options.op === 'clear') await cam('OSJ:36:' + n)
+					if (action.options.op === 'reset') await cam('OSJ:36:' + n)
 					else await cam(`OSJ:35:${n}:${presetNameOnWire(action.options.name)}`)
 				},
 			}

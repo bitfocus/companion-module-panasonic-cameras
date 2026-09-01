@@ -103,7 +103,7 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 **Preset**
 
 - Preset - Memory Operation (Recall / Memorize / Clear)
-- Preset - Name (Set / Clear)
+- Preset - Name (Set / Reset / Reset All)
 - Preset - Reset Selected / Completed State
 - Preset - Recall Scope
 - Preset - Clear All

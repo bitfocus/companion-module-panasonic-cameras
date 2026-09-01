@@ -281,8 +281,41 @@ describe('preset names (AW-UE150A)', () => {
 		expect(await name({ op: 'set', val: 3, name: '  Wide  ' })).toEqual(['OSJ:35:03:Wide           '])
 	})
 
-	it('clears a name with the delete command, not a blank one', async () => {
-		expect(await name({ op: 'clear', val: 99, name: 'ignored' })).toEqual(['OSJ:36:99'])
+	// OSJ:36 is the camera's own reset, putting Preset001-Preset100 back for the position. It is not a
+	// delete, and storing a blank name is a different thing again - one the camera accepts as a name.
+	it('resets to the default with the camera command rather than writing the name itself', async () => {
+		expect(await name({ op: 'reset', val: 99, name: 'ignored' })).toEqual(['OSJ:36:99'])
+	})
+
+	// Guarded the same way as Preset - Clear All: the dropdown puts a whole-camera reset one click away
+	// from the per-preset entries above it.
+	it('resets every name at once, but only once confirmed', async () => {
+		expect(await name({ op: 'resetAll', confirm: true })).toEqual(['OSJ:37'])
+		expect(await name({ op: 'resetAll', confirm: false })).toEqual([])
+	})
+
+	// The checkbox is not on screen until the mode is picked, so an unticked one looks like a dead action.
+	it('says why it did nothing when the confirmation is missing', async () => {
+		const logged = []
+		const self = mockInstance('AW-UE150A', { presetNames: [] })
+		self.log = (level, message) => logged.push([level, message])
+
+		await getActionDefinitions(self).presetName.callback({
+			actionId: 'presetName',
+			options: { op: 'resetAll', confirm: false },
+		})
+
+		expect(self.sent).toEqual([])
+		expect(logged).toEqual([['warn', expect.stringContaining('confirmation')]])
+	})
+
+	it('needs no preset number to reset them all', async () => {
+		expect(await name({ op: 'resetAll', val: 'nonsense', confirm: true })).toEqual(['OSJ:37'])
+	})
+
+	it('stores a name of nothing but spaces', async () => {
+		expect(await name({ op: 'set', val: 4, name: '' })).toEqual(['OSJ:35:04:               '])
+		expect(await name({ op: 'set', val: 4, name: '   ' })).toEqual(['OSJ:35:04:               '])
 	})
 
 	it('takes no action on a preset number it cannot read', async () => {
@@ -293,7 +326,9 @@ describe('preset names (AW-UE150A)', () => {
 // Wiping the presets wipes what was cached about them. The camera reports the empty slots back through
 // pE soon enough, but on a model without a subscription that is a whole poll cycle of stale thumbnails.
 describe('clearing every preset (AW-UE150A)', () => {
-	it('drops the cached names and thumbnails with them', async () => {
+	// The cache is left to the entry report the camera pushes back: clearing it here would be guessing
+	// ahead of a command that can still be refused, and there would then be no pE to put it right.
+	it('leaves the cache to the camera rather than emptying it in advance', async () => {
 		const self = mockInstance('AW-UE150A', {
 			presetThumbnails: ['png', 'png'],
 			presetNames: ['Wide', 'Tight'],
@@ -301,12 +336,16 @@ describe('clearing every preset (AW-UE150A)', () => {
 
 		await getActionDefinitions(self).presetClearAll.callback({ actionId: 'presetClearAll', options: { confirm: true } })
 
-		expect(self.data.presetThumbnails.filter(Boolean)).toEqual([])
-		expect(self.data.presetNames.filter(Boolean)).toEqual([])
+		expect(self.sent).toHaveLength(100)
+		expect(self.sent[0]).toBe('#C00')
+		expect(self.data.presetThumbnails).toEqual(['png', 'png'])
+		expect(self.data.presetNames).toEqual(['Wide', 'Tight'])
 	})
 
-	it('keeps them when the confirmation is not given', async () => {
+	it('keeps them when the confirmation is not given, and says so', async () => {
+		const logged = []
 		const self = mockInstance('AW-UE150A', { presetNames: ['Wide'] })
+		self.log = (level, message) => logged.push([level, message])
 
 		await getActionDefinitions(self).presetClearAll.callback({
 			actionId: 'presetClearAll',
@@ -315,6 +354,7 @@ describe('clearing every preset (AW-UE150A)', () => {
 
 		expect(self.sent).toEqual([])
 		expect(self.data.presetNames).toEqual(['Wide'])
+		expect(logged).toEqual([['warn', expect.stringContaining('confirmation')]])
 	})
 })
 

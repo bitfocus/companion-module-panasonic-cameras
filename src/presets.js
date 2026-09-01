@@ -1267,7 +1267,9 @@ export function getPresetDefinitions(self) {
 		presets['preset-clear-all'] = {
 			type: 'layered',
 			category: 'Preset Memory',
-			name: 'Clear All Presets (hold 3s)',
+			name: SERIES.capabilities.presetNames
+				? 'Clear All Presets and Reset All Names (hold 3s)'
+				: 'Clear All Presets (hold 3s)',
 			elements: layers({ text: 'CLEAR ALL\\nPRESETS' }),
 			steps: [
 				{
@@ -1282,6 +1284,14 @@ export function getPresetDefinitions(self) {
 									confirm: true,
 								},
 							},
+							...(SERIES.capabilities.presetNames
+								? [
+										{
+											actionId: 'presetName',
+											options: { op: 'resetAll', val: e.ENUM_PRESET[0].id, name: '', confirm: true },
+										},
+									]
+								: []),
 						],
 					},
 				},
@@ -1289,7 +1299,6 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		// Templated over the model's actual preset slots (not a hardcoded 100).
 		presets['preset-memory'] = {
 			type: 'layered',
 			category: 'Preset Memory',
@@ -1302,8 +1311,6 @@ export function getPresetDefinitions(self) {
 				})),
 			},
 			localVariables: [{ variableType: 'simple', variableName: 'preset', startupValue: 1 }],
-			// The thumbnail sits behind this text, so the caption needs an edge of its own to stay legible
-			// whatever the camera happens to be pointing at.
 			elements: layers({ text: 'PRESET\\n$(local:preset)', outlineColor: colorBlack }),
 			steps: [
 				{

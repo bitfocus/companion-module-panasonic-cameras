@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseRefusal, parseUpdate, parseWeb, parseWebCode } from '../parser.js'
 import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
 import { initialData } from '../data.js'
+import { getFeedbackDefinitions } from '../feedbacks.js'
 
 // parseUpdate mutates self.data in place from the camera's notification strings. The real shape, so a
 // branch writing into a container the module initialises (presetThumbnails, panTiltLimits) is exercised
@@ -524,7 +525,7 @@ describe('preset names', () => {
 		expect(parse('OSJ', '35', '11', 'Wide Shot      ').presetNames[11]).toBe('Wide Shot')
 	})
 
-	it('reads a never-named preset as empty', () => {
+	it('reads an all-blank name as empty, which the camera accepts as a name', () => {
 		expect(parse('OSJ', '35', '00', '               ').presetNames[0]).toBe('')
 	})
 
@@ -556,7 +557,9 @@ describe('the preset entry bitmap', () => {
 		return self
 	}
 
-	it('drops the cache of a preset that was cleared', () => {
+	// The camera keeps the name against the position, not against the preset: clearing preset 1 and
+	// storing a new one there leaves it called what it was called before.
+	it('drops the thumbnail of a preset that was cleared but keeps its name', () => {
 		const self = entryInstance()
 		parseUpdate(self, ['pE000000000001'])
 		self.data.presetThumbnails[0] = 'png'
@@ -565,7 +568,7 @@ describe('the preset entry bitmap', () => {
 		parseUpdate(self, ['pE000000000000'])
 
 		expect(self.data.presetThumbnails[0]).toBeUndefined()
-		expect(self.data.presetNames[0]).toBeUndefined()
+		expect(self.data.presetNames[0]).toBe('Wide Shot')
 	})
 
 	it('refetches the thumbnails of the presets the bank holds', () => {
@@ -576,7 +579,7 @@ describe('the preset entry bitmap', () => {
 		expect(self.thumbnails).toEqual([0, 2])
 	})
 
-	it('keeps refetching them on a bank that reads the same as before', () => {
+	it('keeps refetching them while subscribed, on a bank that reads the same as before', () => {
 		const self = entryInstance()
 		parseUpdate(self, ['pE000000000001'])
 		self.thumbnails = []
@@ -617,17 +620,48 @@ describe('the preset entry bitmap', () => {
 		expect(self.queries).toEqual(['QSJ:35:00', 'QSJ:35:00'])
 	})
 
-	// Without a subscription there are no OSJ:35/36/37 notifications, so a name changed by another
-	// controller has nothing to announce it. The bank is re-read every poll cycle; the names ride along.
-	it('re-reads the names on every bank report when running without a subscription', () => {
-		const self = entryInstance()
-		self.config.subscriptionEnable = false
+	// Polling re-reads the same three lines every cycle. Following each one up the way a push is followed
+	// up would mean refetching every stored thumbnail every few seconds for as long as the connection
+	// lives, so a polled bank is acted on only where it actually moved.
+	describe('when polled instead of pushed', () => {
+		const polled = () => {
+			const self = entryInstance()
+			self.config.subscriptionEnable = false
+			return self
+		}
 
-		parseUpdate(self, ['pE000000000001'])
-		self.data.presetNames[0] = 'Wide Shot'
-		parseUpdate(self, ['pE000000000001'])
+		it('goes quiet once it has read a bank that is not changing', () => {
+			const self = polled()
+			parseUpdate(self, ['pE000000000001'])
+			expect(self.thumbnails).toEqual([0])
+			self.thumbnails = []
 
-		expect(self.queries).toEqual(['QSJ:35:00', 'QSJ:35:00'])
+			parseUpdate(self, ['pE000000000001'])
+			parseUpdate(self, ['pE000000000001'])
+
+			expect(self.thumbnails).toEqual([])
+		})
+
+		it('still picks up a slot that fills', () => {
+			const self = polled()
+			parseUpdate(self, ['pE000000000001'])
+			self.thumbnails = []
+
+			parseUpdate(self, ['pE000000000003']) // preset 2 joins it
+
+			expect(self.thumbnails).toEqual([1])
+		})
+
+		// The cost of the above: nothing announces an overwrite, and the bitmap cannot show one.
+		it('cannot see a preset overwritten in place', () => {
+			const self = polled()
+			parseUpdate(self, ['pE000000000001'])
+			self.thumbnails = []
+
+			parseUpdate(self, ['pE000000000001'])
+
+			expect(self.thumbnails).toEqual([])
+		})
 	})
 
 	it('reads no names on a model without them', () => {
@@ -646,30 +680,46 @@ describe('the preset entry bitmap', () => {
 // Acting on the notifications keeps that sweep for what it is actually needed for: the initial sync,
 // and cameras polled without a subscription.
 describe('the preset name and thumbnail notifications', () => {
-	const notified = () => ({ data: initialData(), thumbnails: [], getThumbnail() {}, log() {} })
+	const notified = () => {
+		const self = {
+			data: initialData(),
+			SERIES: { capabilities: { presetNames: true, presetThumbnails: true, preset: 100 } },
+			thumbnails: [],
+			queries: [],
+			getThumbnail: (idx) => self.thumbnails.push(idx),
+			getCam: (cmd) => self.queries.push(cmd),
+			log() {},
+		}
+		return self
+	}
 
-	it('drops one name on OSJ:36', () => {
+	// OSJ:36 and OSJ:37 put the camera's own Preset001-Preset100 back rather than leaving nothing, and
+	// neither answer says so in words - hence the re-read instead of writing that wording from here.
+	it('re-reads the name OSJ:36 reset', () => {
 		const self = notified()
 		self.data.presetNames[7] = 'Wide Shot'
 
 		parseUpdate(self, ['OSJ', '36', '07'])
 
 		expect(self.data.presetNames[7]).toBeUndefined()
+		expect(self.queries).toEqual(['QSJ:35:07'])
 	})
 
-	it('drops every name on OSJ:37', () => {
+	it('re-reads the names OSJ:37 reset, for the presets that are in use', () => {
 		const self = notified()
+		self.data.presetEntries[0] = '1'
+		self.data.presetEntries[42] = '1'
 		self.data.presetNames[0] = 'Wide Shot'
 		self.data.presetNames[42] = 'Tight'
 
 		parseUpdate(self, ['OSJ', '37'])
 
 		expect(self.data.presetNames.filter(Boolean)).toEqual([])
+		expect(self.queries).toEqual(['QSJ:35:00', 'QSJ:35:42'])
 	})
 
 	it('refetches the one thumbnail OSJ:39 names', () => {
 		const self = notified()
-		self.getThumbnail = (idx) => self.thumbnails.push(idx)
 
 		parseUpdate(self, ['OSJ', '39', '12'])
 
@@ -703,10 +753,33 @@ describe('the preset name and thumbnail notifications', () => {
 
 	it('fetches nothing for a thumbnail notification it cannot place', () => {
 		const self = notified()
-		self.getThumbnail = (idx) => self.thumbnails.push(idx)
 
 		parseUpdate(self, ['OSJ', '39', '100'])
 
 		expect(self.thumbnails).toEqual([])
+	})
+})
+
+// A name the user deliberately emptied is not the same as one the module has not read: the first is a
+// button showing nothing but its thumbnail, the second is a button that should keep its own caption.
+describe('the preset name feedback', () => {
+	const feedbackFor = (names) => {
+		const self = {
+			config: { model: 'AW-UE150A' },
+			data: { model: null, modelAuto: null, series: null, presetNames: names },
+		}
+		return getFeedbackDefinitions(self).presetName
+	}
+
+	it('shows a stored name', () => {
+		expect(feedbackFor(['Wide Shot']).callback({ options: { option: 0 } })).toEqual({ text: 'Wide Shot' })
+	})
+
+	it('shows an empty name as empty', () => {
+		expect(feedbackFor(['']).callback({ options: { option: 0 } })).toEqual({ text: '' })
+	})
+
+	it("leaves the button's own text alone while nothing has been read", () => {
+		expect(feedbackFor([]).callback({ options: { option: 0 } })).toEqual({})
 	})
 })

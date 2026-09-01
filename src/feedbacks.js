@@ -318,7 +318,7 @@ export function getFeedbackDefinitions(self) {
 					const idx = parsePresetIdx(feedback, caps.preset)
 					if (idx === null) return {}
 					const name = self.data.presetNames[idx]
-					return name ? { text: name } : {}
+					return name === undefined ? {} : { text: name }
 				},
 			}
 		}

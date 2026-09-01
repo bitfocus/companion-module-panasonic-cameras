@@ -17,9 +17,12 @@ function presetIndex(value) {
 	return idx >= 0 && idx < 100 ? idx : null
 }
 
-function clearPresetCache(self, idx) {
+function clearPresetThumbnail(self, idx) {
 	self.data.presetThumbnails[idx] = undefined
-	self.data.presetNames[idx] = undefined
+}
+
+function readPresetName(self, idx) {
+	if (self.SERIES?.capabilities.presetNames) self.getCam('QSJ:35:' + idx.toString(10).padStart(2, '0'))
 }
 
 // Reads a camera reply as a refusal, or returns null if it is an ordinary answer.
@@ -105,27 +108,17 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		const bank = PRESET_BANKS[str[0].substring(2, 4)]
 		if (bank) {
 			const [key, base, width] = bank
+			const previous = self.data[key]
 			const entries = parseInt(str[0].substring(4), 16).toString(2).padStart(width, 0).split('').reverse()
+			const settled = !self.config?.subscriptionEnable
 			self.data[key] = entries
 
 			entries.forEach((p, i) => {
 				const idx = base + i
-				if (p !== '1') return clearPresetCache(self, idx)
-
-				// Storing a preset regenerates its thumbnail without changing this bitmap, so an occupied
-				// slot is refetched whenever the bank reports in.
+				if (p !== '1') return clearPresetThumbnail(self, idx)
+				if (settled && p === previous[i]) return // skip unchanged entries without subscription
 				self.getThumbnail(idx)
-
-				// The name is another matter: storing does not touch it, and a change to it arrives as
-				// OSJ:35/36/37. So it is read where there is none cached - a slot that has just filled, or
-				// one whose first read never came back - and on every bank report where those notifications
-				// do not exist, which is a connection running without a subscription.
-				if (
-					self.SERIES?.capabilities.presetNames &&
-					(self.data.presetNames[idx] === undefined || !self.config?.subscriptionEnable)
-				) {
-					self.getCam('QSJ:35:' + idx.toString(10).padStart(2, '0'))
-				}
+				if (self.data.presetNames[idx] === undefined) readPresetName(self, idx)
 			})
 		}
 
@@ -430,11 +423,16 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 				}
 				case '36': {
 					const idx = presetIndex(str[2])
-					if (idx !== null) self.data.presetNames[idx] = undefined
+					if (idx !== null) {
+						self.data.presetNames[idx] = undefined
+						readPresetName(self, idx)
+					}
 					break
 				}
 				case '37':
 					self.data.presetNames.fill(undefined)
+					// scan only the occupied slots
+					self.data.presetEntries.forEach((p, idx) => p === '1' && readPresetName(self, idx))
 					break
 				case '39': {
 					const idx = presetIndex(str[2])
