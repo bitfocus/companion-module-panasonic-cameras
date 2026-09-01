@@ -187,7 +187,6 @@ export async function getAllCameraStatus(self) {
 			'QSJ:0F', // Master Pedestal
 			'QSJ:10', // G Pedestal
 			'QSJ:29', // Preset Speed Unit
-			'QSJ:35:00', // Preset Name, one query per preset (00-99)
 			'QSJ:5C', // Camera Title
 			'QSJ:D2', // ND Filter Status
 			'QSK:02', // Chroma Level (POVCAM)
