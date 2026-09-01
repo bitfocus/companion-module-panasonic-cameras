@@ -4,6 +4,27 @@ const logger = createModuleLogger('parser')
 
 const REFUSAL = /^[eE]R([123]):(.*)$/
 
+// pE bank -> [state key, first preset index, number of presets reported].
+const PRESET_BANKS = {
+	'00': ['presetEntries0', 0, 40],
+	'01': ['presetEntries1', 40, 40],
+	'02': ['presetEntries2', 80, 20],
+}
+
+// Preset number as the OSJ preset commands carry it: two decimal digits, 00 being preset 1.
+function presetIndex(value) {
+	const idx = parseInt(value, 10)
+	return idx >= 0 && idx < 100 ? idx : null
+}
+
+function clearPresetThumbnail(self, idx) {
+	self.data.presetThumbnails[idx] = undefined
+}
+
+function readPresetName(self, idx) {
+	if (self.SERIES?.capabilities.presetNames) self.getCam('QSJ:35:' + idx.toString(10).padStart(2, '0'))
+}
+
 // Reads a camera reply as a refusal, or returns null if it is an ordinary answer.
 export function parseRefusal(str) {
 	const match = REFUSAL.exec(str)
@@ -84,25 +105,22 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 	}
 
 	if (str[0].substring(0, 2) === 'pE') {
-		switch (str[0].substring(2, 4)) {
-			case '00':
-				self.data.presetEntries0 = parseInt(str[0].substring(4), 16).toString(2).padStart(40, 0).split('').reverse()
-				self.data.presetEntries0.forEach((p, i) =>
-					p === '1' ? self.getThumbnail(i) : (self.data.presetThumbnails[i] = undefined),
-				)
-				break
-			case '01':
-				self.data.presetEntries1 = parseInt(str[0].substring(4), 16).toString(2).padStart(40, 0).split('').reverse()
-				self.data.presetEntries1.forEach((p, i) =>
-					p === '1' ? self.getThumbnail(i + 40) : (self.data.presetThumbnails[i + 40] = undefined),
-				)
-				break
-			case '02':
-				self.data.presetEntries2 = parseInt(str[0].substring(4), 16).toString(2).padStart(20, 0).split('').reverse()
-				self.data.presetEntries2.forEach((p, i) =>
-					p === '1' ? self.getThumbnail(i + 80) : (self.data.presetThumbnails[i + 80] = undefined),
-				)
-				break
+		const bank = PRESET_BANKS[str[0].substring(2, 4)]
+		if (bank) {
+			const [key, base, width] = bank
+			const previous = self.data[key]
+			const entries = parseInt(str[0].substring(4), 16).toString(2).padStart(width, 0).split('').reverse()
+			const settled = !self.config?.subscriptionEnable
+			self.data[key] = entries
+
+			entries.forEach((p, i) => {
+				const idx = base + i
+				if (p !== '1') return clearPresetThumbnail(self, idx)
+				if (self.data.presetNames[idx] === undefined) readPresetName(self, idx)
+
+				if (settled && p === previous[i]) return // skip unchanged entries without subscription
+				self.getThumbnail(idx)
+			})
 		}
 
 		self.data.presetEntries = self.data.presetEntries0.concat(self.data.presetEntries1.concat(self.data.presetEntries2))
@@ -153,9 +171,6 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		self.data.presetSpeed = str[0].substring(4)
 	}
 
-	// A short or non-numeric notification would otherwise store NaN, which publishes as a NaN
-	// variable, satisfies the "is the lens moving" feedback (NaN != 0) so the button latches lit, and
-	// feeds back out as a literal "#ZNaN" on the wire. Keep the last known speed instead.
 	if (str[0].substring(0, 2) === 'fS') {
 		const speed = parseInt(str[0].substring(2, 4), 10)
 		if (Number.isFinite(speed)) self.data.focusSpeedValue = speed - 50
@@ -402,7 +417,37 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 				case '29':
 					self.data.presetSpeedUnit = str[2]
 					break
-				//case '3C': break; // Preset Name / Preset Thumbnail Counter
+				case '35': {
+					const idx = presetIndex(str[2])
+					if (idx !== null) self.data.presetNames[idx] = str.slice(3).join(':').trim()
+					break
+				}
+				case '36': {
+					const idx = presetIndex(str[2])
+					if (idx !== null) {
+						self.data.presetNames[idx] = undefined
+						readPresetName(self, idx)
+					}
+					break
+				}
+				case '37':
+					self.data.presetNames.fill(undefined)
+					// scan only the occupied slots
+					self.data.presetEntries.forEach((p, idx) => p === '1' && readPresetName(self, idx))
+					break
+				case '39': {
+					const idx = presetIndex(str[2])
+					if (idx !== null) self.getThumbnail(idx)
+					break
+				}
+				case '3A': {
+					const idx = presetIndex(str[2])
+					if (idx !== null) self.data.presetThumbnails[idx] = undefined
+					break
+				}
+				case '3B':
+					self.data.presetThumbnails.fill(undefined)
+					break
 				case '4A':
 					self.data.awbColorTempLabel =
 						(str[3] === '1' ? '<' : str[3] === '2' ? '>' : '') + parseInt(str[2], 16).toString() + 'K'
@@ -534,8 +579,6 @@ export function parseWeb(self, str, cmd) {
 // says the camera did it. 503 used to be accepted here too, as if it were a second flavour of "no
 // content", but it is the opposite: these cameras answer 503 when the command's precondition does not
 // hold — SRT control while RTMP is the selected protocol, a record command with the card not ready.
-// An ordinary operating state, and not one to write down as a stream that started. (The branch could
-// never fire in any case: got rejects a 503 before this is called, and always has.)
 export function parseWebCode(self, code, cmd) {
 	if (code === 204) {
 		switch (cmd) {

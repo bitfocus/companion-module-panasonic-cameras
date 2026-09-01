@@ -9,6 +9,14 @@ import {
 	parsePresetNumber,
 } from './common.js'
 
+const PRESET_NAME_LENGTH = 15
+const presetNameOnWire = (name) =>
+	String(name ?? '')
+		.trim()
+		.replace(/[^A-Za-z0-9_ ]/g, '')
+		.slice(0, PRESET_NAME_LENGTH)
+		.padEnd(PRESET_NAME_LENGTH, ' ')
+
 const SPEED_OFFSET = 50
 const SPEED_MIN = 0
 const SPEED_MAX = 49
@@ -797,11 +805,64 @@ export function getActionDefinitions(self) {
 				},
 			],
 			callback: async (action) => {
-				if (!action.options.confirm) return
+				if (!action.options.confirm) {
+					return self.log('warn', ' Clear All Preset Memories skipped, its confirmation option is not checked')
+				}
 				for (let i = 0; i < caps.preset; i++) {
 					await ptz('C' + i.toString(10).padStart(2, '0'))
 				}
 			},
+		}
+
+		if (caps.presetNames) {
+			actions.presetName = {
+				name: 'Preset - Name',
+				options: [
+					{
+						type: 'dropdown',
+						label: 'Action',
+						id: 'op',
+						disableAutoExpression: true,
+						default: 'set',
+						choices: [
+							{ id: 'set', label: 'Set' },
+							{ id: 'reset', label: 'Reset to Default' },
+							{ id: 'resetAll', label: 'Reset All to Default' },
+						],
+					},
+					{ ...optPresetNumber('val', caps.preset), isVisibleExpression: '$(options:op) != "resetAll"' },
+					{
+						id: 'name',
+						type: 'textinput',
+						label: 'Name',
+						default: '',
+						isVisibleExpression: '$(options:op) == "set"',
+					},
+					{
+						id: 'confirm',
+						type: 'checkbox',
+						label: 'I understand this will instantly reset all preset names',
+						default: false,
+						isVisibleExpression: '$(options:op) == "resetAll"',
+					},
+				],
+				callback: async (action) => {
+					if (action.options.op === 'resetAll') {
+						if (!action.options.confirm) {
+							return self.log('warn', 'Reset All Preset Names skipped, its confirmation option is not checked')
+						}
+						await cam('OSJ:37')
+						return
+					}
+
+					const idx = parsePresetNumber(action.options.val, caps.preset)
+					if (idx === null) return
+					const n = idx.toString(10).padStart(2, '0')
+
+					if (action.options.op === 'reset') await cam('OSJ:36:' + n)
+					else await cam(`OSJ:35:${n}:${presetNameOnWire(action.options.name)}`)
+				},
+			}
 		}
 	}
 

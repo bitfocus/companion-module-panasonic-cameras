@@ -50,7 +50,15 @@ const align = (alignment) => {
 // Background, image, text, in the order the host itself stacked them; Companion prepends the canvas.
 // Every button carries all three even when it draws no image, exactly as the legacy conversion did —
 // a feedback can then fill one in without the preset having to anticipate it.
-const layers = ({ text = '', size = SIZE, color = colorWhite, alignment, bgcolor = colorBlack, png64 } = {}) => [
+const layers = ({
+	text = '',
+	size = SIZE,
+	color = colorWhite,
+	alignment,
+	bgcolor = colorBlack,
+	png64,
+	outlineColor,
+} = {}) => [
 	{ id: BG, name: 'Background', type: 'box', color: bgcolor },
 	{
 		id: IMAGE,
@@ -67,6 +75,7 @@ const layers = ({ text = '', size = SIZE, color = colorWhite, alignment, bgcolor
 		fontsize: size === 'auto' ? 100 : size,
 		fontsizeAllowShrink: size === 'auto',
 		color,
+		...(outlineColor !== undefined ? { outlineColor } : {}),
 		...align(alignment),
 	},
 ]
@@ -78,6 +87,7 @@ const set = (elementId, elementProperty, value) => ({
 })
 
 const advancedImage = [set(IMAGE, 'base64Image', 'png64')]
+const advancedText = [set(TEXT, 'text', 'text')]
 
 const overrides = (style) => {
 	const { color, bgcolor, png64 } = style ?? {}
@@ -959,6 +969,7 @@ export function getPresetDefinitions(self) {
 			elements: layers({
 				text: '$(generic-module:title)',
 				alignment: 'center:bottom', // keep title clear of picture
+				outlineColor: colorBlack, // ...which the picture still reaches into, so give it an edge
 			}),
 			canvas: { decoration: 'none' }, // the old show_topbar: false
 			steps: [],
@@ -1220,7 +1231,6 @@ export function getPresetDefinitions(self) {
 		)
 	}
 
-	// Scoping a recall is its own capability: the AW-UE4 stores and recalls presets but has no OSE:71.
 	if (SERIES.capabilities.preset && SERIES.capabilities.presetScope) {
 		presets['preset-scope-a'] = valuePreset(
 			'Preset Memory',
@@ -1257,7 +1267,9 @@ export function getPresetDefinitions(self) {
 		presets['preset-clear-all'] = {
 			type: 'layered',
 			category: 'Preset Memory',
-			name: 'Clear All Presets (hold 3s)',
+			name: SERIES.capabilities.presetNames
+				? 'Clear All Presets and Reset All Names (hold 3s)'
+				: 'Clear All Presets (hold 3s)',
 			elements: layers({ text: 'CLEAR ALL\\nPRESETS' }),
 			steps: [
 				{
@@ -1272,6 +1284,14 @@ export function getPresetDefinitions(self) {
 									confirm: true,
 								},
 							},
+							...(SERIES.capabilities.presetNames
+								? [
+										{
+											actionId: 'presetName',
+											options: { op: 'resetAll', val: e.ENUM_PRESET[0].id, name: '', confirm: true },
+										},
+									]
+								: []),
 						],
 					},
 				},
@@ -1279,7 +1299,6 @@ export function getPresetDefinitions(self) {
 			feedbacks: [],
 		}
 
-		// Templated over the model's actual preset slots (not a hardcoded 100).
 		presets['preset-memory'] = {
 			type: 'layered',
 			category: 'Preset Memory',
@@ -1292,7 +1311,7 @@ export function getPresetDefinitions(self) {
 				})),
 			},
 			localVariables: [{ variableType: 'simple', variableName: 'preset', startupValue: 1 }],
-			elements: layers({ text: 'PRESET\\n$(local:preset)' }),
+			elements: layers({ text: 'PRESET\\n$(local:preset)', outlineColor: colorBlack }),
 			steps: [
 				{
 					down: [
@@ -1339,6 +1358,15 @@ export function getPresetDefinitions(self) {
 								feedbackId: 'presetThumbnail',
 								options: presetFeedbackOptions(),
 								styleOverrides: advancedImage,
+							},
+						]
+					: []),
+				...(SERIES.capabilities.presetNames
+					? [
+							{
+								feedbackId: 'presetName',
+								options: presetFeedbackOptions(),
+								styleOverrides: advancedText,
 							},
 						]
 					: []),

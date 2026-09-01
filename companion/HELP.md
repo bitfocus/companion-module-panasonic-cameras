@@ -103,6 +103,7 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 **Preset**
 
 - Preset - Memory Operation (Recall / Memorize / Clear)
+- Preset - Name (Set / Reset / Reset All)
 - Preset - Reset Selected / Completed State
 - Preset - Recall Scope
 - Preset - Clear All
@@ -188,6 +189,7 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 - Preset - Recall Completion Notification
 - Preset - Memory State
 - Preset - Thumbnail
+- Preset - Name
 
 **Auto Tracking**
 

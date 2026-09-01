@@ -12,6 +12,8 @@ function mockInstance(model, data = {}) {
 		getCam: (cmd) => sent.push(cmd),
 		getPTZ: (cmd) => sent.push('#' + cmd),
 		log: () => {},
+		checkVariables: () => {},
+		checkAllFeedbacks: () => {},
 		sent,
 	}
 	return self
@@ -250,5 +252,116 @@ describe('Custom Command responses', () => {
 		await send(self, 'QID')
 
 		expect(self.data.customResponse).toBeNull()
+	})
+})
+
+// The camera stores exactly fifteen characters from a fixed alphabet and answers ER1 to anything else,
+// so the action filters rather than forwards. Padding is wire format only — what the module keeps is
+// the trimmed name, which is why parser.js trims the answer straight back off.
+describe('preset names (AW-UE150A)', () => {
+	async function name(options) {
+		const self = mockInstance('AW-UE150A', { presetNames: [] })
+		await getActionDefinitions(self).presetName.callback({ actionId: 'presetName', options })
+		return self.sent
+	}
+
+	it('pads a short name out to the fixed fifteen characters', async () => {
+		expect(await name({ op: 'set', val: 0, name: 'Wide' })).toEqual(['OSJ:35:00:Wide           '])
+	})
+
+	it('cuts a name the camera has no room for', async () => {
+		expect(await name({ op: 'set', val: 11, name: 'Presenter close-up' })).toEqual(['OSJ:35:11:Presenter close'])
+	})
+
+	it('drops the characters the camera refuses', async () => {
+		expect(await name({ op: 'set', val: 3, name: 'Gast: Müller!' })).toEqual(['OSJ:35:03:Gast Mller     '])
+	})
+
+	it('trims what the user typed before padding it', async () => {
+		expect(await name({ op: 'set', val: 3, name: '  Wide  ' })).toEqual(['OSJ:35:03:Wide           '])
+	})
+
+	// OSJ:36 is the camera's own reset, putting Preset001-Preset100 back for the position. It is not a
+	// delete, and storing a blank name is a different thing again - one the camera accepts as a name.
+	it('resets to the default with the camera command rather than writing the name itself', async () => {
+		expect(await name({ op: 'reset', val: 99, name: 'ignored' })).toEqual(['OSJ:36:99'])
+	})
+
+	// Guarded the same way as Preset - Clear All: the dropdown puts a whole-camera reset one click away
+	// from the per-preset entries above it.
+	it('resets every name at once, but only once confirmed', async () => {
+		expect(await name({ op: 'resetAll', confirm: true })).toEqual(['OSJ:37'])
+		expect(await name({ op: 'resetAll', confirm: false })).toEqual([])
+	})
+
+	// The checkbox is not on screen until the mode is picked, so an unticked one looks like a dead action.
+	it('says why it did nothing when the confirmation is missing', async () => {
+		const logged = []
+		const self = mockInstance('AW-UE150A', { presetNames: [] })
+		self.log = (level, message) => logged.push([level, message])
+
+		await getActionDefinitions(self).presetName.callback({
+			actionId: 'presetName',
+			options: { op: 'resetAll', confirm: false },
+		})
+
+		expect(self.sent).toEqual([])
+		expect(logged).toEqual([['warn', expect.stringContaining('confirmation')]])
+	})
+
+	it('needs no preset number to reset them all', async () => {
+		expect(await name({ op: 'resetAll', val: 'nonsense', confirm: true })).toEqual(['OSJ:37'])
+	})
+
+	it('stores a name of nothing but spaces', async () => {
+		expect(await name({ op: 'set', val: 4, name: '' })).toEqual(['OSJ:35:04:               '])
+		expect(await name({ op: 'set', val: 4, name: '   ' })).toEqual(['OSJ:35:04:               '])
+	})
+
+	it('takes no action on a preset number it cannot read', async () => {
+		expect(await name({ op: 'set', val: 'nonsense', name: 'Wide' })).toEqual([])
+	})
+})
+
+// Wiping the presets wipes what was cached about them. The camera reports the empty slots back through
+// pE soon enough, but on a model without a subscription that is a whole poll cycle of stale thumbnails.
+describe('clearing every preset (AW-UE150A)', () => {
+	// The cache is left to the entry report the camera pushes back: clearing it here would be guessing
+	// ahead of a command that can still be refused, and there would then be no pE to put it right.
+	it('leaves the cache to the camera rather than emptying it in advance', async () => {
+		const self = mockInstance('AW-UE150A', {
+			presetThumbnails: ['png', 'png'],
+			presetNames: ['Wide', 'Tight'],
+		})
+
+		await getActionDefinitions(self).presetClearAll.callback({ actionId: 'presetClearAll', options: { confirm: true } })
+
+		expect(self.sent).toHaveLength(100)
+		expect(self.sent[0]).toBe('#C00')
+		expect(self.data.presetThumbnails).toEqual(['png', 'png'])
+		expect(self.data.presetNames).toEqual(['Wide', 'Tight'])
+	})
+
+	it('keeps them when the confirmation is not given, and says so', async () => {
+		const logged = []
+		const self = mockInstance('AW-UE150A', { presetNames: ['Wide'] })
+		self.log = (level, message) => logged.push([level, message])
+
+		await getActionDefinitions(self).presetClearAll.callback({
+			actionId: 'presetClearAll',
+			options: { confirm: false },
+		})
+
+		expect(self.sent).toEqual([])
+		expect(self.data.presetNames).toEqual(['Wide'])
+		expect(logged).toEqual([['warn', expect.stringContaining('confirmation')]])
+	})
+})
+
+// A model without stored preset names must not offer the action at all; most of the range answers
+// ER1 to OSJ:35, and the AW-UE20 does so despite having preset thumbnails.
+describe('preset names on a model without them', () => {
+	it.each(['AW-UE20', 'AW-UE4', 'AW-HE40'])('offers no name action for %s', (model) => {
+		expect(getActionDefinitions(mockInstance(model)).presetName).toBeUndefined()
 	})
 })
