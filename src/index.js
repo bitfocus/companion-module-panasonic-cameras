@@ -787,6 +787,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.reportedAuth = new Set()
 		this.setStatus(InstanceStatus.Connecting, this.config.host + ':' + this.config.httpPort)
 
+		// Publish a definition without real camera connection
+		this.initDefinitions()
+
 		await this.getCam('QID') // pull model
 
 		if (this.stopped(generation)) return
@@ -815,12 +818,18 @@ export default class PanasonicCameraInstance extends InstanceBase {
 			pollCameraStatus(this).catch((err) => this.log('error', 'Polling stopped: ' + String(err)))
 		}
 
+		this.initDefinitions()
+
+		this.checkAllFeedbacks()
+	}
+
+	// Everything Companion needs to render and run the buttons. Derived from the series, so it is
+	// published once before it is known and again once it is.
+	initDefinitions() {
 		this.init_variables()
 		this.init_actions()
 		this.init_feedbacks()
 		this.init_presets()
-
-		this.checkAllFeedbacks()
 	}
 
 	getConfigFields() {
