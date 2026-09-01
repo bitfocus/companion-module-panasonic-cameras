@@ -969,6 +969,7 @@ export function getPresetDefinitions(self) {
 			elements: layers({
 				text: '$(generic-module:title)',
 				alignment: 'center:bottom', // keep title clear of picture
+				outlineColor: colorBlack, // ...which the picture still reaches into, so give it an edge
 			}),
 			canvas: { decoration: 'none' }, // the old show_topbar: false
 			steps: [],
