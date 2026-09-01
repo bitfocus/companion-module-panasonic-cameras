@@ -116,9 +116,10 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 			entries.forEach((p, i) => {
 				const idx = base + i
 				if (p !== '1') return clearPresetThumbnail(self, idx)
+				if (self.data.presetNames[idx] === undefined) readPresetName(self, idx)
+
 				if (settled && p === previous[i]) return // skip unchanged entries without subscription
 				self.getThumbnail(idx)
-				if (self.data.presetNames[idx] === undefined) readPresetName(self, idx)
 			})
 		}
 

@@ -652,6 +652,31 @@ describe('the preset entry bitmap', () => {
 			expect(self.thumbnails).toEqual([1])
 		})
 
+		// A name is another matter: one text query per slot that has none, which stops as soon as one
+		// arrives. Skipping those with the thumbnails would strand a first read that failed, since the
+		// slot it belongs to is precisely the one not about to change.
+		it('keeps asking for a name it has not got', () => {
+			const self = polled()
+			parseUpdate(self, ['pE000000000001'])
+			expect(self.queries).toEqual(['QSJ:35:00'])
+
+			parseUpdate(self, ['pE000000000001'])
+
+			expect(self.queries).toEqual(['QSJ:35:00', 'QSJ:35:00'])
+			expect(self.thumbnails).toEqual([0]) // ...without dragging the thumbnail along
+		})
+
+		it('stops asking once the name has arrived', () => {
+			const self = polled()
+			parseUpdate(self, ['pE000000000001'])
+			self.data.presetNames[0] = 'Wide Shot'
+			self.queries = []
+
+			parseUpdate(self, ['pE000000000001'])
+
+			expect(self.queries).toEqual([])
+		})
+
 		// The cost of the above: nothing announces an overwrite, and the bitmap cannot show one.
 		it('cannot see a preset overwritten in place', () => {
 			const self = polled()

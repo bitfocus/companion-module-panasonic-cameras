@@ -841,7 +841,7 @@ export function getActionDefinitions(self) {
 					{
 						id: 'confirm',
 						type: 'checkbox',
-						label: 'I understand this will instantly reset all presets names',
+						label: 'I understand this will instantly reset all preset names',
 						default: false,
 						isVisibleExpression: '$(options:op) == "resetAll"',
 					},
