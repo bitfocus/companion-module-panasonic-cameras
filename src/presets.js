@@ -50,7 +50,15 @@ const align = (alignment) => {
 // Background, image, text, in the order the host itself stacked them; Companion prepends the canvas.
 // Every button carries all three even when it draws no image, exactly as the legacy conversion did —
 // a feedback can then fill one in without the preset having to anticipate it.
-const layers = ({ text = '', size = SIZE, color = colorWhite, alignment, bgcolor = colorBlack, png64 } = {}) => [
+const layers = ({
+	text = '',
+	size = SIZE,
+	color = colorWhite,
+	alignment,
+	bgcolor = colorBlack,
+	png64,
+	outlineColor,
+} = {}) => [
 	{ id: BG, name: 'Background', type: 'box', color: bgcolor },
 	{
 		id: IMAGE,
@@ -67,6 +75,7 @@ const layers = ({ text = '', size = SIZE, color = colorWhite, alignment, bgcolor
 		fontsize: size === 'auto' ? 100 : size,
 		fontsizeAllowShrink: size === 'auto',
 		color,
+		...(outlineColor !== undefined ? { outlineColor } : {}),
 		...align(alignment),
 	},
 ]
@@ -1221,7 +1230,6 @@ export function getPresetDefinitions(self) {
 		)
 	}
 
-	// Scoping a recall is its own capability: the AW-UE4 stores and recalls presets but has no OSE:71.
 	if (SERIES.capabilities.preset && SERIES.capabilities.presetScope) {
 		presets['preset-scope-a'] = valuePreset(
 			'Preset Memory',
@@ -1293,7 +1301,9 @@ export function getPresetDefinitions(self) {
 				})),
 			},
 			localVariables: [{ variableType: 'simple', variableName: 'preset', startupValue: 1 }],
-			elements: layers({ text: 'PRESET\\n$(local:preset)' }),
+			// The thumbnail sits behind this text, so the caption needs an edge of its own to stay legible
+			// whatever the camera happens to be pointing at.
+			elements: layers({ text: 'PRESET\\n$(local:preset)', outlineColor: colorBlack }),
 			steps: [
 				{
 					down: [
