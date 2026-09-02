@@ -221,7 +221,9 @@ export function checkVariables(self) {
 		return val < low || val > high ? null : (((val - low) / (high - low)) * 100).toFixed(fractionDigits)
 	}
 
-	const irisMax = SERIES.capabilities.iris?.max ?? 0xaaa
+	// Each axis scales against its own range, so a percentage means the same thing on every camera
+	// even where the wire values do not.
+	const axisMax = (axis) => SERIES.capabilities[axis]?.range?.max ?? 0xaaa
 
 	// The camera's fault state is a bitmask, not one of the id/label tables the other enums use: several
 	// faults can stand at once. Empty string rather than "No Error", so a button can carry it bare and
@@ -264,13 +266,13 @@ export function checkVariables(self) {
 		irisPosition: self.data.irisPosition,
 		zoomPosition: self.data.zoomPosition,
 		irisFollowPosition: self.data.irisFollowPosition,
-		focusPositionPct: normalizePct(self.data.focusPosition, 0x0, 0xaaa, false),
-		irisPositionPct: normalizePct(self.data.irisPosition, 0x0, irisMax, false),
-		zoomPositionPct: normalizePct(self.data.zoomPosition, 0x0, 0xaaa, false, 1),
+		focusPositionPct: normalizePct(self.data.focusPosition, 0x0, axisMax('focus'), false),
+		irisPositionPct: normalizePct(self.data.irisPosition, 0x0, axisMax('iris'), false),
+		zoomPositionPct: normalizePct(self.data.zoomPosition, 0x0, axisMax('zoom'), false, 1),
 		irisFollowPositionPct: normalizePct(self.data.irisFollowPosition, 0x0, 0xff, false),
-		focusPositionBar: progressBar(normalizePct(self.data.focusPosition, 0x0, 0xaaa), 10, 'N', 'F'),
-		irisPositionBar: progressBar(normalizePct(self.data.irisPosition, 0x0, irisMax), 10, 'C', 'O'),
-		zoomPositionBar: progressBar(normalizePct(self.data.zoomPosition, 0x0, 0xaaa), 10, 'W', 'T'),
+		focusPositionBar: progressBar(normalizePct(self.data.focusPosition, 0x0, axisMax('focus')), 10, 'N', 'F'),
+		irisPositionBar: progressBar(normalizePct(self.data.irisPosition, 0x0, axisMax('iris')), 10, 'C', 'O'),
+		zoomPositionBar: progressBar(normalizePct(self.data.zoomPosition, 0x0, axisMax('zoom')), 10, 'W', 'T'),
 		irisFollowPositionBar: progressBar(normalizePct(self.data.irisFollowPosition, 0x0, 0xff), 10, 'C', 'O'),
 
 		chromaPhase: self.data.chromaPhaseValue,

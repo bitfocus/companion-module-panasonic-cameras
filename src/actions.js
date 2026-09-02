@@ -263,8 +263,10 @@ function cmdEnum(action, dropdown, data) {
 	return getNext(dropdown, data, action.options.op, false).id
 }
 
-function cmdSpeed(speed) {
-	return speed.toString().padStart(2, '0')
+// Decimal, unlike the hex a position carries. Pan/tilt is two digits everywhere; a lens axis states
+// its own width, because the box cameras' tempo is a single digit.
+function cmdSpeed(speed, width = 2) {
+	return speed.toString().padStart(width, '0')
 }
 
 // ##########################
@@ -279,6 +281,11 @@ export function getActionDefinitions(self) {
 	const cam = (cmd) => self.getCam(cmd)
 	const ptz = (cmd) => self.getPTZ(cmd)
 	const web = (cmd) => self.getWeb(cmd)
+
+	// aw_ptz concatenates its argument, aw_cam separates it with a colon. A lens axis names its
+	// transport, so it is the capability that decides which of the two a command goes out on.
+	const sender = (transport) =>
+		transport === 'cam' ? (cmd, value) => cam(`${cmd}:${value}`) : (cmd, value) => ptz(cmd + value)
 
 	// ----- Action factories -----
 	// read is a getter: toggle/step are relative to the camera's current value, unknown at build time.
@@ -301,6 +308,23 @@ export function getActionDefinitions(self) {
 		},
 	})
 
+	// Follow focus and iris are the same control: drive one axis to a value on its own scale. Bounds,
+	// offset and width all come from the axis, so none of them is written out by hand.
+	const positionAction = (name, label, cap, read) => {
+		const send = sender(cap.transport)
+		const { offset, max } = cap.range
+		const { cmd, step, hexlen } = cap.position
+
+		return {
+			name,
+			options: optSetIncDecStep(label, max >> 1, 0x0, max, step),
+			callback: async (action) => {
+				if (!resolveSetStep(self, action, 0x0, max, step)) return
+				await send(cmd, cmdValue(action, offset, 0x0, max, action.options.step, hexlen, read()))
+			},
+		}
+	}
+
 	const simpleAction = (name, send, command) => ({
 		name,
 		options: [],
@@ -320,8 +344,12 @@ export function getActionDefinitions(self) {
 	})
 
 	// Zoom and focus share three controls per axis: momentary move, direct speed, stored speed.
-	const lensAxis = (axis, command, speedProp, speedDataKey, incLabel, decLabel) => {
-		const move = (dir) => ptz(command + cmdSpeed(dir * self[speedProp] + SPEED_OFFSET))
+	// The jog carries direction and magnitude in one command centred on `offset`, so the same command
+	// serves the momentary move (magnitude from the stored speed) and the direct speed.
+	const lensAxis = (cap, axis, speedProp, speedDataKey, incLabel, decLabel) => {
+		const send = sender(cap.transport)
+		const drive = (speed) => send(cap.jog.cmd, cmdSpeed(speed + cap.jog.offset, cap.jog.width))
+		const move = (dir) => drive(dir * self[speedProp])
 		return {
 			move: {
 				name: `Lens - ${axis}`,
@@ -348,7 +376,7 @@ export function getActionDefinitions(self) {
 						action.options.op !== ACTION_SET
 							? getNextValue(self.data[speedDataKey], -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step)
 							: action.options.set
-					await ptz(command + cmdSpeed(self.data[speedDataKey] + SPEED_OFFSET))
+					await drive(self.data[speedDataKey])
 				},
 			},
 			speed: {
@@ -496,27 +524,27 @@ export function getActionDefinitions(self) {
 	// #### Lens Actions ####
 	// ######################
 
-	if (caps.zoom) {
-		const zoom = lensAxis('Zoom', 'Z', 'zSpeed', 'zoomSpeedValue', '⬆ In', '⬇ Out')
+	if (caps.zoom?.jog) {
+		const zoom = lensAxis(caps.zoom, 'Zoom', 'zSpeed', 'zoomSpeedValue', '⬆ In', '⬇ Out')
 		actions.zoom = zoom.move
 		actions.zoomControl = zoom.control
 		actions.zoomSpeed = zoom.speed
 	}
 
-	if (caps.focus) {
-		const focus = lensAxis('Focus', 'F', 'fSpeed', 'focusSpeedValue', '⬆ Far', '⬇ Near')
+	if (caps.focus?.jog) {
+		const focus = lensAxis(caps.focus, 'Focus', 'fSpeed', 'focusSpeedValue', '⬆ Far', '⬇ Near')
 		actions.focus = focus.move
 		actions.focusControl = focus.control
 		actions.focusSpeed = focus.speed
+	}
 
-		actions.focusFollow = {
-			name: 'Lens - Follow Focus',
-			options: optSetIncDecStep('Focus setting', 0x555, 0x0, 0xaaa, 10),
-			callback: async (action) => {
-				if (!resolveSetStep(self, action, 0x0, 0xaaa, 10)) return
-				await ptz('AXF' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.focusPosition))
-			},
-		}
+	if (caps.focus?.position) {
+		actions.focusFollow = positionAction(
+			'Lens - Follow Focus',
+			'Focus setting',
+			caps.focus,
+			() => self.data.focusPosition,
+		)
 	}
 
 	if (caps.focusAuto) {
@@ -537,18 +565,9 @@ export function getActionDefinitions(self) {
 	// #### Exposure Actions ####
 	// ##########################
 
-	if (caps.iris) {
-		const { cmd, transport, offset, max, step } = caps.iris
-		const send = transport === 'cam' ? (value) => cam(`${cmd}:${value}`) : (value) => ptz(cmd + value)
-
-		actions.iris = {
-			name: 'Exposure - Iris',
-			options: optSetIncDecStep('Iris setting', max >> 1, 0x0, max, step),
-			callback: async (action) => {
-				if (!resolveSetStep(self, action, 0x0, max, step)) return
-				await send(cmdValue(action, offset, 0x0, max, action.options.step, 3, self.data.irisPosition))
-			},
-		}
+	// An axis can report a position without being drivable to one, so the command decides, not the axis.
+	if (caps.iris?.position) {
+		actions.iris = positionAction('Exposure - Iris', 'Iris setting', caps.iris, () => self.data.irisPosition)
 	}
 
 	if (caps.irisAuto) {

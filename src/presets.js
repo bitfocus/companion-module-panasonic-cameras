@@ -358,7 +358,8 @@ export function getPresetDefinitions(self) {
 		)
 	}
 
-	if (SERIES.capabilities.focus) {
+	// The knob drives follow focus, so it belongs to the position command rather than to the axis.
+	if (SERIES.capabilities.focus?.position) {
 		presets['lens-focus'] = {
 			type: 'layered',
 			category: 'Lens',
@@ -373,7 +374,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'focusFollow',
 							options: {
 								op: -1,
-								step: 10,
+								step: SERIES.capabilities.focus.position.step,
 							},
 						},
 					],
@@ -382,7 +383,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'focusFollow',
 							options: {
 								op: 1,
-								step: 10,
+								step: SERIES.capabilities.focus.position.step,
 							},
 						},
 					],
@@ -476,8 +477,9 @@ export function getPresetDefinitions(self) {
 	// #### Exposure Presets ####
 	// ##########################
 
-	if (SERIES.capabilities.iris) {
+	if (SERIES.capabilities.iris?.position) {
 		const position = SERIES.capabilities.irisFollowPosition ? 'irisFollowPosition' : 'irisPosition'
+		const step = SERIES.capabilities.iris.position.step
 
 		presets['exposure-iris'] = {
 			type: 'layered',
@@ -507,7 +509,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'iris',
 							options: {
 								op: -1,
-								step: 30,
+								step: step,
 							},
 						},
 					],
@@ -516,7 +518,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'iris',
 							options: {
 								op: 1,
-								step: 30,
+								step: step,
 							},
 						},
 					],
@@ -527,12 +529,12 @@ export function getPresetDefinitions(self) {
 
 		presets['exposure-iris-up'] = momentaryPreset('Exposure', 'Iris Up', 'IRIS\\nUP', 'iris', {
 			op: 1,
-			step: 0x1e,
+			step: step,
 		})
 
 		presets['exposure-iris-down'] = momentaryPreset('Exposure', 'Iris Down', 'IRIS\\nDOWN', 'iris', {
 			op: -1,
-			step: 0x1e,
+			step: step,
 		})
 	}
 

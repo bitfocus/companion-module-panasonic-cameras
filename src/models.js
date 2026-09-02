@@ -59,6 +59,18 @@ export const MODELS = [
 // The feature set shared by every model. Each series below spreads this and states only what it
 // changes, so a series body is exactly the list of ways that model deviates from the norm.
 // When integrating a new camera model, start here and override only what differs.
+//
+// The three lens axes - zoom, focus, iris - share one shape, and each part of it is present only
+// where the camera has that facility:
+//   transport  which cgi carries it, 'ptz' or 'cam'
+//   range      the scale the camera reports the position on. The one source for the offset the
+//              parser subtracts, the span the variables scale against, and the action's bounds - so
+//              an axis has exactly one scale and everything that touches it agrees on which.
+//   jog        momentary drive: { cmd, offset, min, max, width } folds direction and magnitude into
+//              one command (#Z, #F), { inc, dec, stop } names three and takes its tempo from `speed`
+//   speed      where the tempo is a camera setting of its own rather than part of the jog
+//   position   { cmd, step, hexlen } where the axis can be driven to an absolute value. An axis may
+//              report a position without being drivable to one, so this is separate from `range`.
 const BASE_CAPABILITIES = {
 	audioVolumeLevel: { maxch: 2, min: -40, max: 20, step: 1 }, // Has Audio Volume Level control (OSA:D5)
 	awbColorTemperature: false, // Reports the colour temperature the AWB arrived at (QSJ:4A)
@@ -77,13 +89,22 @@ const BASE_CAPABILITIES = {
 	errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature', 'Lens', 'Pan/Tilt', 'Sensor'] }, // Has error state bitmask (QSI:46 or QER)
 	filter: { dropdown: e.ENUM_FILTER_OTHER }, // Has ND Filter Support (OFT)
 	filterFollow: false, // Has ND Filter Status (QSJ:D2)
-	focus: true, // Has Focus control and position (Fxx and AXFxxx)
+	focus: {
+		transport: 'ptz',
+		range: { offset: 0x555, max: 0xaaa },
+		jog: { cmd: 'F', offset: 50, min: 1, max: 99, width: 2 },
+		position: { cmd: 'AXF', step: 0xa, hexlen: 3 },
+	}, // Has Focus control and position (Fxx and AXFxxx)
 	focusAuto: true, // Has (switchable) Auto Focus (OAF)
 	focusPushAuto: true, // Has Push Auto Focus feature (OSE:69:1)
 	gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_CX350 }, // Has Gain (OGU or OGS)
 	imageTransmission: { cmd: 'view.cgi?action=snapshot' }, // Has a JPEG one-shot image request (view.cgi)
 	install: true, // Has support for Desktop or Hanging Install Position (iNSx)
-	iris: { cmd: 'AXI', transport: 'ptz', offset: 0x555, max: 0xaaa, step: 0x1e }, // Has Iris control and position (#AXI or ORV)
+	iris: {
+		transport: 'ptz',
+		range: { offset: 0x555, max: 0xaaa },
+		position: { cmd: 'AXI', step: 0x1e, hexlen: 3 },
+	}, // Has Iris position control (#AXI); the box cameras' ORV is irisVolume, a different quantity
 	irisAuto: true, // Has (switchable) Auto Iris (ORS)
 	irisF: false, // Has Iris F No. decoding (OIF)
 	irisFollowPosition: true, // Has Iris Follow (QSD:4F)
@@ -121,7 +142,11 @@ const BASE_CAPABILITIES = {
 	version: true, // Camera provides software version (from initial getinfo or QSV, OSV)
 	videoFormat: true, // Camera reports current video format (OSA:87)
 	whiteBalance: { dropdown: e.ENUM_WHITEBALANCE, confirm: { 2: '1', 3: '2' } }, // Has White Balance Modes (OAW)
-	zoom: true, // Has Zoom control and position (Zxx and AXZxxx)
+	zoom: {
+		transport: 'ptz',
+		range: { offset: 0x555, max: 0xaaa },
+		jog: { cmd: 'Z', offset: 50, min: 1, max: 99, width: 2 },
+	}, // Has Zoom control (Zxx) and position readback; #AXZ is not driven
 }
 
 export const SERIES_SPECS = [

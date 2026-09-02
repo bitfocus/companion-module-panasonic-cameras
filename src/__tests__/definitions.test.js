@@ -150,6 +150,49 @@ describe('colour temperature capabilities', () => {
 	})
 })
 
+// A lens axis is read by the parser, the variables and the actions at once, and each of them takes a
+// different part of it. A half-stated axis therefore fails somewhere other than where it was written:
+// a missing `range` silently drops every position the camera reports, a `jog` naming both forms would
+// send two different commands for one press, and a `position` without `hexlen` pads to `undefined`.
+describe('lens axis capabilities', () => {
+	const AXES = SERIES_SPECS.flatMap((spec) =>
+		['zoom', 'focus', 'iris']
+			.filter((axis) => spec.capabilities[axis])
+			.map((axis) => ({ series: spec.id, axis, cap: spec.capabilities[axis] })),
+	)
+
+	it('is a set worth checking', () => {
+		expect(AXES.length).toBeGreaterThan(0)
+	})
+
+	it.each(AXES)('$series.$axis says where it is driven and on what scale', ({ cap }) => {
+		expect(['ptz', 'cam']).toContain(cap.transport)
+		expect(cap.range.offset).toBeTypeOf('number')
+		expect(cap.range.max).toBeGreaterThan(0)
+	})
+
+	it.each(AXES.filter(({ cap }) => cap.jog))('$series.$axis states one jog form, not both', ({ cap }) => {
+		const velocity = cap.jog.cmd !== undefined
+		const direction = cap.jog.inc !== undefined
+
+		expect(velocity).not.toBe(direction)
+
+		if (velocity) {
+			expect(cap.jog.min).toBeLessThan(cap.jog.offset)
+			expect(cap.jog.max).toBeGreaterThan(cap.jog.offset)
+			expect(cap.jog.width).toBeGreaterThan(0)
+		} else {
+			expect([cap.jog.dec, cap.jog.stop].every(Boolean)).toBe(true)
+		}
+	})
+
+	it.each(AXES.filter(({ cap }) => cap.position))('$series.$axis can encode its whole range', ({ cap }) => {
+		expect(cap.position.cmd).toBeTypeOf('string')
+		expect(cap.position.step).toBeGreaterThan(0)
+		expect((cap.range.offset + cap.range.max).toString(16).length).toBeLessThanOrEqual(cap.position.hexlen)
+	})
+})
+
 // Gain reaches the camera one of two ways: an absolute id from the dropdown (`cmd`), or a step
 // (`inc`/`dec`, for the box cameras whose OSL:25 refuses a value). getActionDefinitions builds the
 // relative form first, so a series stating one half of a pair, or neither, ships the Gain preset with
