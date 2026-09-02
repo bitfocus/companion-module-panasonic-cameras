@@ -315,12 +315,11 @@ export function getActionDefinitions(self) {
 		},
 	})
 
-	// Follow focus and iris are the same control: drive one axis to a value on its own scale. Bounds,
-	// offset and width all come from the axis, so none of them is written out by hand.
-	const positionAction = (name, label, cap, read) => {
-		const send = sender(cap.transport)
-		const { offset, max } = cap.range
-		const { cmd, step, hexlen } = cap.position
+	// Follow focus, iris and the iris volume are the same control: drive one thing to a value on its
+	// own scale. Bounds, offset and width all come from the capability, none written out by hand.
+	const positionAction = (name, label, spec, read) => {
+		const send = sender(spec.transport)
+		const { cmd, offset, max, step, hexlen } = spec
 
 		return {
 			name,
@@ -331,6 +330,10 @@ export function getActionDefinitions(self) {
 			},
 		}
 	}
+
+	// An axis keeps its scale and its command apart, because it can report a position without being
+	// drivable to one. The builder wants them in one place.
+	const axisPosition = (cap) => ({ transport: cap.transport, ...cap.range, ...cap.position })
 
 	const simpleAction = (name, send, command) => ({
 		name,
@@ -569,7 +572,7 @@ export function getActionDefinitions(self) {
 		actions.focusFollow = positionAction(
 			'Lens - Follow Focus',
 			'Focus setting',
-			caps.focus,
+			axisPosition(caps.focus),
 			() => self.data.focusPosition,
 		)
 	}
@@ -594,7 +597,23 @@ export function getActionDefinitions(self) {
 
 	// An axis can report a position without being drivable to one, so the command decides, not the axis.
 	if (caps.iris?.position) {
-		actions.iris = positionAction('Exposure - Iris', 'Iris setting', caps.iris, () => self.data.irisPosition)
+		actions.iris = positionAction(
+			'Exposure - Iris',
+			'Iris setting',
+			axisPosition(caps.iris),
+			() => self.data.irisPosition,
+		)
+	}
+
+	// ORV is the manual iris volume, not the iris position: a set-point on its own scale, and on a box
+	// camera the only way to move the iris at all.
+	if (caps.irisVolume) {
+		actions.irisVolume = positionAction(
+			'Exposure - Iris Volume',
+			'Iris volume',
+			caps.irisVolume,
+			() => self.data.irisVolume,
+		)
 	}
 
 	if (caps.irisAuto) {

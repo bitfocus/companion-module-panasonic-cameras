@@ -502,8 +502,10 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		case 'ORS':
 			self.data.irisMode = str[1]
 			break
+		// The manual iris set-point, on its own 000h-3FFh scale - not the iris position, which the lens
+		// reports in OSI:18 on 555h-FFFh. Keeping them apart is what issue #97 was really about.
 		case 'ORV':
-			//self.data.irisPosition = parseInt(str[1], 16) // 0x3ff
+			self.data.irisVolume = parseInt(str[1], 16)
 			break
 		case 'OTD':
 			self.data.masterPedValue = parseInt(str[1], 16) - 0x1e

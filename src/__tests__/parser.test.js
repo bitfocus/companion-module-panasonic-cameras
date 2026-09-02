@@ -32,6 +32,19 @@ describe('parseUpdate', () => {
 		expect(parse('gf000').focusPosition).toBe(-0x555)
 	})
 
+	// Two quantities, two fields: OSI:18 carries where the lens is, ORV the set-point it was told.
+	it('keeps the iris set-point apart from the iris position', () => {
+		const data = parseAs('UB10', 'OSI', '18', '0xFFF', '0x555', '0xD24')
+
+		expect(data.irisPosition).toBe(0xd24 - 0x555)
+		expect(data.irisVolume).toBe(null)
+
+		parseUpdate({ SERIES: seriesSpec('UB10'), data, getThumbnail: () => {} }, ['ORV', '0x2F5'])
+
+		expect(data.irisVolume).toBe(0x2f5)
+		expect(data.irisPosition).toBe(0xd24 - 0x555)
+	})
+
 	// The scale is the axis's, not the wire's. A camera that does not carry an axis must not have one
 	// filled in behind its back, and a camera that reads the axis on another scale must not take a
 	// lens-scale figure for it - which is how the box cameras' iris ended up at the clamp (issue #97).

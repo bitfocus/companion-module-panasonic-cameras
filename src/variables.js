@@ -97,6 +97,14 @@ export function setVariables(self) {
 		['irisAuto', { irisMode: 'Iris Mode' }],
 		['irisF', { irisF: 'Iris F No.' }],
 		[
+			'irisVolume',
+			{
+				irisVolume: 'Iris Volume',
+				irisVolumePct: 'Iris Volume %',
+				irisVolumeBar: 'Iris Volume',
+			},
+		],
+		[
 			'irisFollowPosition',
 			{
 				irisFollowPosition: 'Iris Follow',
@@ -266,14 +274,22 @@ export function checkVariables(self) {
 		irisPosition: self.data.irisPosition,
 		zoomPosition: self.data.zoomPosition,
 		irisFollowPosition: self.data.irisFollowPosition,
+		irisVolume: self.data.irisVolume,
 		focusPositionPct: normalizePct(self.data.focusPosition, 0x0, axisMax('focus'), false),
 		irisPositionPct: normalizePct(self.data.irisPosition, 0x0, axisMax('iris'), false),
 		zoomPositionPct: normalizePct(self.data.zoomPosition, 0x0, axisMax('zoom'), false, 1),
 		irisFollowPositionPct: normalizePct(self.data.irisFollowPosition, 0x0, 0xff, false),
+		irisVolumePct: normalizePct(self.data.irisVolume, 0x0, SERIES.capabilities.irisVolume?.max ?? 0x3ff, false),
 		focusPositionBar: progressBar(normalizePct(self.data.focusPosition, 0x0, axisMax('focus')), 10, 'N', 'F'),
 		irisPositionBar: progressBar(normalizePct(self.data.irisPosition, 0x0, axisMax('iris')), 10, 'C', 'O'),
 		zoomPositionBar: progressBar(normalizePct(self.data.zoomPosition, 0x0, axisMax('zoom')), 10, 'W', 'T'),
 		irisFollowPositionBar: progressBar(normalizePct(self.data.irisFollowPosition, 0x0, 0xff), 10, 'C', 'O'),
+		irisVolumeBar: progressBar(
+			normalizePct(self.data.irisVolume, 0x0, SERIES.capabilities.irisVolume?.max ?? 0x3ff),
+			10,
+			'C',
+			'O',
+		),
 
 		chromaPhase: self.data.chromaPhaseValue,
 		focusSpeed: self.data.focusSpeedValue,

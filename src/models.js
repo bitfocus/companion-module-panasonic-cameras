@@ -108,6 +108,7 @@ const BASE_CAPABILITIES = {
 	irisAuto: true, // Has (switchable) Auto Iris (ORS)
 	irisF: false, // Has Iris F No. decoding (OIF)
 	irisFollowPosition: true, // Has Iris Follow (QSD:4F)
+	irisVolume: false, // Has the manual iris volume, a set-point on its own scale (ORV/QRV)
 	night: true, // Has Day/Night Mode (d6x)
 	ois: { dropdown: e.ENUM_OIS_OTHER }, // Has Optical Image Stabilisation control (OIS)
 	panTilt: true, // Has Pan/Tilt Head control (#P, #T, #PTS, #APC)
@@ -660,7 +661,8 @@ export const SERIES_SPECS = [
 			focusPushAuto: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UBX100 },
 			install: false,
-			iris: false, // ORV
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } }, // reported in OSI:18, not drivable
+			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
 			night: false,
@@ -685,6 +687,7 @@ export const SERIES_SPECS = [
 					'QLR',
 					'QLY',
 					'QRS',
+					'QRV',
 					'QSA:87',
 					'QSD:3A',
 					'QSD:B0',
@@ -746,7 +749,8 @@ export const SERIES_SPECS = [
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
 			imageTransmission: false,
 			install: false,
-			iris: false, // ORV
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } }, // reported in OSI:18, not drivable
+			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
 			night: false,
@@ -770,6 +774,7 @@ export const SERIES_SPECS = [
 					'QLG',
 					'QLR',
 					'QRS',
+					'QRV',
 					'QSA:87',
 					'QSD:3A',
 					'QSD:B0',
@@ -833,7 +838,8 @@ export const SERIES_SPECS = [
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB10 },
 			imageTransmission: false,
 			install: false,
-			iris: false, // ORV
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } }, // reported in OSI:18, not drivable
+			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
 			night: false,
@@ -851,6 +857,7 @@ export const SERIES_SPECS = [
 					'QIF',
 					'QLR',
 					'QRS',
+					'QRV',
 					'QSA:87',
 					'QSG:39',
 					'QSG:3A',
@@ -914,7 +921,8 @@ export const SERIES_SPECS = [
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB50 },
 			imageTransmission: false,
 			install: false,
-			iris: false, // ORV
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } }, // reported in OSI:18, not drivable
+			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
 			night: false,
@@ -932,6 +940,7 @@ export const SERIES_SPECS = [
 					'QIF',
 					'QLR',
 					'QRS',
+					'QRV',
 					'QSA:87',
 					'QSG:39',
 					'QSG:3A',

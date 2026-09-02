@@ -553,6 +553,43 @@ export function getPresetDefinitions(self) {
 		})
 	}
 
+	// The box cameras move the iris by its manual set-point, so the knob turns that and the readout
+	// stays on the F number the lens reports.
+	if (SERIES.capabilities.irisVolume) {
+		const volume = SERIES.capabilities.irisVolume
+
+		presets['exposure-iris-volume'] = {
+			type: 'layered',
+			category: 'Exposure',
+			name: 'Iris Volume',
+			elements: layers({
+				text:
+					'IRIS\\n$(generic-module:' +
+					(SERIES.capabilities.irisF ? 'irisF' : 'irisVolume') +
+					')\\n$(generic-module:irisVolumeBar)',
+			}),
+			steps: [
+				{
+					down: [{ actionId: 'irisMode', options: { op: 't' } }],
+					up: [],
+					rotate_left: [{ actionId: 'irisVolume', options: { op: -1, step: volume.step } }],
+					rotate_right: [{ actionId: 'irisVolume', options: { op: 1, step: volume.step } }],
+				},
+			],
+			feedbacks: [],
+		}
+
+		presets['exposure-iris-volume-up'] = momentaryPreset('Exposure', 'Iris Up', 'IRIS\\nUP', 'irisVolume', {
+			op: 1,
+			step: volume.step,
+		})
+
+		presets['exposure-iris-volume-down'] = momentaryPreset('Exposure', 'Iris Down', 'IRIS\\nDOWN', 'irisVolume', {
+			op: -1,
+			step: volume.step,
+		})
+	}
+
 	if (SERIES.capabilities.irisAuto) {
 		presets['exposure-iris-mode'] = togglePreset(
 			'Exposure',

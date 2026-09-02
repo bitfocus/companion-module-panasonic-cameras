@@ -304,6 +304,39 @@ describe('iris, which only a pan/tilt head has for now', () => {
 	})
 })
 
+// ORV is the manual iris volume - Panasonic's own name for it - a set-point on 000h-3FFh, not the
+// position the lens reports on 555h-FFFh. Writing both into one field is what threw the iris wide
+// open in issue #97; they are two quantities and get two of everything.
+describe('the manual iris volume', () => {
+	const volume = async (model, options, data) => {
+		const self = mockInstance(model, data)
+		await getActionDefinitions(self).irisVolume.callback({ actionId: 'irisVolume', options })
+		return self.sent
+	}
+
+	it('drives ORV over aw_cam on its own scale', async () => {
+		expect(await volume('AW-UB10', { op: 's', set: 0x0 })).toEqual(['ORV:000'])
+		expect(await volume('AW-UB10', { op: 's', set: 0x3ff })).toEqual(['ORV:3FF'])
+	})
+
+	it('steps from the set-point the camera last reported, not from the lens position', async () => {
+		const sent = await volume('AW-UB10', { op: 1, step: 0xa }, { irisVolume: 0x100, irisPosition: 0x900 })
+
+		expect(sent).toEqual(['ORV:10A'])
+	})
+
+	it('offers its own range rather than the lens one', () => {
+		const set = getActionDefinitions(mockInstance('AW-UB10')).irisVolume.options.find((f) => f.id === 'set')
+
+		expect([set.min, set.max, set.default]).toEqual([0x0, 0x3ff, 0x1ff])
+	})
+
+	it('is not offered where the iris is driven by position instead', () => {
+		expect(getActionDefinitions(mockInstance('AW-UE150')).irisVolume).toBeUndefined()
+		expect(getActionDefinitions(mockInstance('AW-UE150')).iris).toBeDefined()
+	})
+})
+
 // The AW-UB10/AW-UB50 answer QSL:25 with a value but refuse one: OSL:25 takes p*/m* steps only, which
 // is why every absolute write came back ER3 (issue #97). The step count is decimal, not the hex notch
 // count OSI:1E takes.
