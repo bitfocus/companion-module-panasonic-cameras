@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events'
 import { describe, expect, it } from 'vitest'
 import { getActionDefinitions } from '../actions.js'
 
@@ -6,15 +7,30 @@ import { getActionDefinitions } from '../actions.js'
 // both are recorded, tagged with the endpoint they went to.
 function mockInstance(model, data = {}) {
 	const sent = []
+	const variables = {}
 	const self = {
 		config: { model },
-		data: { model: null, modelAuto: null, series: null, presetThumbnails: [], ...data },
+		data: {
+			model: null,
+			modelAuto: null,
+			series: null,
+			presetThumbnails: [],
+			zoomSpeedValue: 0,
+			focusSpeedValue: 0,
+			...data,
+		},
+		// The stored speeds live on the instance, not in data, and index.js starts them at 25.
+		zSpeed: 25,
+		fSpeed: 25,
+		speedChangeEmitter: new EventEmitter(),
+		setVariableValues: (values) => Object.assign(variables, values),
 		getCam: (cmd) => sent.push(cmd),
 		getPTZ: (cmd) => sent.push('#' + cmd),
 		log: () => {},
 		checkVariables: () => {},
 		checkAllFeedbacks: () => {},
 		sent,
+		variables,
 	}
 	return self
 }
@@ -87,6 +103,108 @@ describe('colorTemperature on a camera that can only step (AK-UB300)', () => {
 		const options = getActionDefinitions(mockInstance('AK-UB300')).colorTemperature.options
 
 		expect(options.map((field) => field.id)).toEqual(['op'])
+	})
+})
+
+// Characterisation of the lens axes as they stand, so the move onto a capability-driven model can be
+// shown to change nothing on the wire. Both axes fold direction and magnitude into one #Z/#F command
+// centred on 50, and the magnitude comes from the stored speed, not from the action.
+describe('the lens axes over aw_ptz', () => {
+	const act = async (model, id, options, data) => {
+		const self = mockInstance(model, data)
+		await getActionDefinitions(self)[id].callback({ actionId: id, options })
+		return self
+	}
+
+	describe('the momentary jog', () => {
+		it('sends the stored speed, offset by 50, in the chosen direction', async () => {
+			expect((await act('AW-UE150', 'zoom', { dir: 1 })).sent).toEqual(['#Z75'])
+			expect((await act('AW-UE150', 'zoom', { dir: -1 })).sent).toEqual(['#Z25'])
+			expect((await act('AW-UE150', 'focus', { dir: 1 })).sent).toEqual(['#F75'])
+			expect((await act('AW-UE150', 'focus', { dir: -1 })).sent).toEqual(['#F25'])
+		})
+
+		it('stops on the centre value, whatever the stored speed', async () => {
+			expect((await act('AW-UE150', 'zoom', { dir: 0 })).sent).toEqual(['#Z50'])
+			expect((await act('AW-UE150', 'focus', { dir: 0 })).sent).toEqual(['#F50'])
+		})
+
+		it('follows a speed change while held, but only when asked to', async () => {
+			const self = mockInstance('AW-UE150')
+			const actions = getActionDefinitions(self)
+
+			await actions.zoom.callback({ actionId: 'zoom', options: { dir: 1, liveSpeed: true } })
+			self.zSpeed = 40
+			self.speedChangeEmitter.emit('zSpeed')
+			await Promise.resolve()
+
+			expect(self.sent).toEqual(['#Z75', '#Z90'])
+
+			await actions.zoom.callback({ actionId: 'zoom', options: { dir: 1, liveSpeed: false } })
+			self.zSpeed = 10
+			self.speedChangeEmitter.emit('zSpeed')
+			await Promise.resolve()
+
+			expect(self.sent).toEqual(['#Z75', '#Z90', '#Z90'])
+		})
+	})
+
+	describe('the direct speed', () => {
+		it('sets a signed velocity and remembers it', async () => {
+			const self = await act('AW-UE150', 'zoomControl', { op: 's', set: 10 })
+
+			expect(self.sent).toEqual(['#Z60'])
+			expect(self.data.zoomSpeedValue).toBe(10)
+		})
+
+		it('steps from the velocity the camera last reported', async () => {
+			expect((await act('AW-UE150', 'zoomControl', { op: 1, step: 5 }, { zoomSpeedValue: 20 })).sent).toEqual(['#Z75'])
+			expect((await act('AW-UE150', 'focusControl', { op: -1, step: 5 }, { focusSpeedValue: 20 })).sent).toEqual([
+				'#F65',
+			])
+		})
+
+		it('holds the step inside the range the wire can carry', async () => {
+			expect((await act('AW-UE150', 'zoomControl', { op: 1, step: 7 }, { zoomSpeedValue: 49 })).sent).toEqual(['#Z99'])
+			expect((await act('AW-UE150', 'zoomControl', { op: -1, step: 7 }, { zoomSpeedValue: -49 })).sent).toEqual([
+				'#Z01',
+			])
+		})
+	})
+
+	describe('the stored speed', () => {
+		it('changes the magnitude of the next jog without sending anything itself', async () => {
+			const self = await act('AW-UE150', 'zoomSpeed', { op: 's', set: 40 })
+
+			expect(self.sent).toEqual([])
+			expect(self.zSpeed).toBe(40)
+			expect(self.variables).toEqual({ zSpeed: 40 })
+		})
+
+		it('steps within 0 to 49', async () => {
+			expect((await act('AW-UE150', 'focusSpeed', { op: 1, step: 5 })).fSpeed).toBe(30)
+			expect((await act('AW-UE150', 'focusSpeed', { op: -1, step: 5 })).fSpeed).toBe(20)
+			expect((await act('AW-UE150', 'zoomSpeed', { op: 1, step: 7 })).zSpeed).toBe(32)
+		})
+	})
+
+	describe('follow focus', () => {
+		it('drives an absolute position, offset by 0x555', async () => {
+			expect((await act('AW-UE150', 'focusFollow', { op: 's', set: 0x0 })).sent).toEqual(['#AXF555'])
+			expect((await act('AW-UE150', 'focusFollow', { op: 's', set: 0xaaa })).sent).toEqual(['#AXFFFF'])
+		})
+
+		it('steps from the position the camera last reported', async () => {
+			expect((await act('AW-UE150', 'focusFollow', { op: 1, step: 10 }, { focusPosition: 0x100 })).sent).toEqual([
+				'#AXF65F',
+			])
+		})
+
+		it('offers the range the capability carries', () => {
+			const set = getActionDefinitions(mockInstance('AW-UE150')).focusFollow.options.find((f) => f.id === 'set')
+
+			expect([set.min, set.max, set.default]).toEqual([0x0, 0xaaa, 0x555])
+		})
 	})
 })
 
