@@ -585,7 +585,15 @@ export function getActionDefinitions(self) {
 	// #### Image Actions ####
 	// #######################
 
-	if (caps.gain.cmd) {
+	if (caps.gain.inc) {
+		actions.gain = {
+			name: 'Image - Gain',
+			options: optIncDec(),
+			callback: async (action) => {
+				await cam((action.options.op === ACTION_INC ? caps.gain.inc : caps.gain.dec) + '1')
+			},
+		}
+	} else if (caps.gain.cmd) {
 		actions.gain = enumAction('Image - Gain', cam, caps.gain.cmd + ':', caps.gain.dropdown, () => self.data.gain, {
 			nextPrev: true,
 		})

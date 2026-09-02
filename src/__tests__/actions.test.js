@@ -90,11 +90,11 @@ describe('colorTemperature on a camera that can only step (AK-UB300)', () => {
 	})
 })
 
-// A pan/tilt head drives the iris over aw_ptz with #AXI (555h-FFFh); a box camera has no head and
-// drives the lens over aw_cam with ORV (000h-3FFh). No model has both, so they share irisPosition and
-// the capability carries the numbers. Splitting them left the box cameras' `$(irisPositionBar)` -
-// which the shipped Iris preset puts on the button - permanently empty.
-describe('iris, which reaches the lens by two different roads', () => {
+// A pan/tilt head drives the iris over aw_ptz with #AXI (555h-FFFh). The box cameras drive it over
+// aw_cam with ORV (000h-3FFh) but also report it on the lens scale in OSI:18, and both landed in
+// irisPosition - so a step read one scale, wrote the other and hit the clamp, opening the iris fully
+// (issue #97). Their iris rests until it can be rebuilt together with their zoom and focus.
+describe('iris, which only a pan/tilt head has for now', () => {
 	const iris = async (model, options, data) => {
 		const self = mockInstance(model, data)
 		await getActionDefinitions(self).iris.callback({ actionId: 'iris', options })
@@ -106,24 +106,44 @@ describe('iris, which reaches the lens by two different roads', () => {
 		expect(await iris('AW-UE150', { op: 's', set: 0xaaa })).toEqual(['#AXIFFF'])
 	})
 
-	it('drives a box camera lens over aw_cam, with no offset', async () => {
-		expect(await iris('AK-UB300', { op: 's', set: 0x0 })).toEqual(['ORV:000'])
-		expect(await iris('AK-UB300', { op: 's', set: 0x3ff })).toEqual(['ORV:3FF'])
-	})
-
-	it('steps from the one position field, whichever road it came in on', async () => {
+	it('steps from the position field the camera last reported', async () => {
 		expect(await iris('AW-UE150', { op: 1, step: 0x1e }, { irisPosition: 0x100 })).toEqual(['#AXI673'])
-		expect(await iris('AK-UB300', { op: 1, step: 0xa }, { irisPosition: 0x100 })).toEqual(['ORV:10A'])
 	})
 
-	it('offers each model its own range rather than one borrowed from the other', () => {
-		const range = (model) => {
-			const set = getActionDefinitions(mockInstance(model)).iris.options.find((f) => f.id === 'set')
-			return [set.min, set.max, set.default]
-		}
+	it('offers the range the capability carries', () => {
+		const set = getActionDefinitions(mockInstance('AW-UE150')).iris.options.find((f) => f.id === 'set')
 
-		expect(range('AW-UE150')).toEqual([0x0, 0xaaa, 0x555])
-		expect(range('AK-UB300')).toEqual([0x0, 0x3ff, 0x1ff])
+		expect([set.min, set.max, set.default]).toEqual([0x0, 0xaaa, 0x555])
+	})
+
+	it.each(['AW-UB10', 'AW-UB50', 'AK-UB300', 'AK-UBX100'])('%s offers none', (model) => {
+		expect(getActionDefinitions(mockInstance(model)).iris).toBeUndefined()
+	})
+})
+
+// The AW-UB10/AW-UB50 answer QSL:25 with a value but refuse one: OSL:25 takes p*/m* steps only, which
+// is why every absolute write came back ER3 (issue #97). The step count is decimal, not the hex notch
+// count OSI:1E takes.
+describe('gain on a camera that can only step it', () => {
+	const gain = async (model, options) => {
+		const self = mockInstance(model)
+		await getActionDefinitions(self).gain.callback({ actionId: 'gain', options })
+		return self.sent
+	}
+
+	it('sends one notch in either direction', async () => {
+		expect(await gain('AW-UB10', { op: 1 })).toEqual(['OSL:25:p1'])
+		expect(await gain('AW-UB10', { op: -1 })).toEqual(['OSL:25:m1'])
+	})
+
+	it('offers no value field to get refused with', () => {
+		const options = getActionDefinitions(mockInstance('AW-UB10')).gain.options
+
+		expect(options.map((field) => field.id)).toEqual(['op'])
+	})
+
+	it('still sets an absolute gain where the camera takes one', async () => {
+		expect(await gain('AW-UE150', { op: 's', set: '08' })).toEqual(['OGU:08'])
 	})
 })
 

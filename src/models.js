@@ -24,7 +24,7 @@ export const MODELS = [
 	{ id: 'AW-HN65', series: 'HE40', label: 'AW-HN65' },
 	{ id: 'AW-HN130', series: 'HE130', label: 'AW-HN130' },
 	{ id: 'AW-HR140', series: 'HR140', label: 'AW-HR140' },
-	{ id: 'AW-UB10', series: 'UB50', label: 'AW-UB10' },
+	{ id: 'AW-UB10', series: 'UB10', label: 'AW-UB10' },
 	{ id: 'AW-UB50', series: 'UB50', label: 'AW-UB50' },
 	{ id: 'AW-UE4', series: 'UE4', label: 'AW-UE4' },
 	{ id: 'AW-UE5', series: 'UE5', label: 'AW-UE5' },
@@ -630,7 +630,7 @@ export const SERIES_SPECS = [
 			focusPushAuto: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UBX100 },
 			install: false,
-			iris: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa },
+			iris: false, // ORV
 			irisF: true,
 			irisFollowPosition: false,
 			night: false,
@@ -655,7 +655,6 @@ export const SERIES_SPECS = [
 					'QLR',
 					'QLY',
 					'QRS',
-					'QRV',
 					'QSA:87',
 					'QSD:3A',
 					'QSD:B0',
@@ -706,8 +705,9 @@ export const SERIES_SPECS = [
 			focusAuto: false,
 			focusPushAuto: false,
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
+			imageTransmission: false,
 			install: false,
-			iris: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa },
+			iris: false, // ORV
 			irisF: true,
 			irisFollowPosition: false,
 			night: false,
@@ -731,7 +731,6 @@ export const SERIES_SPECS = [
 					'QLG',
 					'QLR',
 					'QRS',
-					'QRV',
 					'QSA:87',
 					'QSD:3A',
 					'QSD:B0',
@@ -761,8 +760,8 @@ export const SERIES_SPECS = [
 		},
 	},
 	{
-		// Specific for the AW-UB50 / AW-UB10 box cameras.
-		id: 'UB50',
+		// Specific for the AW-UB10 box camera.
+		id: 'UB10',
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
@@ -781,9 +780,10 @@ export const SERIES_SPECS = [
 			filter: false,
 			focus: false, // special implementation req. 'HFF', 'HFN', 'HFS', 'LFP:xxx', 'LFS:x'
 			focusAuto: false,
-			gain: { cmd: 'OSL:25', dropdown: e.ENUM_GAIN_UB50 },
+			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB10 },
+			imageTransmission: false,
 			install: false,
-			iris: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa },
+			iris: false, // ORV
 			irisF: true,
 			irisFollowPosition: false,
 			night: false,
@@ -801,7 +801,6 @@ export const SERIES_SPECS = [
 					'QIF',
 					'QLR',
 					'QRS',
-					'QRV',
 					'QSA:87',
 					'QSG:39',
 					'QSG:3A',
@@ -828,6 +827,76 @@ export const SERIES_SPECS = [
 			version: false,
 			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_UB50, confirm: { 2: '1', 3: '2' } },
 			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZP:xxx', 'LZS:x'
+		},
+	},
+	{
+		// Specific for the AW-UB50 box camera.
+		id: 'UB50',
+		capabilities: {
+			...BASE_CAPABILITIES,
+			audioVolumeLevel: false,
+			blackBalance: false,
+			chromaLevel: false,
+			chromaPhase: false,
+			colorGain: { cmd: { red: 'OSG:39', blue: 'OSG:3A' }, offset: 0x800, limit: 200, step: 1, hexlen: 3 },
+			colorPedestal: false,
+			colorTemperature: {
+				advanced: { inc: 'OSI:1E', dec: 'OSI:1F', set: 'OSI:20', min: 2500, max: 10000, maxStep: 10 },
+			},
+			dnr: false,
+			drs: false,
+			error: false,
+			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
+			filter: false,
+			focus: false, // special implementation req. 'HFF', 'HFN', 'HFS', 'LFP:xxx', 'LFS:x'
+			focusAuto: false,
+			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB50 },
+			imageTransmission: false,
+			install: false,
+			iris: false, // ORV
+			irisF: true,
+			irisFollowPosition: false,
+			night: false,
+			ois: false,
+			panTilt: false,
+			panTiltPosition: false,
+			panTiltLimit: false, // box camera, no pan/tilt head
+			pedestal: { cmd: 'OSJ:0F', offset: 0x800, limit: 15, step: 1, hexlen: 3 },
+			power: false,
+			pull: {
+				ptz: false,
+				cam: [
+					'QAW',
+					'QBR',
+					'QIF',
+					'QLR',
+					'QRS',
+					'QSA:87',
+					'QSG:39',
+					'QSG:3A',
+					'QSI:18',
+					'QSI:20',
+					'QSI:46',
+					'QSJ:0F',
+					'QSL:25',
+				],
+				web: false,
+			},
+			preset: false,
+			presetSpeed: false,
+			presetTime: false,
+			recordSD: false,
+			restart: false,
+			shutter: false,
+			streamRTMP: false,
+			streamSRT: false,
+			streamTS: false,
+			tally2: false,
+			tally3: false, // TLY is query only
+			trackingAuto: false,
+			version: false,
+			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_UB50, confirm: { 2: '1', 3: '2' } },
+			zoom: false, // no zoom control at all, unlike the AW-UB10
 		},
 	},
 	{

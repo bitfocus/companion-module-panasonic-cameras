@@ -491,7 +491,7 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 			self.data.irisMode = str[1]
 			break
 		case 'ORV':
-			self.data.irisPosition = parseInt(str[1], 16)
+			//self.data.irisPosition = parseInt(str[1], 16) // 0x3ff
 			break
 		case 'OTD':
 			self.data.masterPedValue = parseInt(str[1], 16) - 0x1e

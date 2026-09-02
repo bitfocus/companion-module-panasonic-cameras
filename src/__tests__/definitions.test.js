@@ -150,6 +150,26 @@ describe('colour temperature capabilities', () => {
 	})
 })
 
+// Gain reaches the camera one of two ways: an absolute id from the dropdown (`cmd`), or a step
+// (`inc`/`dec`, for the box cameras whose OSL:25 refuses a value). getActionDefinitions builds the
+// relative form first, so a series stating one half of a pair, or neither, ships the Gain preset with
+// no action behind it - or worse, an absolute write the camera answers with ER3.
+describe('gain capabilities', () => {
+	const GAINS = SERIES_SPECS.filter((spec) => spec.capabilities.gain).map((spec) => ({
+		series: spec.id,
+		cap: spec.capabilities.gain,
+	}))
+
+	it('is a set worth checking', () => {
+		expect(GAINS.length).toBeGreaterThan(0)
+	})
+
+	it.each(GAINS)('$series states a way to reach the gain', ({ cap }) => {
+		expect(Boolean(cap.cmd || cap.inc)).toBe(true)
+		expect(Boolean(cap.inc)).toBe(Boolean(cap.dec))
+	})
+})
+
 // Without a subscription, `pull` is the only source for everything the camera would otherwise push
 // (see pollCameraStatus). A capability that drives a variable but has nothing querying it leaves that
 // variable blank forever — which is how six series shipped with no pull list at all. Each entry names
@@ -242,7 +262,7 @@ describe('pull coverage', () => {
 	// The PT command table lists no box camera: without a pan/tilt head they answer nothing on aw_ptz,
 	// so a `#` command in their list is a request that can only ever fail. This does not extend to the
 	// CX350 camcorders — their own spec documents #GZ/#GF/#GI for the lens positions.
-	it.each(['UB300', 'UB50', 'UBX100'])('%s sends no PT command, having no PT head', (id) => {
+	it.each(['UB300', 'UB10', 'UB50', 'UBX100'])('%s sends no PT command, having no PT head', (id) => {
 		const caps = SERIES_SPECS.find((s) => s.id === id).capabilities
 
 		expect(caps.pull && caps.pull.ptz).toBeFalsy()
@@ -292,7 +312,7 @@ describe('pull coverage', () => {
 	// Black balance is its own capability rather than a rider on white balance: these models take OWS but
 	// answer ER3 to OAS, each spec saying so outright ("UE4 does not ABB function", and UB10/UB50 never
 	// mention OAS at all). Offering the button there would leave the result reading NG for good.
-	it.each(['UE4', 'UE5', 'UE20', 'UB50', 'HE50'])('%s claims no black balance', (id) => {
+	it.each(['UE4', 'UE5', 'UE20', 'UB10', 'UB50', 'HE50'])('%s claims no black balance', (id) => {
 		expect(SERIES_SPECS.find((s) => s.id === id).capabilities.blackBalance).toBe(false)
 	})
 
@@ -334,9 +354,12 @@ describe('pull coverage', () => {
 
 	// The movement range limit needs a pan/tilt head, so the box cameras and the camcorder cannot have
 	// it, and the AW-UE4 is the one PT model the compatible model table marks --- for #LC.
-	it.each(['UB300', 'UB50', 'UBX100', 'CX350', 'UE4', 'UE5', 'HE2'])('%s claims no movement range limit', (id) => {
-		expect(SERIES_SPECS.find((s) => s.id === id).capabilities.panTiltLimit).toBe(false)
-	})
+	it.each(['UB300', 'UB10', 'UB50', 'UBX100', 'CX350', 'UE4', 'UE5', 'HE2'])(
+		'%s claims no movement range limit',
+		(id) => {
+			expect(SERIES_SPECS.find((s) => s.id === id).capabilities.panTiltLimit).toBe(false)
+		},
+	)
 
 	// The camera fault state is a bitmask, so the capability has to name both the command that carries
 	// it and what each bit means - QSI:46 has five, the older QER two. A missing bits list would render
