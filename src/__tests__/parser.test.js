@@ -267,6 +267,80 @@ describe('parseUpdate', () => {
 		expect(data.shutterStepLabel).toBe('1/10000')
 		expect(data.filter).toBe('0')
 	})
+
+	describe('the outdoor housing', () => {
+		it('separates each setting from the status that reports what it is doing', () => {
+			expect(parse('d91').heater).toBe('1')
+			expect(parse('hS0').heaterStatus).toBe('0')
+			expect(parse('d70').defroster).toBe('0')
+			expect(parse('dS1').defrosterStatus).toBe('1')
+		})
+
+		it('reads all three wiper speeds', () => {
+			expect(parse('wIP0').wiper).toBe('0')
+			expect(parse('wIP1').wiper).toBe('1')
+			expect(parse('wIP2').wiper).toBe('2')
+		})
+
+		// #D8 is the older, coarser wiper command. Its On is #WIP's Fast, so the two share one state
+		// slot and a camera answering either keeps the variable current.
+		it('takes the legacy #D8 wiper reply as the same state', () => {
+			expect(parse('d80').wiper).toBe('0')
+			expect(parse('d81').wiper).toBe('1')
+		})
+
+		it('reads the washer', () => {
+			expect(parse('wAS1').washer).toBe('1')
+			expect(parse('wAS0').washer).toBe('0')
+		})
+
+		// A truncated notification must not publish an empty label over the last known state.
+		it('ignores a reply carrying no state', () => {
+			expect(parse('wIP').wiper).toBeNull()
+			expect(parse('hS').heaterStatus).toBeNull()
+		})
+
+		// #FS1/#FS2 answer "fS1x"/"fS2x", the same four characters as focus speeds 10-12 and 20-22.
+		// The module never asks for the fan status, but the outdoor models put it in camdata.html
+		// unbidden, where a focus speed can never appear - so only the bulk read may ignore it.
+		it('does not read the fan status in a bulk read as a focus speed', () => {
+			const self = { data: initialData(), getThumbnail: () => {} }
+			parseUpdate(self, ['fS10'], { bulk: true })
+			parseUpdate(self, ['fS20'], { bulk: true })
+
+			expect(self.data.focusSpeedValue).toBe(0)
+		})
+
+		it('still reads a live focus speed notification, ambiguous value or not', () => {
+			expect(parse('fS10').focusSpeedValue).toBe(-40)
+			expect(parse('fS20').focusSpeedValue).toBe(-30)
+		})
+
+		// Only the six tokens the fan status can occupy are skipped, not every fS in a bulk read.
+		it('still reads an unambiguous focus speed out of a bulk read', () => {
+			const self = { data: initialData(), getThumbnail: () => {} }
+			parseUpdate(self, ['fS15'], { bulk: true })
+
+			expect(self.data.focusSpeedValue).toBe(-35)
+		})
+
+		// The lines the AW-HR140 actually sends, taken verbatim from Camera_Dumps/AW-HR140_camdata.txt.
+		it('fills every slot from a real camdata dump', () => {
+			const self = { data: initialData(), getThumbnail: () => {} }
+			for (const line of ['fAN0', 'd90', 'd70', 'd80', 'wIP0', 'fS10', 'fS20', 'hS1', 'dS0']) {
+				parseUpdate(self, line.split(':'), { bulk: true })
+			}
+
+			expect(self.data).toMatchObject({
+				heater: '0',
+				heaterStatus: '1',
+				defroster: '0',
+				defrosterStatus: '0',
+				wiper: '0',
+				focusSpeedValue: 0,
+			})
+		})
+	})
 })
 
 // checkVariables() runs after every HTTP response and every TCP batch. Resolving the series there

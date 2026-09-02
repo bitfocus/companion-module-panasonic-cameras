@@ -80,6 +80,11 @@ export const e = {
 		{ id: '1', label: 'ON' },
 	],
 
+	ENUM_AUTO_ON: [
+		{ id: '0', label: 'Auto' },
+		{ id: '1', label: 'ON' },
+	],
+
 	ENUM_PT_LIMIT: [
 		{ id: '1', label: 'Tilt Up' },
 		{ id: '2', label: 'Tilt Down' },
@@ -90,6 +95,12 @@ export const e = {
 	ENUM_STOP_START: [
 		{ id: '0', label: 'Stop' },
 		{ id: '1', label: 'Start' },
+	],
+
+	ENUM_WIPER: [
+		{ id: '0', label: 'OFF' },
+		{ id: '1', label: 'Fast' },
+		{ id: '2', label: 'Slow' },
 	],
 
 	// #######################

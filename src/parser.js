@@ -32,7 +32,7 @@ export function parseRefusal(str) {
 	return match ? { code: Number(match[1]), command: match[2] } : null
 }
 
-export function parseUpdate(self, str, { echo = false } = {}) {
+export function parseUpdate(self, str, { echo = false, bulk = false } = {}) {
 	if (str[0].substring(0, 3) === 'rER') {
 		self.data.error = str[0].substring(3)
 	}
@@ -171,7 +171,23 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		self.data.presetSpeed = str[0].substring(4)
 	}
 
-	if (str[0].substring(0, 2) === 'fS') {
+	if (str[0].substring(0, 3) === 'wIP') {
+		if (str[0].length > 3) self.data.wiper = str[0].substring(3, 4)
+	}
+
+	if (str[0].substring(0, 3) === 'wAS') {
+		if (str[0].length > 3) self.data.washer = str[0].substring(3, 4)
+	}
+
+	if (str[0].substring(0, 2) === 'hS') {
+		if (str[0].length > 2) self.data.heaterStatus = str[0].substring(2, 3)
+	}
+
+	if (str[0].substring(0, 2) === 'dS') {
+		if (str[0].length > 2) self.data.defrosterStatus = str[0].substring(2, 3)
+	}
+
+	if (str[0].substring(0, 2) === 'fS' && !(bulk && /^fS[12][0-2]$/.test(str[0]))) {
 		const speed = parseInt(str[0].substring(2, 4), 10)
 		if (Number.isFinite(speed)) self.data.focusSpeedValue = speed - 50
 	}
@@ -226,6 +242,24 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 			break
 		case 'd61':
 			self.data.nightMode = '1'
+			break
+		case 'd70':
+			self.data.defroster = '0'
+			break
+		case 'd71':
+			self.data.defroster = '1'
+			break
+		case 'd80':
+			self.data.wiper = '0'
+			break
+		case 'd81':
+			self.data.wiper = '1'
+			break
+		case 'd90':
+			self.data.heater = '0'
+			break
+		case 'd91':
+			self.data.heater = '1'
 			break
 		case 'ER2':
 			switch (str[1]) {
