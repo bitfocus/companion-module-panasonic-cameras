@@ -24,6 +24,32 @@ describe('parseUpdate', () => {
 		expect(parse('gf000').focusPosition).toBe(-0x555)
 	})
 
+	// A serial-interface lens answers QZP/QFP itself. The bulk read strips the 0x its own table shows,
+	// so the same value arrives spelled two ways.
+	it('reads the positions a lens reports for itself', () => {
+		expect(parse('OZP', '0xD24').zoomPosition).toBe(0xd24 - 0x555)
+		expect(parse('OFP', 'D24').focusPosition).toBe(0xd24 - 0x555)
+	})
+
+	// Driving the lens is answered with the value it was given. On the AW-UB10 and AW-UB50 nothing
+	// else answers at all - they have no QFP - so a knob would keep stepping from a stale position.
+	it('takes the position back from the command that set it', () => {
+		expect(parse('LZP', 'D24').zoomPosition).toBe(0xd24 - 0x555)
+		expect(parse('LFP', 'D24').focusPosition).toBe(0xd24 - 0x555)
+	})
+
+	// Two quantities, two fields: OSI:18 carries where the lens stands, ORV the set-point it was told.
+	// They count in different steps, so sharing one field put the iris at the clamp (issue #97).
+	it('keeps the iris set-point apart from the iris position', () => {
+		const self = { data: initialData(), getThumbnail: () => {} }
+
+		parseUpdate(self, ['OSI', '18', '0xFFF', '0x555', '0xD24'])
+		parseUpdate(self, ['ORV', '0x2F5'])
+
+		expect(self.data.irisPosition).toBe(0xd24 - 0x555)
+		expect(self.data.irisVolume).toBe(0x2f5)
+	})
+
 	it('decodes pan/tilt position, which is offset by 0x8000', () => {
 		const data = parse('aPC80008000')
 		expect(data.panPosition).toBe(0)

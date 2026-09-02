@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events'
 import { describe, expect, it } from 'vitest'
 import { getActionDefinitions } from '../actions.js'
 
@@ -6,15 +7,30 @@ import { getActionDefinitions } from '../actions.js'
 // both are recorded, tagged with the endpoint they went to.
 function mockInstance(model, data = {}) {
 	const sent = []
+	const variables = {}
 	const self = {
 		config: { model },
-		data: { model: null, modelAuto: null, series: null, presetThumbnails: [], ...data },
+		data: {
+			model: null,
+			modelAuto: null,
+			series: null,
+			presetThumbnails: [],
+			zoomSpeedValue: 0,
+			focusSpeedValue: 0,
+			...data,
+		},
+		// The stored speeds live on the instance, not in data, and index.js starts them at 25.
+		zSpeed: 25,
+		fSpeed: 25,
+		speedChangeEmitter: new EventEmitter(),
+		setVariableValues: (values) => Object.assign(variables, values),
 		getCam: (cmd) => sent.push(cmd),
 		getPTZ: (cmd) => sent.push('#' + cmd),
 		log: () => {},
 		checkVariables: () => {},
 		checkAllFeedbacks: () => {},
 		sent,
+		variables,
 	}
 	return self
 }
@@ -90,11 +106,177 @@ describe('colorTemperature on a camera that can only step (AK-UB300)', () => {
 	})
 })
 
-// A pan/tilt head drives the iris over aw_ptz with #AXI (555h-FFFh). The box cameras drive it over
-// aw_cam with ORV (000h-3FFh) but also report it on the lens scale in OSI:18, and both landed in
-// irisPosition - so a step read one scale, wrote the other and hit the clamp, opening the iris fully
-// (issue #97). Their iris rests until it can be rebuilt together with their zoom and focus.
-describe('iris, which only a pan/tilt head has for now', () => {
+// Characterisation of the lens axes as they stand, so the move onto a capability-driven model can be
+// shown to change nothing on the wire. Both axes fold direction and magnitude into one #Z/#F command
+// centred on 50, and the magnitude comes from the stored speed, not from the action.
+describe('the lens axes over aw_ptz', () => {
+	const act = async (model, id, options, data) => {
+		const self = mockInstance(model, data)
+		await getActionDefinitions(self)[id].callback({ actionId: id, options })
+		return self
+	}
+
+	describe('the momentary jog', () => {
+		it('sends the stored speed, offset by 50, in the chosen direction', async () => {
+			expect((await act('AW-UE150', 'zoom', { dir: 1 })).sent).toEqual(['#Z75'])
+			expect((await act('AW-UE150', 'zoom', { dir: -1 })).sent).toEqual(['#Z25'])
+			expect((await act('AW-UE150', 'focus', { dir: 1 })).sent).toEqual(['#F75'])
+			expect((await act('AW-UE150', 'focus', { dir: -1 })).sent).toEqual(['#F25'])
+		})
+
+		it('stops on the centre value, whatever the stored speed', async () => {
+			expect((await act('AW-UE150', 'zoom', { dir: 0 })).sent).toEqual(['#Z50'])
+			expect((await act('AW-UE150', 'focus', { dir: 0 })).sent).toEqual(['#F50'])
+		})
+
+		it('follows a speed change while held, but only when asked to', async () => {
+			const self = mockInstance('AW-UE150')
+			const actions = getActionDefinitions(self)
+
+			await actions.zoom.callback({ actionId: 'zoom', options: { dir: 1, liveSpeed: true } })
+			self.zSpeed = 40
+			self.speedChangeEmitter.emit('zSpeed')
+			await Promise.resolve()
+
+			expect(self.sent).toEqual(['#Z75', '#Z90'])
+
+			await actions.zoom.callback({ actionId: 'zoom', options: { dir: 1, liveSpeed: false } })
+			self.zSpeed = 10
+			self.speedChangeEmitter.emit('zSpeed')
+			await Promise.resolve()
+
+			expect(self.sent).toEqual(['#Z75', '#Z90', '#Z90'])
+		})
+	})
+
+	describe('the direct speed', () => {
+		it('sets a signed velocity and remembers it', async () => {
+			const self = await act('AW-UE150', 'zoomControl', { op: 's', set: 10 })
+
+			expect(self.sent).toEqual(['#Z60'])
+			expect(self.data.zoomSpeedValue).toBe(10)
+		})
+
+		it('steps from the velocity the camera last reported', async () => {
+			expect((await act('AW-UE150', 'zoomControl', { op: 1, step: 5 }, { zoomSpeedValue: 20 })).sent).toEqual(['#Z75'])
+			expect((await act('AW-UE150', 'focusControl', { op: -1, step: 5 }, { focusSpeedValue: 20 })).sent).toEqual([
+				'#F65',
+			])
+		})
+
+		it('holds the step inside the range the wire can carry', async () => {
+			expect((await act('AW-UE150', 'zoomControl', { op: 1, step: 7 }, { zoomSpeedValue: 49 })).sent).toEqual(['#Z99'])
+			expect((await act('AW-UE150', 'zoomControl', { op: -1, step: 7 }, { zoomSpeedValue: -49 })).sent).toEqual([
+				'#Z01',
+			])
+		})
+	})
+
+	describe('the stored speed', () => {
+		it('changes the magnitude of the next jog without sending anything itself', async () => {
+			const self = await act('AW-UE150', 'zoomSpeed', { op: 's', set: 40 })
+
+			expect(self.sent).toEqual([])
+			expect(self.zSpeed).toBe(40)
+			expect(self.variables).toEqual({ zSpeed: 40 })
+		})
+
+		it('steps within 0 to 49', async () => {
+			expect((await act('AW-UE150', 'focusSpeed', { op: 1, step: 5 })).fSpeed).toBe(30)
+			expect((await act('AW-UE150', 'focusSpeed', { op: -1, step: 5 })).fSpeed).toBe(20)
+			expect((await act('AW-UE150', 'zoomSpeed', { op: 1, step: 7 })).zSpeed).toBe(32)
+		})
+	})
+
+	describe('follow focus', () => {
+		it('drives an absolute position, offset by 0x555', async () => {
+			expect((await act('AW-UE150', 'focusFollow', { op: 's', set: 0x0 })).sent).toEqual(['#AXF555'])
+			expect((await act('AW-UE150', 'focusFollow', { op: 's', set: 0xaaa })).sent).toEqual(['#AXFFFF'])
+		})
+
+		it('steps from the position the camera last reported', async () => {
+			expect((await act('AW-UE150', 'focusFollow', { op: 1, step: 10 }, { focusPosition: 0x100 })).sent).toEqual([
+				'#AXF65F',
+			])
+		})
+
+		it('offers the range the capability carries', () => {
+			const set = getActionDefinitions(mockInstance('AW-UE150')).focusFollow.options.find((f) => f.id === 'set')
+
+			expect([set.min, set.max, set.default]).toEqual([0x0, 0xaaa, 0x555])
+		})
+	})
+})
+
+// A box camera's lens is driven over aw_cam, and in one of two ways. The AW-UB10 and AK-UB300 name a
+// direction and hold the tempo as a setting of their own; the AK-UBX100 folds both into one command
+// the way a pan/tilt head does. Neither reaches aw_ptz, which those cameras do not serve at all.
+describe('the lens axes over aw_cam', () => {
+	const act = async (model, id, options, data) => {
+		const self = mockInstance(model, data)
+		await getActionDefinitions(self)[id].callback({ actionId: id, options })
+		return self
+	}
+
+	describe('a lens that is told a direction (AW-UB10)', () => {
+		it('names the direction and nothing else', async () => {
+			expect((await act('AW-UB10', 'zoom', { dir: 1 })).sent).toEqual(['HZT'])
+			expect((await act('AW-UB10', 'zoom', { dir: -1 })).sent).toEqual(['HZW'])
+			expect((await act('AW-UB10', 'zoom', { dir: 0 })).sent).toEqual(['HZS'])
+			expect((await act('AW-UB10', 'focus', { dir: 1 })).sent).toEqual(['HFF'])
+			expect((await act('AW-UB10', 'focus', { dir: -1 })).sent).toEqual(['HFN'])
+			expect((await act('AW-UB10', 'focus', { dir: 0 })).sent).toEqual(['HFS'])
+		})
+
+		it('sets the tempo on the camera, in the single digit it counts in', async () => {
+			const self = await act('AW-UB10', 'zoomSpeed', { op: 's', set: 7 })
+
+			expect(self.sent).toEqual(['LZS:7'])
+			expect(self.zSpeed).toBe(7)
+		})
+
+		it('holds the tempo inside the range this lens offers', async () => {
+			expect((await act('AW-UB10', 'focusSpeed', { op: 1, step: 1 })).sent).toEqual(['LFS:9'])
+
+			const field = getActionDefinitions(mockInstance('AW-UB10')).focusSpeed.options.find((f) => f.id === 'set')
+
+			expect([field.min, field.max]).toEqual([0, 9])
+		})
+
+		it('offers no signed velocity, having no command that carries one', () => {
+			const actions = getActionDefinitions(mockInstance('AW-UB10'))
+
+			expect(actions.zoomControl).toBeUndefined()
+			expect(actions.focusControl).toBeUndefined()
+			expect(getActionDefinitions(mockInstance('AW-UE150')).zoomControl).toBeDefined()
+		})
+
+		it('drives focus to a position over aw_cam, colon-separated', async () => {
+			expect((await act('AW-UB10', 'focusFollow', { op: 's', set: 0x0 })).sent).toEqual(['LFP:555'])
+			expect((await act('AW-UB10', 'focusFollow', { op: 's', set: 0xaaa })).sent).toEqual(['LFP:FFF'])
+		})
+	})
+
+	// Its lens reports no position, so there is nothing to drive it to.
+	it('leaves the AK-UB300 with the jog alone', () => {
+		const actions = getActionDefinitions(mockInstance('AK-UB300'))
+
+		expect(actions.focus).toBeDefined()
+		expect(actions.focusSpeed).toBeDefined()
+		expect(actions.focusFollow).toBeUndefined()
+	})
+
+	it('folds direction and tempo into one command on the AK-UBX100', async () => {
+		expect((await act('AK-UBX100', 'zoom', { dir: 1 })).sent).toEqual(['OSM:75:75'])
+		expect((await act('AK-UBX100', 'zoom', { dir: 0 })).sent).toEqual(['OSM:75:50'])
+		expect((await act('AK-UBX100', 'focusControl', { op: 's', set: -10 })).sent).toEqual(['OSM:76:40'])
+	})
+})
+
+// A pan/tilt head drives the iris to a position with #AXI, on the same 555h-FFFh scale the lens
+// reports. A box camera cannot be driven there at all: it reports the position and takes only the
+// manual set-point, which is a different quantity on a different scale (see below).
+describe('iris, which only a pan/tilt head can be driven to', () => {
 	const iris = async (model, options, data) => {
 		const self = mockInstance(model, data)
 		await getActionDefinitions(self).iris.callback({ actionId: 'iris', options })
@@ -116,8 +298,44 @@ describe('iris, which only a pan/tilt head has for now', () => {
 		expect([set.min, set.max, set.default]).toEqual([0x0, 0xaaa, 0x555])
 	})
 
-	it.each(['AW-UB10', 'AW-UB50', 'AK-UB300', 'AK-UBX100'])('%s offers none', (model) => {
-		expect(getActionDefinitions(mockInstance(model)).iris).toBeUndefined()
+	it.each(['AW-UB10', 'AW-UB50', 'AK-UB300', 'AK-UBX100'])('%s offers none, and its volume instead', (model) => {
+		const actions = getActionDefinitions(mockInstance(model))
+
+		expect(actions.iris).toBeUndefined()
+		expect(actions.irisVolume).toBeDefined()
+	})
+})
+
+// ORV is the manual iris volume - Panasonic's own name for it - a set-point on 000h-3FFh, not the
+// position the lens reports on 555h-FFFh. Writing both into one field is what threw the iris wide
+// open in issue #97; they are two quantities and get two of everything.
+describe('the manual iris volume', () => {
+	const volume = async (model, options, data) => {
+		const self = mockInstance(model, data)
+		await getActionDefinitions(self).irisVolume.callback({ actionId: 'irisVolume', options })
+		return self.sent
+	}
+
+	it('drives ORV over aw_cam on its own scale', async () => {
+		expect(await volume('AW-UB10', { op: 's', set: 0x0 })).toEqual(['ORV:000'])
+		expect(await volume('AW-UB10', { op: 's', set: 0x3ff })).toEqual(['ORV:3FF'])
+	})
+
+	it('steps from the set-point the camera last reported, not from the lens position', async () => {
+		const sent = await volume('AW-UB10', { op: 1, step: 0xa }, { irisVolume: 0x100, irisPosition: 0x900 })
+
+		expect(sent).toEqual(['ORV:10A'])
+	})
+
+	it('offers its own range rather than the lens one', () => {
+		const set = getActionDefinitions(mockInstance('AW-UB10')).irisVolume.options.find((f) => f.id === 'set')
+
+		expect([set.min, set.max, set.default]).toEqual([0x0, 0x3ff, 0x1ff])
+	})
+
+	it('is not offered where the iris is driven by position instead', () => {
+		expect(getActionDefinitions(mockInstance('AW-UE150')).irisVolume).toBeUndefined()
+		expect(getActionDefinitions(mockInstance('AW-UE150')).iris).toBeDefined()
 	})
 })
 

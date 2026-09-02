@@ -52,16 +52,16 @@ const speedOperation = {
 	],
 }
 
-const speedSetting = {
+const speedSetting = (min = SPEED_MIN, max = SPEED_MAX) => ({
 	type: 'number',
 	label: 'Speed setting',
 	id: 'set',
-	default: SPEED_DEFAULT,
-	min: SPEED_MIN,
-	max: SPEED_MAX,
+	default: constrainRange(SPEED_DEFAULT, min, max),
+	min,
+	max,
 	range: true,
 	isVisibleExpression: '$(options:op) == "s"',
-}
+})
 
 const speedControlSetting = {
 	type: 'number',
@@ -263,8 +263,8 @@ function cmdEnum(action, dropdown, data) {
 	return getNext(dropdown, data, action.options.op, false).id
 }
 
-function cmdSpeed(speed) {
-	return speed.toString().padStart(2, '0')
+function cmdSpeed(speed, width = 2) {
+	return speed.toString().padStart(width, '0')
 }
 
 // ##########################
@@ -279,6 +279,14 @@ export function getActionDefinitions(self) {
 	const cam = (cmd) => self.getCam(cmd)
 	const ptz = (cmd) => self.getPTZ(cmd)
 	const web = (cmd) => self.getWeb(cmd)
+
+	const sender = (transport) => {
+		const go = transport === 'cam' ? cam : ptz
+		const join = transport === 'cam' ? (cmd, value) => `${cmd}:${value}` : (cmd, value) => cmd + value
+
+		// The direction commands (HZT, HFS) are the whole message; everything else carries a value.
+		return (cmd, value) => go(value === undefined ? cmd : join(cmd, value))
+	}
 
 	// ----- Action factories -----
 	// read is a getter: toggle/step are relative to the camera's current value, unknown at build time.
@@ -301,6 +309,22 @@ export function getActionDefinitions(self) {
 		},
 	})
 
+	const positionAction = (name, label, spec, read) => {
+		const send = sender(spec.transport)
+		const { cmd, offset, max, step, hexlen } = spec
+
+		return {
+			name,
+			options: optSetIncDecStep(label, max >> 1, 0x0, max, step),
+			callback: async (action) => {
+				if (!resolveSetStep(self, action, 0x0, max, step)) return
+				await send(cmd, cmdValue(action, offset, 0x0, max, action.options.step, hexlen, read()))
+			},
+		}
+	}
+
+	const axisPosition = (cap) => ({ transport: cap.transport, ...cap.range, ...cap.position })
+
 	const simpleAction = (name, send, command) => ({
 		name,
 		options: [],
@@ -319,9 +343,20 @@ export function getActionDefinitions(self) {
 		},
 	})
 
-	// Zoom and focus share three controls per axis: momentary move, direct speed, stored speed.
-	const lensAxis = (axis, command, speedProp, speedDataKey, incLabel, decLabel) => {
-		const move = (dir) => ptz(command + cmdSpeed(dir * self[speedProp] + SPEED_OFFSET))
+	// Zoom and focus share up to three controls per axis: momentary move, direct speed, stored speed.
+	// Where the jog folds direction and magnitude into one command, that command serves both the move
+	// (magnitude from the stored speed) and the direct speed. Where it only names a direction, the
+	// tempo is a separate camera setting and there is no signed velocity to send, so no direct speed.
+	const lensAxis = (cap, axis, speedProp, speedDataKey, incLabel, decLabel) => {
+		const send = sender(cap.transport)
+		const velocity = cap.jog.cmd !== undefined
+		const storedMin = cap.speed ? cap.speed.min : SPEED_MIN
+		const storedMax = cap.speed ? cap.speed.max : cap.jog.max - cap.jog.offset
+
+		const drive = velocity
+			? (speed) => send(cap.jog.cmd, cmdSpeed(speed + cap.jog.offset, cap.jog.width))
+			: (speed) => send(speed === 0 ? cap.jog.stop : speed > 0 ? cap.jog.inc : cap.jog.dec)
+		const move = (dir) => drive(dir * self[speedProp])
 		return {
 			move: {
 				name: `Lens - ${axis}`,
@@ -340,27 +375,40 @@ export function getActionDefinitions(self) {
 					}
 				},
 			},
-			control: {
-				name: `Lens - ${axis} Speed Control`,
-				options: [speedOperation, speedControlSetting, speedStep],
-				callback: async (action) => {
-					self.data[speedDataKey] =
-						action.options.op !== ACTION_SET
-							? getNextValue(self.data[speedDataKey], -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step)
-							: action.options.set
-					await ptz(command + cmdSpeed(self.data[speedDataKey] + SPEED_OFFSET))
-				},
-			},
+			control: velocity
+				? {
+						name: `Lens - ${axis} Speed Control`,
+						options: [speedOperation, speedControlSetting, speedStep],
+						callback: async (action) => {
+							self.data[speedDataKey] =
+								action.options.op !== ACTION_SET
+									? getNextValue(
+											self.data[speedDataKey],
+											-SPEED_MAX,
+											SPEED_MAX,
+											action.options.op * action.options.step,
+										)
+									: action.options.set
+							await drive(self.data[speedDataKey])
+						},
+					}
+				: undefined,
 			speed: {
 				name: `Lens - ${axis} Speed`,
-				options: [speedOperation, speedSetting, speedStep],
+				options: [speedOperation, speedSetting(storedMin, storedMax), speedStep],
 				callback: async (action) => {
-					self[speedProp] =
+					self[speedProp] = constrainRange(
 						action.options.op !== ACTION_SET
-							? getNextValue(self[speedProp], SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
-							: action.options.set
+							? getNextValue(self[speedProp], storedMin, storedMax, action.options.op * action.options.step)
+							: action.options.set,
+						storedMin,
+						storedMax,
+					)
 					self.setVariableValues({ [speedProp]: self[speedProp] })
 					self.speedChangeEmitter.emit(speedProp)
+
+					// Where the tempo is the camera's own setting it has to be told; the jog carries it otherwise.
+					if (cap.speed) await send(cap.speed.cmd, cmdSpeed(self[speedProp], cap.speed.width))
 				},
 			},
 		}
@@ -496,27 +544,27 @@ export function getActionDefinitions(self) {
 	// #### Lens Actions ####
 	// ######################
 
-	if (caps.zoom) {
-		const zoom = lensAxis('Zoom', 'Z', 'zSpeed', 'zoomSpeedValue', '⬆ In', '⬇ Out')
+	if (caps.zoom?.jog) {
+		const zoom = lensAxis(caps.zoom, 'Zoom', 'zSpeed', 'zoomSpeedValue', '⬆ In', '⬇ Out')
 		actions.zoom = zoom.move
-		actions.zoomControl = zoom.control
+		if (zoom.control) actions.zoomControl = zoom.control
 		actions.zoomSpeed = zoom.speed
 	}
 
-	if (caps.focus) {
-		const focus = lensAxis('Focus', 'F', 'fSpeed', 'focusSpeedValue', '⬆ Far', '⬇ Near')
+	if (caps.focus?.jog) {
+		const focus = lensAxis(caps.focus, 'Focus', 'fSpeed', 'focusSpeedValue', '⬆ Far', '⬇ Near')
 		actions.focus = focus.move
-		actions.focusControl = focus.control
+		if (focus.control) actions.focusControl = focus.control
 		actions.focusSpeed = focus.speed
+	}
 
-		actions.focusFollow = {
-			name: 'Lens - Follow Focus',
-			options: optSetIncDecStep('Focus setting', 0x555, 0x0, 0xaaa, 10),
-			callback: async (action) => {
-				if (!resolveSetStep(self, action, 0x0, 0xaaa, 10)) return
-				await ptz('AXF' + cmdValue(action, 0x555, 0x0, 0xaaa, action.options.step, 3, self.data.focusPosition))
-			},
-		}
+	if (caps.focus?.position) {
+		actions.focusFollow = positionAction(
+			'Lens - Follow Focus',
+			'Focus setting',
+			axisPosition(caps.focus),
+			() => self.data.focusPosition,
+		)
 	}
 
 	if (caps.focusAuto) {
@@ -537,18 +585,25 @@ export function getActionDefinitions(self) {
 	// #### Exposure Actions ####
 	// ##########################
 
-	if (caps.iris) {
-		const { cmd, transport, offset, max, step } = caps.iris
-		const send = transport === 'cam' ? (value) => cam(`${cmd}:${value}`) : (value) => ptz(cmd + value)
+	// An axis can report a position without being drivable to one, so the command decides, not the axis.
+	if (caps.iris?.position) {
+		actions.iris = positionAction(
+			'Exposure - Iris',
+			'Iris setting',
+			axisPosition(caps.iris),
+			() => self.data.irisPosition,
+		)
+	}
 
-		actions.iris = {
-			name: 'Exposure - Iris',
-			options: optSetIncDecStep('Iris setting', max >> 1, 0x0, max, step),
-			callback: async (action) => {
-				if (!resolveSetStep(self, action, 0x0, max, step)) return
-				await send(cmdValue(action, offset, 0x0, max, action.options.step, 3, self.data.irisPosition))
-			},
-		}
+	// ORV is the manual iris volume, not the iris position: a set-point on its own scale, and on a box
+	// camera the only way to move the iris at all.
+	if (caps.irisVolume) {
+		actions.irisVolume = positionAction(
+			'Exposure - Iris Volume',
+			'Iris volume',
+			caps.irisVolume,
+			() => self.data.irisVolume,
+		)
 	}
 
 	if (caps.irisAuto) {

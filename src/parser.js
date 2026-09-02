@@ -487,11 +487,19 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		case 'OGU':
 			self.data.gain = str[1].replace('0x', '').padStart(2, '0')
 			break
+		case 'LZP':
+		case 'OZP':
+			self.data.zoomPosition = parseInt(str[1], 16) - 0x555
+			break
+		case 'LFP':
+		case 'OFP':
+			self.data.focusPosition = parseInt(str[1], 16) - 0x555
+			break
 		case 'ORS':
 			self.data.irisMode = str[1]
 			break
 		case 'ORV':
-			//self.data.irisPosition = parseInt(str[1], 16) // 0x3ff
+			self.data.irisVolume = parseInt(str[1], 16)
 			break
 		case 'OTD':
 			self.data.masterPedValue = parseInt(str[1], 16) - 0x1e

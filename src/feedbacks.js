@@ -196,7 +196,7 @@ export function getFeedbackDefinitions(self) {
 		)
 	}
 
-	if (caps.zoom) {
+	if (caps.zoom?.jog?.cmd) {
 		feedbacks.zoomControl = stateFeedback(
 			'Lens - Zoom Control',
 			'Indicates if Zoom is currently in operation',

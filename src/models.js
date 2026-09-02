@@ -77,16 +77,27 @@ const BASE_CAPABILITIES = {
 	errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature', 'Lens', 'Pan/Tilt', 'Sensor'] }, // Has error state bitmask (QSI:46 or QER)
 	filter: { dropdown: e.ENUM_FILTER_OTHER }, // Has ND Filter Support (OFT)
 	filterFollow: false, // Has ND Filter Status (QSJ:D2)
-	focus: true, // Has Focus control and position (Fxx and AXFxxx)
+	focus: {
+		transport: 'ptz',
+		range: { offset: 0x555, max: 0xaaa },
+		jog: { cmd: 'F', offset: 50, min: 1, max: 99, width: 2 },
+		position: { cmd: 'AXF', step: 0xa, hexlen: 3 },
+	}, // Has Focus control and position (Fxx and AXFxxx)
 	focusAuto: true, // Has (switchable) Auto Focus (OAF)
 	focusPushAuto: true, // Has Push Auto Focus feature (OSE:69:1)
 	gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_CX350 }, // Has Gain (OGU or OGS)
 	imageTransmission: { cmd: 'view.cgi?action=snapshot' }, // Has a JPEG one-shot image request (view.cgi)
 	install: true, // Has support for Desktop or Hanging Install Position (iNSx)
-	iris: { cmd: 'AXI', transport: 'ptz', offset: 0x555, max: 0xaaa, step: 0x1e }, // Has Iris control and position (#AXI or ORV)
+	iris: {
+		transport: 'ptz',
+		range: { offset: 0x555, max: 0xaaa },
+		position: { cmd: 'AXI', step: 0x1e, hexlen: 3 },
+	}, // Has Iris position control (#AXI)
 	irisAuto: true, // Has (switchable) Auto Iris (ORS)
 	irisF: false, // Has Iris F No. decoding (OIF)
 	irisFollowPosition: true, // Has Iris Follow (QSD:4F)
+	irisVolume: false, // Has the manual iris volume (ORV)
+	lensPositionSubscription: { cmd: 'LPC1', transport: 'ptz' }, // Lens position update subscription
 	night: true, // Has Day/Night Mode (d6x)
 	ois: { dropdown: e.ENUM_OIS_OTHER }, // Has Optical Image Stabilisation control (OIS)
 	panTilt: true, // Has Pan/Tilt Head control (#P, #T, #PTS, #APC)
@@ -121,7 +132,11 @@ const BASE_CAPABILITIES = {
 	version: true, // Camera provides software version (from initial getinfo or QSV, OSV)
 	videoFormat: true, // Camera reports current video format (OSA:87)
 	whiteBalance: { dropdown: e.ENUM_WHITEBALANCE, confirm: { 2: '1', 3: '2' } }, // Has White Balance Modes (OAW)
-	zoom: true, // Has Zoom control and position (Zxx and AXZxxx)
+	zoom: {
+		transport: 'ptz',
+		range: { offset: 0x555, max: 0xaaa },
+		jog: { cmd: 'Z', offset: 50, min: 1, max: 99, width: 2 },
+	}, // Has Zoom control and position (Zxx and AXZxxx)
 }
 
 export const SERIES_SPECS = [
@@ -625,14 +640,21 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
-			focus: false, // special implementation req. 'OSM:77', 'OZP'
+			focus: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { cmd: 'OSM:76', offset: 50, min: 1, max: 99, width: 2 },
+				position: { cmd: 'LFP', step: 0xa, hexlen: 3 },
+			},
 			focusAuto: false,
 			focusPushAuto: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UBX100 },
 			install: false,
-			iris: false, // ORV
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } },
+			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
+			lensPositionSubscription: { cmd: 'OSM:77:1', transport: 'cam' },
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -655,6 +677,7 @@ export const SERIES_SPECS = [
 					'QLR',
 					'QLY',
 					'QRS',
+					'QRV',
 					'QSA:87',
 					'QSD:3A',
 					'QSD:B0',
@@ -682,7 +705,11 @@ export const SERIES_SPECS = [
 			streamTS: false,
 			trackingAuto: false,
 			whiteBalance: true, // OWS/OAS execute, but no OAW mode dropdown
-			zoom: false, // special implementation req. 'OSM:77', 'OZP'
+			zoom: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { cmd: 'OSM:75', offset: 50, min: 1, max: 99, width: 2 },
+			},
 		},
 	},
 	{
@@ -701,15 +728,22 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: { cmd: 'QER', bits: ['Fan'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
-			focus: false,
+			focus: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HFF', dec: 'HFN', stop: 'HFS' },
+				speed: { cmd: 'LFS', min: 0, max: 9, width: 1 },
+			},
 			focusAuto: false,
 			focusPushAuto: false,
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
 			imageTransmission: false,
 			install: false,
-			iris: false, // ORV
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } },
+			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
+			lensPositionSubscription: false, // OSI:18 is pushed unprompted
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -731,6 +765,7 @@ export const SERIES_SPECS = [
 					'QLG',
 					'QLR',
 					'QRS',
+					'QRV',
 					'QSA:87',
 					'QSD:3A',
 					'QSD:B0',
@@ -756,7 +791,12 @@ export const SERIES_SPECS = [
 			trackingAuto: false,
 			version: false,
 			whiteBalance: true, // no white balance mode
-			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZS:xx'
+			zoom: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HZT', dec: 'HZW', stop: 'HZS' },
+				speed: { cmd: 'LZS', min: 0, max: 9, width: 1 },
+			},
 		},
 	},
 	{
@@ -778,14 +818,22 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
 			filter: false,
-			focus: false, // special implementation req. 'HFF', 'HFN', 'HFS', 'LFP:xxx', 'LFS:x'
-			focusAuto: false,
+			focus: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HFF', dec: 'HFN', stop: 'HFS' },
+				speed: { cmd: 'LFS', min: 0, max: 9, width: 1 },
+				position: { cmd: 'LFP', step: 0xa, hexlen: 3 },
+			},
+			focusAuto: true, // the model's own specification lists OAF/QAF, the summary table does not
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB10 },
 			imageTransmission: false,
 			install: false,
-			iris: false, // ORV
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } },
+			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
+			lensPositionSubscription: false, // OSI:18 is pushed unprompted
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -796,11 +844,13 @@ export const SERIES_SPECS = [
 			pull: {
 				ptz: false,
 				cam: [
+					'QAF',
 					'QAW',
 					'QBR',
 					'QIF',
 					'QLR',
 					'QRS',
+					'QRV',
 					'QSA:87',
 					'QSG:39',
 					'QSG:3A',
@@ -826,7 +876,12 @@ export const SERIES_SPECS = [
 			trackingAuto: false,
 			version: false,
 			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_UB50, confirm: { 2: '1', 3: '2' } },
-			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZP:xxx', 'LZS:x'
+			zoom: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HZT', dec: 'HZW', stop: 'HZS' },
+				speed: { cmd: 'LZS', min: 0, max: 9, width: 1 },
+			},
 		},
 	},
 	{
@@ -848,14 +903,22 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
 			filter: false,
-			focus: false, // special implementation req. 'HFF', 'HFN', 'HFS', 'LFP:xxx', 'LFS:x'
-			focusAuto: false,
+			focus: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HFF', dec: 'HFN', stop: 'HFS' },
+				speed: { cmd: 'LFS', min: 0, max: 9, width: 1 },
+				position: { cmd: 'LFP', step: 0xa, hexlen: 3 },
+			},
+			focusAuto: true,
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB50 },
 			imageTransmission: false,
 			install: false,
-			iris: false, // ORV
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } },
+			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
+			lensPositionSubscription: false, // OSI:18 is pushed unprompted
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -866,11 +929,13 @@ export const SERIES_SPECS = [
 			pull: {
 				ptz: false,
 				cam: [
+					'QAF',
 					'QAW',
 					'QBR',
 					'QIF',
 					'QLR',
 					'QRS',
+					'QRV',
 					'QSA:87',
 					'QSG:39',
 					'QSG:3A',

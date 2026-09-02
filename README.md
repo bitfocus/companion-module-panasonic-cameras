@@ -267,6 +267,9 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 | `$(irisPositionBar)` | Iris Position (bar graph) |
 | `$(irisMode)` | Iris Mode |
 | `$(irisF)` | Iris F No. |
+| `$(irisVolume)` | Iris Volume |
+| `$(irisVolumePct)` | Iris Volume % |
+| `$(irisVolumeBar)` | Iris Volume (bar graph) |
 | `$(irisFollowPosition)` | Iris Follow Position |
 | `$(irisFollowPositionPct)` | Iris Follow Position % |
 | `$(irisFollowPositionBar)` | Iris Follow Position (bar graph) |

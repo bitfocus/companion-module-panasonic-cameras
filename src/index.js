@@ -319,7 +319,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 			this.onRequestSucceeded()
 
-			await this.getPTZ('LPC1') // enable Lens Position Information updates
+			const lensPositionSubscription = this.SERIES?.capabilities.lensPositionSubscription
+			if (lensPositionSubscription)
+				await this[lensPositionSubscription.transport === 'cam' ? 'getCam' : 'getPTZ'](lensPositionSubscription.cmd)
 		} catch (err) {
 			if (!this.current(generation)) return
 			this.logConnectionError(err, 'Error on subscribe: ' + String(err))

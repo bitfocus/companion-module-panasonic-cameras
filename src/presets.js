@@ -136,14 +136,14 @@ const knobPreset = (category, name, text, actionId, value, { bgcolor = colorBlac
 })
 
 // Speed knob: press centres the range, turn nudges it.
-const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
+const speedKnobPreset = (category, name, text, actionId, extra = {}, set = 25) => ({
 	type: 'layered',
 	category,
 	name,
 	elements: layers({ text }),
 	steps: [
 		{
-			down: [{ actionId, options: { ...extra, op: 's', set: 25 } }],
+			down: [{ actionId, options: { ...extra, op: 's', set } }],
 			up: [],
 			rotate_left: [{ actionId, options: { ...extra, op: -1, step: 1 } }],
 			rotate_right: [{ actionId, options: { ...extra, op: 1, step: 1 } }],
@@ -151,6 +151,9 @@ const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
 	],
 	feedbacks: [],
 })
+
+// Half of whatever tempo range the axis offers, which is where the speed knob's press lands.
+const midSpeed = (cap) => (cap.speed ? Math.round((cap.speed.min + cap.speed.max) / 2) : 25)
 
 // Mode knob: press toggles, turn steps through the list.
 const enumKnobPreset = (category, name, text, actionId) => ({
@@ -309,7 +312,7 @@ export function getPresetDefinitions(self) {
 	// #### Lens Presets ####
 	// ######################
 
-	if (SERIES.capabilities.zoom) {
+	if (SERIES.capabilities.zoom?.jog?.cmd) {
 		presets['lens-zoom'] = {
 			type: 'layered',
 			category: 'Lens',
@@ -345,7 +348,9 @@ export function getPresetDefinitions(self) {
 				},
 			],
 		}
+	}
 
+	if (SERIES.capabilities.zoom?.jog) {
 		presets['lens-zoom-in'] = textJogPreset('Lens', 'Zoom In', 'ZOOM\\nIN', 'zoom', 1)
 
 		presets['lens-zoom-out'] = textJogPreset('Lens', 'Zoom Out', 'ZOOM\\nOUT', 'zoom', -1)
@@ -355,10 +360,12 @@ export function getPresetDefinitions(self) {
 			'Zoom Speed',
 			'Zoom\\nSpeed\\n$(generic-module:zSpeed)',
 			'zoomSpeed',
+			{},
+			midSpeed(SERIES.capabilities.zoom),
 		)
 	}
 
-	if (SERIES.capabilities.focus) {
+	if (SERIES.capabilities.focus?.position) {
 		presets['lens-focus'] = {
 			type: 'layered',
 			category: 'Lens',
@@ -373,7 +380,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'focusFollow',
 							options: {
 								op: -1,
-								step: 10,
+								step: SERIES.capabilities.focus.position.step,
 							},
 						},
 					],
@@ -382,7 +389,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'focusFollow',
 							options: {
 								op: 1,
-								step: 10,
+								step: SERIES.capabilities.focus.position.step,
 							},
 						},
 					],
@@ -390,7 +397,9 @@ export function getPresetDefinitions(self) {
 			],
 			feedbacks: [],
 		}
+	}
 
+	if (SERIES.capabilities.focus?.jog) {
 		presets['lens-focus-far'] = textJogPreset('Lens', 'Focus Far', 'FOCUS\\nFAR', 'focus', 1)
 
 		presets['lens-focus-near'] = textJogPreset('Lens', 'Focus Near', 'FOCUS\\nNEAR', 'focus', -1)
@@ -400,28 +409,30 @@ export function getPresetDefinitions(self) {
 			'Focus Speed',
 			'Focus\\nSpeed\\n$(generic-module:fSpeed)',
 			'focusSpeed',
+			{},
+			midSpeed(SERIES.capabilities.focus),
 		)
+	}
 
-		if (SERIES.capabilities.focusAuto) {
-			presets['lens-focus-mode'] = togglePreset(
-				'Lens',
-				'Focus Mode',
-				'FOCUS MODE\\n$(generic-module:focusMode)',
-				'focusMode',
-				'focusMode',
-				{ color: colorWhite, bgcolor: colorRed },
-			)
-		}
+	if (SERIES.capabilities.focusAuto) {
+		presets['lens-focus-mode'] = togglePreset(
+			'Lens',
+			'Focus Mode',
+			'FOCUS MODE\\n$(generic-module:focusMode)',
+			'focusMode',
+			'focusMode',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
+	}
 
-		if (SERIES.capabilities.focusPushAuto) {
-			presets['lens-focus-push-auto'] = momentaryPreset(
-				'Lens',
-				'Push Auto Focus',
-				'PUSH\\nAUTO\\nFOCUS',
-				'focusPushAuto',
-				{},
-			)
-		}
+	if (SERIES.capabilities.focusPushAuto) {
+		presets['lens-focus-push-auto'] = momentaryPreset(
+			'Lens',
+			'Push Auto Focus',
+			'PUSH\\nAUTO\\nFOCUS',
+			'focusPushAuto',
+			{},
+		)
 	}
 
 	if (SERIES.capabilities.ois) {
@@ -476,8 +487,9 @@ export function getPresetDefinitions(self) {
 	// #### Exposure Presets ####
 	// ##########################
 
-	if (SERIES.capabilities.iris) {
+	if (SERIES.capabilities.iris?.position) {
 		const position = SERIES.capabilities.irisFollowPosition ? 'irisFollowPosition' : 'irisPosition'
+		const step = SERIES.capabilities.iris.position.step
 
 		presets['exposure-iris'] = {
 			type: 'layered',
@@ -507,7 +519,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'iris',
 							options: {
 								op: -1,
-								step: 30,
+								step: step,
 							},
 						},
 					],
@@ -516,7 +528,7 @@ export function getPresetDefinitions(self) {
 							actionId: 'iris',
 							options: {
 								op: 1,
-								step: 30,
+								step: step,
 							},
 						},
 					],
@@ -527,12 +539,47 @@ export function getPresetDefinitions(self) {
 
 		presets['exposure-iris-up'] = momentaryPreset('Exposure', 'Iris Up', 'IRIS\\nUP', 'iris', {
 			op: 1,
-			step: 0x1e,
+			step: step,
 		})
 
 		presets['exposure-iris-down'] = momentaryPreset('Exposure', 'Iris Down', 'IRIS\\nDOWN', 'iris', {
 			op: -1,
-			step: 0x1e,
+			step: step,
+		})
+	}
+
+	if (SERIES.capabilities.irisVolume) {
+		const volume = SERIES.capabilities.irisVolume
+
+		presets['exposure-iris-volume'] = {
+			type: 'layered',
+			category: 'Exposure',
+			name: 'Iris Volume',
+			elements: layers({
+				text:
+					'IRIS\\n$(generic-module:' +
+					(SERIES.capabilities.irisF ? 'irisF' : 'irisVolume') +
+					')\\n$(generic-module:irisVolumeBar)',
+			}),
+			steps: [
+				{
+					down: [{ actionId: 'irisMode', options: { op: 't' } }],
+					up: [],
+					rotate_left: [{ actionId: 'irisVolume', options: { op: -1, step: volume.step } }],
+					rotate_right: [{ actionId: 'irisVolume', options: { op: 1, step: volume.step } }],
+				},
+			],
+			feedbacks: [],
+		}
+
+		presets['exposure-iris-volume-up'] = momentaryPreset('Exposure', 'Iris Up', 'IRIS\\nUP', 'irisVolume', {
+			op: 1,
+			step: volume.step,
+		})
+
+		presets['exposure-iris-volume-down'] = momentaryPreset('Exposure', 'Iris Down', 'IRIS\\nDOWN', 'irisVolume', {
+			op: -1,
+			step: volume.step,
 		})
 	}
 

@@ -62,6 +62,7 @@ export function initialData() {
 		focusPosition: null,
 		irisFollowPosition: null,
 		irisPosition: null,
+		irisVolume: null,
 		panPosition: null,
 		tiltPosition: null,
 		zoomPosition: null,
