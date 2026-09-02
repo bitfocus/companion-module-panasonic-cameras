@@ -273,11 +273,10 @@ describe('the lens axes over aw_cam', () => {
 	})
 })
 
-// A pan/tilt head drives the iris over aw_ptz with #AXI (555h-FFFh). The box cameras drive it over
-// aw_cam with ORV (000h-3FFh) but also report it on the lens scale in OSI:18, and both landed in
-// irisPosition - so a step read one scale, wrote the other and hit the clamp, opening the iris fully
-// (issue #97). Their iris rests until it can be rebuilt together with their zoom and focus.
-describe('iris, which only a pan/tilt head has for now', () => {
+// A pan/tilt head drives the iris to a position with #AXI, on the same 555h-FFFh scale the lens
+// reports. A box camera cannot be driven there at all: it reports the position and takes only the
+// manual set-point, which is a different quantity on a different scale (see below).
+describe('iris, which only a pan/tilt head can be driven to', () => {
 	const iris = async (model, options, data) => {
 		const self = mockInstance(model, data)
 		await getActionDefinitions(self).iris.callback({ actionId: 'iris', options })
@@ -299,8 +298,11 @@ describe('iris, which only a pan/tilt head has for now', () => {
 		expect([set.min, set.max, set.default]).toEqual([0x0, 0xaaa, 0x555])
 	})
 
-	it.each(['AW-UB10', 'AW-UB50', 'AK-UB300', 'AK-UBX100'])('%s offers none', (model) => {
-		expect(getActionDefinitions(mockInstance(model)).iris).toBeUndefined()
+	it.each(['AW-UB10', 'AW-UB50', 'AK-UB300', 'AK-UBX100'])('%s offers none, and its volume instead', (model) => {
+		const actions = getActionDefinitions(mockInstance(model))
+
+		expect(actions.iris).toBeUndefined()
+		expect(actions.irisVolume).toBeDefined()
 	})
 })
 

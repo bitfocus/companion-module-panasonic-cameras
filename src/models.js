@@ -839,7 +839,7 @@ export const SERIES_SPECS = [
 				speed: { cmd: 'LFS', min: 0, max: 9, width: 1 },
 				position: { cmd: 'LFP', step: 0xa, hexlen: 3 },
 			},
-			focusAuto: false,
+			focusAuto: true, // the model's own specification lists OAF/QAF, the summary table does not
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB10 },
 			imageTransmission: false,
 			install: false,
@@ -858,6 +858,7 @@ export const SERIES_SPECS = [
 			pull: {
 				ptz: false,
 				cam: [
+					'QAF',
 					'QAW',
 					'QBR',
 					'QIF',
@@ -923,7 +924,7 @@ export const SERIES_SPECS = [
 				speed: { cmd: 'LFS', min: 0, max: 9, width: 1 },
 				position: { cmd: 'LFP', step: 0xa, hexlen: 3 },
 			},
-			focusAuto: false,
+			focusAuto: true, // the model's own specification lists OAF/QAF, the summary table does not
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB50 },
 			imageTransmission: false,
 			install: false,
@@ -942,6 +943,7 @@ export const SERIES_SPECS = [
 			pull: {
 				ptz: false,
 				cam: [
+					'QAF',
 					'QAW',
 					'QBR',
 					'QIF',
