@@ -15,6 +15,7 @@ const repairPre201Writes = upgradeScripts[4]
 const rescaleColorTemperatureStep = upgradeScripts[5]
 const renameDebugToTrace = upgradeScripts[6]
 const dropRestartCredentials = upgradeScripts[7]
+const repairSteppedGain = upgradeScripts[8]
 
 // An upgrade script both reads and writes CompanionMigrationOptionValues, so every option in these
 // fixtures — and every option a script writes — is an ExpressionOrValue wrapper, never a bare value.
@@ -33,7 +34,7 @@ const migrate = (props, context = {}) =>
 // re-runs the wrong migration on every existing connection.
 describe('upgradeScripts', () => {
 	it('only ever grows, and blanks a retired script in place', () => {
-		expect(upgradeScripts).toHaveLength(8)
+		expect(upgradeScripts).toHaveLength(9)
 		expect(upgradeScripts[0]).toBe(EmptyUpgradeScript)
 	})
 })
@@ -586,5 +587,60 @@ describe('dropRestartCredentials', () => {
 
 	it('writes no connection login when buttons are upgraded on their own', () => {
 		expect(upgrade([button({ username: 'ops', password: 'pw' })], null).updatedConfig).toBeNull()
+	})
+})
+
+// The AW-UB10/AW-UB50 take steps and no value, so their Gain action offers Increase and Decrease
+// alone. Buttons built against the old four-way operation carry a value Companion no longer accepts,
+// and dropping the action is how it says so.
+describe('repairSteppedGain', () => {
+	const step = (props, context = {}) =>
+		repairSteppedGain(context, { config: { model: 'AW-UB10' }, actions: [], feedbacks: [], ...props })
+
+	it('puts a valid operation back where the camera can only step', () => {
+		const actions = [{ actionId: 'gain', options: { op: val('t') } }]
+		const result = step({ actions })
+
+		expect(actions[0].options.op).toEqual(val(1))
+		expect(result.updatedActions).toEqual(actions)
+	})
+
+	it('leaves the two operations the camera still has', () => {
+		const actions = [
+			{ actionId: 'gain', options: { op: val(1) } },
+			{ actionId: 'gain', options: { op: val(-1) } },
+		]
+		const result = step({ actions })
+
+		expect(actions.map((a) => a.options.op)).toEqual([val(1), val(-1)])
+		expect(result.updatedActions).toEqual([])
+	})
+
+	it('leaves a camera that still sets its gain outright alone', () => {
+		const actions = [{ actionId: 'gain', options: { op: val('t') } }]
+		const result = step({ config: { model: 'AW-UE100' }, actions })
+
+		expect(actions[0].options.op).toEqual(val('t'))
+		expect(result.updatedActions).toEqual([])
+	})
+
+	it('touches no other action', () => {
+		const actions = [{ actionId: 'shutter', options: { op: val('t') } }]
+
+		expect(step({ actions }).updatedActions).toEqual([])
+	})
+
+	it('leaves an expression to the button', () => {
+		const actions = [{ actionId: 'gain', options: { op: expr('$(x)') } }]
+
+		expect(step({ actions }).updatedActions).toEqual([])
+	})
+
+	it.each([
+		['no config at all', null],
+		['a model that is only resolved once a camera answers', { model: 'Auto' }],
+		['a model this module does not know', { model: 'AW-NOT-A-CAMERA' }],
+	])('survives %s', (_name, config) => {
+		expect(() => step({ config, actions: [{ actionId: 'gain', options: { op: val('t') } }] })).not.toThrow()
 	})
 })
