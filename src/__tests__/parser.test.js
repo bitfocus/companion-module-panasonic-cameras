@@ -3,22 +3,14 @@ import { parseRefusal, parseUpdate, parseWeb, parseWebCode } from '../parser.js'
 import { constrainRange, getNext, getNextValue, getLabel, seriesOf, toHexString } from '../common.js'
 import { initialData } from '../data.js'
 import { getFeedbackDefinitions } from '../feedbacks.js'
-import { SERIES_SPECS } from '../models.js'
-
-const seriesSpec = (id) => SERIES_SPECS.find((spec) => spec.id === id)
 
 // parseUpdate mutates self.data in place from the camera's notification strings. The real shape, so a
 // branch writing into a container the module initialises (presetThumbnails, panTiltLimits) is exercised
-// rather than hand-waved past. A lens position is only stored where the series says it speaks that
-// scale, so the series has to be there too; 'Other' is the set every PTZ camera shares.
-function parseAs(series, ...args) {
-	const self = { SERIES: seriesSpec(series), data: initialData(), getThumbnail: () => {} }
+// rather than hand-waved past.
+function parse(...args) {
+	const self = { data: initialData(), getThumbnail: () => {} }
 	parseUpdate(self, args)
 	return self.data
-}
-
-function parse(...args) {
-	return parseAs('Other', ...args)
 }
 
 describe('parseUpdate', () => {
@@ -35,34 +27,20 @@ describe('parseUpdate', () => {
 	// A serial-interface lens answers QZP/QFP itself. The bulk read strips the 0x its own table shows,
 	// so the same value arrives spelled two ways.
 	it('reads the positions a lens reports for itself', () => {
-		expect(parseAs('UBX100', 'OZP', '0xD24').zoomPosition).toBe(0xd24 - 0x555)
-		expect(parseAs('UBX100', 'OFP', 'D24').focusPosition).toBe(0xd24 - 0x555)
+		expect(parse('OZP', '0xD24').zoomPosition).toBe(0xd24 - 0x555)
+		expect(parse('OFP', 'D24').focusPosition).toBe(0xd24 - 0x555)
 	})
 
-	// Two quantities, two fields: OSI:18 carries where the lens is, ORV the set-point it was told.
+	// Two quantities, two fields: OSI:18 carries where the lens stands, ORV the set-point it was told.
+	// They count in different steps, so sharing one field put the iris at the clamp (issue #97).
 	it('keeps the iris set-point apart from the iris position', () => {
-		const data = parseAs('UB10', 'OSI', '18', '0xFFF', '0x555', '0xD24')
+		const self = { data: initialData(), getThumbnail: () => {} }
 
-		expect(data.irisPosition).toBe(0xd24 - 0x555)
-		expect(data.irisVolume).toBe(null)
+		parseUpdate(self, ['OSI', '18', '0xFFF', '0x555', '0xD24'])
+		parseUpdate(self, ['ORV', '0x2F5'])
 
-		parseUpdate({ SERIES: seriesSpec('UB10'), data, getThumbnail: () => {} }, ['ORV', '0x2F5'])
-
-		expect(data.irisVolume).toBe(0x2f5)
-		expect(data.irisPosition).toBe(0xd24 - 0x555)
-	})
-
-	// The scale is the axis's, not the wire's. A camera that does not carry an axis must not have one
-	// filled in behind its back, and a camera that reads the axis on another scale must not take a
-	// lens-scale figure for it - which is how the box cameras' iris ended up at the clamp (issue #97).
-	it('stores a lens position only where the series reads that axis on that scale', () => {
-		const off = parseAs('HE2', 'lPI555666777')
-
-		expect([off.zoomPosition, off.focusPosition, off.irisPosition]).toEqual([null, null, null])
-
-		const on = parseAs('Other', 'lPI555666777')
-
-		expect([on.zoomPosition, on.focusPosition, on.irisPosition]).toEqual([0, 0x666 - 0x555, 0x777 - 0x555])
+		expect(self.data.irisPosition).toBe(0xd24 - 0x555)
+		expect(self.data.irisVolume).toBe(0x2f5)
 	})
 
 	it('decodes pan/tilt position, which is offset by 0x8000', () => {

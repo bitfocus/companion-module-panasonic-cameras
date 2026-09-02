@@ -52,8 +52,6 @@ const speedOperation = {
 	],
 }
 
-// The stored speed spans whatever the axis offers: a PTZ lens is nudged with a value the module folds
-// into the jog command, a box camera's tempo is a setting of the camera's own with a range of its own.
 const speedSetting = (min = SPEED_MIN, max = SPEED_MAX) => ({
 	type: 'number',
 	label: 'Speed setting',
@@ -265,8 +263,6 @@ function cmdEnum(action, dropdown, data) {
 	return getNext(dropdown, data, action.options.op, false).id
 }
 
-// Decimal, unlike the hex a position carries. Pan/tilt is two digits everywhere; a lens axis states
-// its own width, because the box cameras' tempo is a single digit.
 function cmdSpeed(speed, width = 2) {
 	return speed.toString().padStart(width, '0')
 }
@@ -284,8 +280,6 @@ export function getActionDefinitions(self) {
 	const ptz = (cmd) => self.getPTZ(cmd)
 	const web = (cmd) => self.getWeb(cmd)
 
-	// aw_ptz concatenates its argument, aw_cam separates it with a colon. A lens axis names its
-	// transport, so it is the capability that decides which of the two a command goes out on.
 	const sender = (transport) => {
 		const go = transport === 'cam' ? cam : ptz
 		const join = transport === 'cam' ? (cmd, value) => `${cmd}:${value}` : (cmd, value) => cmd + value
@@ -315,8 +309,6 @@ export function getActionDefinitions(self) {
 		},
 	})
 
-	// Follow focus, iris and the iris volume are the same control: drive one thing to a value on its
-	// own scale. Bounds, offset and width all come from the capability, none written out by hand.
 	const positionAction = (name, label, spec, read) => {
 		const send = sender(spec.transport)
 		const { cmd, offset, max, step, hexlen } = spec
@@ -331,8 +323,6 @@ export function getActionDefinitions(self) {
 		}
 	}
 
-	// An axis keeps its scale and its command apart, because it can report a position without being
-	// drivable to one. The builder wants them in one place.
 	const axisPosition = (cap) => ({ transport: cap.transport, ...cap.range, ...cap.position })
 
 	const simpleAction = (name, send, command) => ({

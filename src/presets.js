@@ -136,8 +136,6 @@ const knobPreset = (category, name, text, actionId, value, { bgcolor = colorBlac
 })
 
 // Speed knob: press centres the range, turn nudges it.
-// `set` is what the press resets to, so it has to sit inside the range that action offers - a lens
-// whose tempo the camera holds counts 0 to 9, not 0 to 49.
 const speedKnobPreset = (category, name, text, actionId, extra = {}, set = 25) => ({
 	type: 'layered',
 	category,
@@ -314,7 +312,6 @@ export function getPresetDefinitions(self) {
 	// #### Lens Presets ####
 	// ######################
 
-	// The knob sets a signed velocity, which only an axis whose jog carries its magnitude can take.
 	if (SERIES.capabilities.zoom?.jog?.cmd) {
 		presets['lens-zoom'] = {
 			type: 'layered',
@@ -368,7 +365,6 @@ export function getPresetDefinitions(self) {
 		)
 	}
 
-	// The knob drives follow focus, so it belongs to the position command rather than to the axis.
 	if (SERIES.capabilities.focus?.position) {
 		presets['lens-focus'] = {
 			type: 'layered',
@@ -418,7 +414,6 @@ export function getPresetDefinitions(self) {
 		)
 	}
 
-	// Auto and push-auto are modes, not motion: a camera can offer them with no drivable focus at all.
 	if (SERIES.capabilities.focusAuto) {
 		presets['lens-focus-mode'] = togglePreset(
 			'Lens',
@@ -553,8 +548,6 @@ export function getPresetDefinitions(self) {
 		})
 	}
 
-	// The box cameras move the iris by its manual set-point, so the knob turns that and the readout
-	// stays on the F number the lens reports.
 	if (SERIES.capabilities.irisVolume) {
 		const volume = SERIES.capabilities.irisVolume
 

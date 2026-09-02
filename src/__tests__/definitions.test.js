@@ -165,11 +165,21 @@ describe('lens axis capabilities', () => {
 		expect(AXES.length).toBeGreaterThan(0)
 	})
 
-	it.each(AXES)('$series.$axis says where it is driven and on what scale', ({ cap }) => {
+	// Every camera so far reports its lens on the same 555h-FFFh scale, which is why the parser
+	// subtracts a plain 0x555 and the variables scale against a plain 0xaaa. The day one does not,
+	// those figures have to come from the axis again - so fail here rather than there.
+	it.each(AXES)('$series.$axis reads on the scale the parser and the variables assume', ({ cap }) => {
 		expect(['ptz', 'cam']).toContain(cap.transport)
-		expect(cap.range.offset).toBeTypeOf('number')
-		expect(cap.range.max).toBeGreaterThan(0)
+		expect(cap.range).toEqual({ offset: 0x555, max: 0xaaa })
 	})
+
+	it.each(SERIES_SPECS.filter((spec) => spec.capabilities.irisVolume))(
+		'$id spans the iris volume the variables assume',
+		({ capabilities }) => {
+			expect(capabilities.irisVolume.max).toBe(0x3ff)
+			expect(capabilities.irisVolume.offset).toBe(0x0)
+		},
+	)
 
 	it.each(AXES.filter(({ cap }) => cap.jog))('$series.$axis states one jog form, not both', ({ cap }) => {
 		const velocity = cap.jog.cmd !== undefined
@@ -314,12 +324,12 @@ describe('pull coverage', () => {
 
 	// Subscribing used to switch the lens updates on with an unconditional #LPC1, which is a `#`
 	// command by another name and failed on every box camera for the same reason.
-	it.each(SERIES_SPECS.filter((spec) => spec.capabilities.lensNotify))(
+	it.each(SERIES_SPECS.filter((spec) => spec.capabilities.lensPositionSubscription))(
 		'$id asks for lens updates on a transport it serves',
 		({ capabilities }) => {
-			expect(['ptz', 'cam']).toContain(capabilities.lensNotify.transport)
+			expect(['ptz', 'cam']).toContain(capabilities.lensPositionSubscription.transport)
 
-			if (capabilities.lensNotify.transport === 'ptz') {
+			if (capabilities.lensPositionSubscription.transport === 'ptz') {
 				expect(capabilities.pull?.ptz || capabilities.poll?.ptz).toBeTruthy()
 			}
 		},

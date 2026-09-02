@@ -196,7 +196,6 @@ export function getFeedbackDefinitions(self) {
 		)
 	}
 
-	// The signed velocity is what this reads, so it only means anything where the jog carries one.
 	if (caps.zoom?.jog?.cmd) {
 		feedbacks.zoomControl = stateFeedback(
 			'Lens - Zoom Control',

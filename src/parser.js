@@ -32,18 +32,6 @@ export function parseRefusal(str) {
 	return match ? { code: Number(match[1]), command: match[2] } : null
 }
 
-// Every lens position on the wire arrives on the camera's own lens scale, 555h-FFFh. An axis states
-// the scale it is driven and read on, and a reading only lands if the two agree - so the module never
-// mixes two scales in one field the way ORV and OSI:18 once did (issue #97).
-const LENS_SCALE = { offset: 0x555, max: 0xaaa }
-
-function setPosition(self, axis, raw, scale) {
-	const range = self.SERIES?.capabilities[axis]?.range
-	if (range?.offset !== scale.offset || range.max !== scale.max) return
-
-	self.data[`${axis}Position`] = parseInt(raw, 16) - range.offset
-}
-
 export function parseUpdate(self, str, { echo = false } = {}) {
 	if (str[0].substring(0, 3) === 'rER') {
 		self.data.error = str[0].substring(3)
@@ -53,13 +41,13 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		switch (str[0].substring(1, 2)) {
 			// ToDo: handle "---" on power off
 			case 'z':
-				setPosition(self, 'zoom', str[0].substring(2, 5), LENS_SCALE)
+				self.data.zoomPosition = parseInt(str[0].substring(2, 5), 16) - 0x555
 				break
 			case 'f':
-				setPosition(self, 'focus', str[0].substring(2, 5), LENS_SCALE)
+				self.data.focusPosition = parseInt(str[0].substring(2, 5), 16) - 0x555
 				break
 			case 'i':
-				setPosition(self, 'iris', str[0].substring(2, 5), LENS_SCALE)
+				self.data.irisPosition = parseInt(str[0].substring(2, 5), 16) - 0x555
 				self.data.irisMode = str[0].substring(5, 6)
 				break
 		}
@@ -72,13 +60,13 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 	if (str[0].substring(0, 2) === 'ax') {
 		switch (str[0].substring(2, 3)) {
 			case 'z':
-				setPosition(self, 'zoom', str[0].substring(3), LENS_SCALE)
+				self.data.zoomPosition = parseInt(str[0].substring(3), 16) - 0x555
 				break
 			case 'f':
-				setPosition(self, 'focus', str[0].substring(3), LENS_SCALE)
+				self.data.focusPosition = parseInt(str[0].substring(3), 16) - 0x555
 				break
 			case 'i':
-				setPosition(self, 'iris', str[0].substring(3), LENS_SCALE)
+				self.data.irisPosition = parseInt(str[0].substring(3), 16) - 0x555
 				break
 		}
 	}
@@ -89,9 +77,9 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 	}
 
 	if (str[0].substring(0, 3) === 'lPI') {
-		setPosition(self, 'zoom', str[0].substring(3, 6), LENS_SCALE)
-		setPosition(self, 'focus', str[0].substring(6, 9), LENS_SCALE)
-		setPosition(self, 'iris', str[0].substring(9, 12), LENS_SCALE)
+		self.data.zoomPosition = parseInt(str[0].substring(3, 6), 16) - 0x555
+		self.data.focusPosition = parseInt(str[0].substring(6, 9), 16) - 0x555
+		self.data.irisPosition = parseInt(str[0].substring(9, 12), 16) - 0x555
 	}
 
 	if (str[0].substring(0, 1) === 'q') {
@@ -174,9 +162,9 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 	if (str[0].substring(0, 3) === 'pTV') {
 		self.data.panPosition = parseInt(str[0].substring(3, 7), 16) - 0x8000
 		self.data.tiltPosition = parseInt(str[0].substring(7, 11), 16) - 0x8000
-		setPosition(self, 'zoom', str[0].substring(11, 14), LENS_SCALE)
-		setPosition(self, 'focus', str[0].substring(14, 17), LENS_SCALE)
-		setPosition(self, 'iris', str[0].substring(17, 20), LENS_SCALE)
+		self.data.zoomPosition = parseInt(str[0].substring(11, 14), 16) - 0x555
+		self.data.focusPosition = parseInt(str[0].substring(14, 17), 16) - 0x555
+		self.data.irisPosition = parseInt(str[0].substring(17, 20), 16) - 0x555
 	}
 
 	if (str[0].substring(0, 4) === 'uPVS') {
@@ -347,9 +335,9 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		case 'OSI':
 			switch (str[1]) {
 				case '18':
-					setPosition(self, 'zoom', str[2], LENS_SCALE)
-					setPosition(self, 'focus', str[3], LENS_SCALE)
-					setPosition(self, 'iris', str[4], LENS_SCALE)
+					self.data.zoomPosition = parseInt(str[2], 16) - 0x555
+					self.data.focusPosition = parseInt(str[3], 16) - 0x555
+					self.data.irisPosition = parseInt(str[4], 16) - 0x555
 					break
 				case '20':
 					self.data.colorTempLabel =
@@ -499,19 +487,15 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		case 'OGU':
 			self.data.gain = str[1].replace('0x', '').padStart(2, '0')
 			break
-		// The serial-interface lens answers its own position queries; the value carries a 0x prefix the
-		// camdata bulk read strips, so parseInt has to cope with both spellings.
 		case 'OZP':
-			setPosition(self, 'zoom', str[1], LENS_SCALE)
+			self.data.zoomPosition = parseInt(str[1], 16) - 0x555
 			break
 		case 'OFP':
-			setPosition(self, 'focus', str[1], LENS_SCALE)
+			self.data.focusPosition = parseInt(str[1], 16) - 0x555
 			break
 		case 'ORS':
 			self.data.irisMode = str[1]
 			break
-		// The manual iris set-point, on its own 000h-3FFh scale - not the iris position, which the lens
-		// reports in OSI:18 on 555h-FFFh. Keeping them apart is what issue #97 was really about.
 		case 'ORV':
 			self.data.irisVolume = parseInt(str[1], 16)
 			break

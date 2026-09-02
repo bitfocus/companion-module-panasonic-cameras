@@ -59,18 +59,6 @@ export const MODELS = [
 // The feature set shared by every model. Each series below spreads this and states only what it
 // changes, so a series body is exactly the list of ways that model deviates from the norm.
 // When integrating a new camera model, start here and override only what differs.
-//
-// The three lens axes - zoom, focus, iris - share one shape, and each part of it is present only
-// where the camera has that facility:
-//   transport  which cgi carries it, 'ptz' or 'cam'
-//   range      the scale the camera reports the position on. The one source for the offset the
-//              parser subtracts, the span the variables scale against, and the action's bounds - so
-//              an axis has exactly one scale and everything that touches it agrees on which.
-//   jog        momentary drive: { cmd, offset, min, max, width } folds direction and magnitude into
-//              one command (#Z, #F), { inc, dec, stop } names three and takes its tempo from `speed`
-//   speed      where the tempo is a camera setting of its own rather than part of the jog
-//   position   { cmd, step, hexlen } where the axis can be driven to an absolute value. An axis may
-//              report a position without being drivable to one, so this is separate from `range`.
 const BASE_CAPABILITIES = {
 	audioVolumeLevel: { maxch: 2, min: -40, max: 20, step: 1 }, // Has Audio Volume Level control (OSA:D5)
 	awbColorTemperature: false, // Reports the colour temperature the AWB arrived at (QSJ:4A)
@@ -104,14 +92,12 @@ const BASE_CAPABILITIES = {
 		transport: 'ptz',
 		range: { offset: 0x555, max: 0xaaa },
 		position: { cmd: 'AXI', step: 0x1e, hexlen: 3 },
-	}, // Has Iris position control (#AXI); the box cameras' ORV is irisVolume, a different quantity
+	}, // Has Iris position control (#AXI)
 	irisAuto: true, // Has (switchable) Auto Iris (ORS)
 	irisF: false, // Has Iris F No. decoding (OIF)
 	irisFollowPosition: true, // Has Iris Follow (QSD:4F)
-	irisVolume: false, // Has the manual iris volume, a set-point on its own scale (ORV/QRV)
-	// Lens position updates have to be asked for. A pan/tilt head starts them with #LPC1, the
-	// AK-UBX100 with OSM:77:1; the other box cameras push OSI:18 unprompted and need no switch.
-	lensNotify: { cmd: 'LPC1', transport: 'ptz' },
+	irisVolume: false, // Has the manual iris volume (ORV)
+	lensPositionSubscription: { cmd: 'LPC1', transport: 'ptz' }, // Lens position update subscription
 	night: true, // Has Day/Night Mode (d6x)
 	ois: { dropdown: e.ENUM_OIS_OTHER }, // Has Optical Image Stabilisation control (OIS)
 	panTilt: true, // Has Pan/Tilt Head control (#P, #T, #PTS, #APC)
@@ -150,7 +136,7 @@ const BASE_CAPABILITIES = {
 		transport: 'ptz',
 		range: { offset: 0x555, max: 0xaaa },
 		jog: { cmd: 'Z', offset: 50, min: 1, max: 99, width: 2 },
-	}, // Has Zoom control (Zxx) and position readback; #AXZ is not driven
+	}, // Has Zoom control and position (Zxx and AXZxxx)
 }
 
 export const SERIES_SPECS = [
@@ -664,11 +650,11 @@ export const SERIES_SPECS = [
 			focusPushAuto: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UBX100 },
 			install: false,
-			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } }, // reported in OSI:18, not drivable
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } },
 			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
-			lensNotify: { cmd: 'OSM:77:1', transport: 'cam' },
+			lensPositionSubscription: { cmd: 'OSM:77:1', transport: 'cam' },
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -753,11 +739,11 @@ export const SERIES_SPECS = [
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
 			imageTransmission: false,
 			install: false,
-			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } }, // reported in OSI:18, not drivable
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } },
 			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
-			lensNotify: false, // OSI:18 is pushed unprompted every 300 ms while the lens moves
+			lensPositionSubscription: false, // OSI:18 is pushed unprompted
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -843,11 +829,11 @@ export const SERIES_SPECS = [
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB10 },
 			imageTransmission: false,
 			install: false,
-			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } }, // reported in OSI:18, not drivable
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } },
 			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
-			lensNotify: false, // OSI:18 is pushed unprompted every 300 ms while the lens moves
+			lensPositionSubscription: false, // OSI:18 is pushed unprompted
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -924,15 +910,15 @@ export const SERIES_SPECS = [
 				speed: { cmd: 'LFS', min: 0, max: 9, width: 1 },
 				position: { cmd: 'LFP', step: 0xa, hexlen: 3 },
 			},
-			focusAuto: true, // the model's own specification lists OAF/QAF, the summary table does not
+			focusAuto: true,
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB50 },
 			imageTransmission: false,
 			install: false,
-			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } }, // reported in OSI:18, not drivable
+			iris: { transport: 'cam', range: { offset: 0x555, max: 0xaaa } },
 			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
-			lensNotify: false, // OSI:18 is pushed unprompted every 300 ms while the lens moves
+			lensPositionSubscription: false, // OSI:18 is pushed unprompted
 			night: false,
 			ois: false,
 			panTilt: false,
