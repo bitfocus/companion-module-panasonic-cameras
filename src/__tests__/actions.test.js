@@ -208,6 +208,71 @@ describe('the lens axes over aw_ptz', () => {
 	})
 })
 
+// A box camera's lens is driven over aw_cam, and in one of two ways. The AW-UB10 and AK-UB300 name a
+// direction and hold the tempo as a setting of their own; the AK-UBX100 folds both into one command
+// the way a pan/tilt head does. Neither reaches aw_ptz, which those cameras do not serve at all.
+describe('the lens axes over aw_cam', () => {
+	const act = async (model, id, options, data) => {
+		const self = mockInstance(model, data)
+		await getActionDefinitions(self)[id].callback({ actionId: id, options })
+		return self
+	}
+
+	describe('a lens that is told a direction (AW-UB10)', () => {
+		it('names the direction and nothing else', async () => {
+			expect((await act('AW-UB10', 'zoom', { dir: 1 })).sent).toEqual(['HZT'])
+			expect((await act('AW-UB10', 'zoom', { dir: -1 })).sent).toEqual(['HZW'])
+			expect((await act('AW-UB10', 'zoom', { dir: 0 })).sent).toEqual(['HZS'])
+			expect((await act('AW-UB10', 'focus', { dir: 1 })).sent).toEqual(['HFF'])
+			expect((await act('AW-UB10', 'focus', { dir: -1 })).sent).toEqual(['HFN'])
+			expect((await act('AW-UB10', 'focus', { dir: 0 })).sent).toEqual(['HFS'])
+		})
+
+		it('sets the tempo on the camera, in the single digit it counts in', async () => {
+			const self = await act('AW-UB10', 'zoomSpeed', { op: 's', set: 7 })
+
+			expect(self.sent).toEqual(['LZS:7'])
+			expect(self.zSpeed).toBe(7)
+		})
+
+		it('holds the tempo inside the range this lens offers', async () => {
+			expect((await act('AW-UB10', 'focusSpeed', { op: 1, step: 1 })).sent).toEqual(['LFS:9'])
+
+			const field = getActionDefinitions(mockInstance('AW-UB10')).focusSpeed.options.find((f) => f.id === 'set')
+
+			expect([field.min, field.max]).toEqual([0, 9])
+		})
+
+		it('offers no signed velocity, having no command that carries one', () => {
+			const actions = getActionDefinitions(mockInstance('AW-UB10'))
+
+			expect(actions.zoomControl).toBeUndefined()
+			expect(actions.focusControl).toBeUndefined()
+			expect(getActionDefinitions(mockInstance('AW-UE150')).zoomControl).toBeDefined()
+		})
+
+		it('drives focus to a position over aw_cam, colon-separated', async () => {
+			expect((await act('AW-UB10', 'focusFollow', { op: 's', set: 0x0 })).sent).toEqual(['LFP:555'])
+			expect((await act('AW-UB10', 'focusFollow', { op: 's', set: 0xaaa })).sent).toEqual(['LFP:FFF'])
+		})
+	})
+
+	// Its lens reports no position, so there is nothing to drive it to.
+	it('leaves the AK-UB300 with the jog alone', () => {
+		const actions = getActionDefinitions(mockInstance('AK-UB300'))
+
+		expect(actions.focus).toBeDefined()
+		expect(actions.focusSpeed).toBeDefined()
+		expect(actions.focusFollow).toBeUndefined()
+	})
+
+	it('folds direction and tempo into one command on the AK-UBX100', async () => {
+		expect((await act('AK-UBX100', 'zoom', { dir: 1 })).sent).toEqual(['OSM:75:75'])
+		expect((await act('AK-UBX100', 'zoom', { dir: 0 })).sent).toEqual(['OSM:75:50'])
+		expect((await act('AK-UBX100', 'focusControl', { op: 's', set: -10 })).sent).toEqual(['OSM:76:40'])
+	})
+})
+
 // A pan/tilt head drives the iris over aw_ptz with #AXI (555h-FFFh). The box cameras drive it over
 // aw_cam with ORV (000h-3FFh) but also report it on the lens scale in OSI:18, and both landed in
 // irisPosition - so a step read one scale, wrote the other and hit the clamp, opening the iris fully

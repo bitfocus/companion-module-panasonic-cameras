@@ -136,14 +136,16 @@ const knobPreset = (category, name, text, actionId, value, { bgcolor = colorBlac
 })
 
 // Speed knob: press centres the range, turn nudges it.
-const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
+// `set` is what the press resets to, so it has to sit inside the range that action offers - a lens
+// whose tempo the camera holds counts 0 to 9, not 0 to 49.
+const speedKnobPreset = (category, name, text, actionId, extra = {}, set = 25) => ({
 	type: 'layered',
 	category,
 	name,
 	elements: layers({ text }),
 	steps: [
 		{
-			down: [{ actionId, options: { ...extra, op: 's', set: 25 } }],
+			down: [{ actionId, options: { ...extra, op: 's', set } }],
 			up: [],
 			rotate_left: [{ actionId, options: { ...extra, op: -1, step: 1 } }],
 			rotate_right: [{ actionId, options: { ...extra, op: 1, step: 1 } }],
@@ -151,6 +153,9 @@ const speedKnobPreset = (category, name, text, actionId, extra = {}) => ({
 	],
 	feedbacks: [],
 })
+
+// Half of whatever tempo range the axis offers, which is where the speed knob's press lands.
+const midSpeed = (cap) => (cap.speed ? Math.round((cap.speed.min + cap.speed.max) / 2) : 25)
 
 // Mode knob: press toggles, turn steps through the list.
 const enumKnobPreset = (category, name, text, actionId) => ({
@@ -309,7 +314,8 @@ export function getPresetDefinitions(self) {
 	// #### Lens Presets ####
 	// ######################
 
-	if (SERIES.capabilities.zoom) {
+	// The knob sets a signed velocity, which only an axis whose jog carries its magnitude can take.
+	if (SERIES.capabilities.zoom?.jog?.cmd) {
 		presets['lens-zoom'] = {
 			type: 'layered',
 			category: 'Lens',
@@ -345,7 +351,9 @@ export function getPresetDefinitions(self) {
 				},
 			],
 		}
+	}
 
+	if (SERIES.capabilities.zoom?.jog) {
 		presets['lens-zoom-in'] = textJogPreset('Lens', 'Zoom In', 'ZOOM\\nIN', 'zoom', 1)
 
 		presets['lens-zoom-out'] = textJogPreset('Lens', 'Zoom Out', 'ZOOM\\nOUT', 'zoom', -1)
@@ -355,6 +363,8 @@ export function getPresetDefinitions(self) {
 			'Zoom Speed',
 			'Zoom\\nSpeed\\n$(generic-module:zSpeed)',
 			'zoomSpeed',
+			{},
+			midSpeed(SERIES.capabilities.zoom),
 		)
 	}
 
@@ -391,7 +401,9 @@ export function getPresetDefinitions(self) {
 			],
 			feedbacks: [],
 		}
+	}
 
+	if (SERIES.capabilities.focus?.jog) {
 		presets['lens-focus-far'] = textJogPreset('Lens', 'Focus Far', 'FOCUS\\nFAR', 'focus', 1)
 
 		presets['lens-focus-near'] = textJogPreset('Lens', 'Focus Near', 'FOCUS\\nNEAR', 'focus', -1)
@@ -401,28 +413,31 @@ export function getPresetDefinitions(self) {
 			'Focus Speed',
 			'Focus\\nSpeed\\n$(generic-module:fSpeed)',
 			'focusSpeed',
+			{},
+			midSpeed(SERIES.capabilities.focus),
 		)
+	}
 
-		if (SERIES.capabilities.focusAuto) {
-			presets['lens-focus-mode'] = togglePreset(
-				'Lens',
-				'Focus Mode',
-				'FOCUS MODE\\n$(generic-module:focusMode)',
-				'focusMode',
-				'focusMode',
-				{ color: colorWhite, bgcolor: colorRed },
-			)
-		}
+	// Auto and push-auto are modes, not motion: a camera can offer them with no drivable focus at all.
+	if (SERIES.capabilities.focusAuto) {
+		presets['lens-focus-mode'] = togglePreset(
+			'Lens',
+			'Focus Mode',
+			'FOCUS MODE\\n$(generic-module:focusMode)',
+			'focusMode',
+			'focusMode',
+			{ color: colorWhite, bgcolor: colorRed },
+		)
+	}
 
-		if (SERIES.capabilities.focusPushAuto) {
-			presets['lens-focus-push-auto'] = momentaryPreset(
-				'Lens',
-				'Push Auto Focus',
-				'PUSH\\nAUTO\\nFOCUS',
-				'focusPushAuto',
-				{},
-			)
-		}
+	if (SERIES.capabilities.focusPushAuto) {
+		presets['lens-focus-push-auto'] = momentaryPreset(
+			'Lens',
+			'Push Auto Focus',
+			'PUSH\\nAUTO\\nFOCUS',
+			'focusPushAuto',
+			{},
+		)
 	}
 
 	if (SERIES.capabilities.ois) {

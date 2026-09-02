@@ -52,16 +52,18 @@ const speedOperation = {
 	],
 }
 
-const speedSetting = {
+// The stored speed spans whatever the axis offers: a PTZ lens is nudged with a value the module folds
+// into the jog command, a box camera's tempo is a setting of the camera's own with a range of its own.
+const speedSetting = (min = SPEED_MIN, max = SPEED_MAX) => ({
 	type: 'number',
 	label: 'Speed setting',
 	id: 'set',
-	default: SPEED_DEFAULT,
-	min: SPEED_MIN,
-	max: SPEED_MAX,
+	default: constrainRange(SPEED_DEFAULT, min, max),
+	min,
+	max,
 	range: true,
 	isVisibleExpression: '$(options:op) == "s"',
-}
+})
 
 const speedControlSetting = {
 	type: 'number',
@@ -284,8 +286,13 @@ export function getActionDefinitions(self) {
 
 	// aw_ptz concatenates its argument, aw_cam separates it with a colon. A lens axis names its
 	// transport, so it is the capability that decides which of the two a command goes out on.
-	const sender = (transport) =>
-		transport === 'cam' ? (cmd, value) => cam(`${cmd}:${value}`) : (cmd, value) => ptz(cmd + value)
+	const sender = (transport) => {
+		const go = transport === 'cam' ? cam : ptz
+		const join = transport === 'cam' ? (cmd, value) => `${cmd}:${value}` : (cmd, value) => cmd + value
+
+		// The direction commands (HZT, HFS) are the whole message; everything else carries a value.
+		return (cmd, value) => go(value === undefined ? cmd : join(cmd, value))
+	}
 
 	// ----- Action factories -----
 	// read is a getter: toggle/step are relative to the camera's current value, unknown at build time.
@@ -343,12 +350,19 @@ export function getActionDefinitions(self) {
 		},
 	})
 
-	// Zoom and focus share three controls per axis: momentary move, direct speed, stored speed.
-	// The jog carries direction and magnitude in one command centred on `offset`, so the same command
-	// serves the momentary move (magnitude from the stored speed) and the direct speed.
+	// Zoom and focus share up to three controls per axis: momentary move, direct speed, stored speed.
+	// Where the jog folds direction and magnitude into one command, that command serves both the move
+	// (magnitude from the stored speed) and the direct speed. Where it only names a direction, the
+	// tempo is a separate camera setting and there is no signed velocity to send, so no direct speed.
 	const lensAxis = (cap, axis, speedProp, speedDataKey, incLabel, decLabel) => {
 		const send = sender(cap.transport)
-		const drive = (speed) => send(cap.jog.cmd, cmdSpeed(speed + cap.jog.offset, cap.jog.width))
+		const velocity = cap.jog.cmd !== undefined
+		const storedMin = cap.speed ? cap.speed.min : SPEED_MIN
+		const storedMax = cap.speed ? cap.speed.max : cap.jog.max - cap.jog.offset
+
+		const drive = velocity
+			? (speed) => send(cap.jog.cmd, cmdSpeed(speed + cap.jog.offset, cap.jog.width))
+			: (speed) => send(speed === 0 ? cap.jog.stop : speed > 0 ? cap.jog.inc : cap.jog.dec)
 		const move = (dir) => drive(dir * self[speedProp])
 		return {
 			move: {
@@ -368,27 +382,40 @@ export function getActionDefinitions(self) {
 					}
 				},
 			},
-			control: {
-				name: `Lens - ${axis} Speed Control`,
-				options: [speedOperation, speedControlSetting, speedStep],
-				callback: async (action) => {
-					self.data[speedDataKey] =
-						action.options.op !== ACTION_SET
-							? getNextValue(self.data[speedDataKey], -SPEED_MAX, SPEED_MAX, action.options.op * action.options.step)
-							: action.options.set
-					await drive(self.data[speedDataKey])
-				},
-			},
+			control: velocity
+				? {
+						name: `Lens - ${axis} Speed Control`,
+						options: [speedOperation, speedControlSetting, speedStep],
+						callback: async (action) => {
+							self.data[speedDataKey] =
+								action.options.op !== ACTION_SET
+									? getNextValue(
+											self.data[speedDataKey],
+											-SPEED_MAX,
+											SPEED_MAX,
+											action.options.op * action.options.step,
+										)
+									: action.options.set
+							await drive(self.data[speedDataKey])
+						},
+					}
+				: undefined,
 			speed: {
 				name: `Lens - ${axis} Speed`,
-				options: [speedOperation, speedSetting, speedStep],
+				options: [speedOperation, speedSetting(storedMin, storedMax), speedStep],
 				callback: async (action) => {
-					self[speedProp] =
+					self[speedProp] = constrainRange(
 						action.options.op !== ACTION_SET
-							? getNextValue(self[speedProp], SPEED_MIN, SPEED_MAX, action.options.op * action.options.step)
-							: action.options.set
+							? getNextValue(self[speedProp], storedMin, storedMax, action.options.op * action.options.step)
+							: action.options.set,
+						storedMin,
+						storedMax,
+					)
 					self.setVariableValues({ [speedProp]: self[speedProp] })
 					self.speedChangeEmitter.emit(speedProp)
+
+					// Where the tempo is the camera's own setting it has to be told; the jog carries it otherwise.
+					if (cap.speed) await send(cap.speed.cmd, cmdSpeed(self[speedProp], cap.speed.width))
 				},
 			},
 		}
@@ -527,14 +554,14 @@ export function getActionDefinitions(self) {
 	if (caps.zoom?.jog) {
 		const zoom = lensAxis(caps.zoom, 'Zoom', 'zSpeed', 'zoomSpeedValue', '⬆ In', '⬇ Out')
 		actions.zoom = zoom.move
-		actions.zoomControl = zoom.control
+		if (zoom.control) actions.zoomControl = zoom.control
 		actions.zoomSpeed = zoom.speed
 	}
 
 	if (caps.focus?.jog) {
 		const focus = lensAxis(caps.focus, 'Focus', 'fSpeed', 'focusSpeedValue', '⬆ Far', '⬇ Near')
 		actions.focus = focus.move
-		actions.focusControl = focus.control
+		if (focus.control) actions.focusControl = focus.control
 		actions.focusSpeed = focus.speed
 	}
 

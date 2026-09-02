@@ -650,7 +650,12 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
-			focus: false, // special implementation req. 'OSM:77', 'OZP'
+			focus: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { cmd: 'OSM:76', offset: 50, min: 1, max: 99, width: 2 },
+				position: { cmd: 'LFP', step: 0xa, hexlen: 3 },
+			},
 			focusAuto: false,
 			focusPushAuto: false,
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UBX100 },
@@ -707,7 +712,11 @@ export const SERIES_SPECS = [
 			streamTS: false,
 			trackingAuto: false,
 			whiteBalance: true, // OWS/OAS execute, but no OAW mode dropdown
-			zoom: false, // special implementation req. 'OSM:77', 'OZP'
+			zoom: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { cmd: 'OSM:75', offset: 50, min: 1, max: 99, width: 2 },
+			},
 		},
 	},
 	{
@@ -726,7 +735,12 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: { cmd: 'QER', bits: ['Fan'] },
 			filter: { dropdown: e.ENUM_FILTER_3 },
-			focus: false,
+			focus: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HFF', dec: 'HFN', stop: 'HFS' },
+				speed: { cmd: 'LFS', min: 0, max: 9, width: 1 },
+			},
 			focusAuto: false,
 			focusPushAuto: false,
 			gain: { cmd: 'OGS', dropdown: e.ENUM_GAIN_UB300 },
@@ -781,7 +795,12 @@ export const SERIES_SPECS = [
 			trackingAuto: false,
 			version: false,
 			whiteBalance: true, // no white balance mode
-			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZS:xx'
+			zoom: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HZT', dec: 'HZW', stop: 'HZS' },
+				speed: { cmd: 'LZS', min: 0, max: 9, width: 1 },
+			},
 		},
 	},
 	{
@@ -803,7 +822,13 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
 			filter: false,
-			focus: false, // special implementation req. 'HFF', 'HFN', 'HFS', 'LFP:xxx', 'LFS:x'
+			focus: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HFF', dec: 'HFN', stop: 'HFS' },
+				speed: { cmd: 'LFS', min: 0, max: 9, width: 1 },
+				position: { cmd: 'LFP', step: 0xa, hexlen: 3 },
+			},
 			focusAuto: false,
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB10 },
 			imageTransmission: false,
@@ -851,7 +876,12 @@ export const SERIES_SPECS = [
 			trackingAuto: false,
 			version: false,
 			whiteBalance: { dropdown: e.ENUM_WHITEBALANCE_UB50, confirm: { 2: '1', 3: '2' } },
-			zoom: false, // special implementation req. 'HZT', 'HZW', 'HZS', 'LZP:xxx', 'LZS:x'
+			zoom: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HZT', dec: 'HZW', stop: 'HZS' },
+				speed: { cmd: 'LZS', min: 0, max: 9, width: 1 },
+			},
 		},
 	},
 	{
@@ -873,7 +903,13 @@ export const SERIES_SPECS = [
 			error: false,
 			errorCamera: { cmd: 'QSI:46', bits: ['Fan', 'High Temperature'] },
 			filter: false,
-			focus: false, // special implementation req. 'HFF', 'HFN', 'HFS', 'LFP:xxx', 'LFS:x'
+			focus: {
+				transport: 'cam',
+				range: { offset: 0x555, max: 0xaaa },
+				jog: { inc: 'HFF', dec: 'HFN', stop: 'HFS' },
+				speed: { cmd: 'LFS', min: 0, max: 9, width: 1 },
+				position: { cmd: 'LFP', step: 0xa, hexlen: 3 },
+			},
 			focusAuto: false,
 			gain: { cmd: 'OSL:25', inc: 'OSL:25:p', dec: 'OSL:25:m', dropdown: e.ENUM_GAIN_UB50 },
 			imageTransmission: false,
