@@ -499,6 +499,14 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		case 'OGU':
 			self.data.gain = str[1].replace('0x', '').padStart(2, '0')
 			break
+		// The serial-interface lens answers its own position queries; the value carries a 0x prefix the
+		// camdata bulk read strips, so parseInt has to cope with both spellings.
+		case 'OZP':
+			setPosition(self, 'zoom', str[1], LENS_SCALE)
+			break
+		case 'OFP':
+			setPosition(self, 'focus', str[1], LENS_SCALE)
+			break
 		case 'ORS':
 			self.data.irisMode = str[1]
 			break

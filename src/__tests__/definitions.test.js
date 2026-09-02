@@ -312,6 +312,19 @@ describe('pull coverage', () => {
 		expect(caps.poll && caps.poll.ptz).toBeFalsy()
 	})
 
+	// Subscribing used to switch the lens updates on with an unconditional #LPC1, which is a `#`
+	// command by another name and failed on every box camera for the same reason.
+	it.each(SERIES_SPECS.filter((spec) => spec.capabilities.lensNotify))(
+		'$id asks for lens updates on a transport it serves',
+		({ capabilities }) => {
+			expect(['ptz', 'cam']).toContain(capabilities.lensNotify.transport)
+
+			if (capabilities.lensNotify.transport === 'ptz') {
+				expect(capabilities.pull?.ptz || capabilities.poll?.ptz).toBeTruthy()
+			}
+		},
+	)
+
 	// The error indicator answers one question - "is something wrong" - from two sources: rER for the
 	// pan/tilt head, OER or OSI:46 for the camera. Its callback is where the null case has to be handled,
 	// because data.error starts null and `null !== '00'` is true: that lit the button on every model that

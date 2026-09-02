@@ -319,7 +319,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 			this.onRequestSucceeded()
 
-			await this.getPTZ('LPC1') // enable Lens Position Information updates
+			// Lens position updates have to be switched on, and not every camera uses the same switch -
+			// nor does every camera serve aw_ptz, which is what an unconditional #LPC1 assumed.
+			const lensNotify = this.SERIES?.capabilities.lensNotify
+			if (lensNotify) await this[lensNotify.transport === 'cam' ? 'getCam' : 'getPTZ'](lensNotify.cmd)
 		} catch (err) {
 			if (!this.current(generation)) return
 			this.logConnectionError(err, 'Error on subscribe: ' + String(err))

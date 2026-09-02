@@ -109,6 +109,9 @@ const BASE_CAPABILITIES = {
 	irisF: false, // Has Iris F No. decoding (OIF)
 	irisFollowPosition: true, // Has Iris Follow (QSD:4F)
 	irisVolume: false, // Has the manual iris volume, a set-point on its own scale (ORV/QRV)
+	// Lens position updates have to be asked for. A pan/tilt head starts them with #LPC1, the
+	// AK-UBX100 with OSM:77:1; the other box cameras push OSI:18 unprompted and need no switch.
+	lensNotify: { cmd: 'LPC1', transport: 'ptz' },
 	night: true, // Has Day/Night Mode (d6x)
 	ois: { dropdown: e.ENUM_OIS_OTHER }, // Has Optical Image Stabilisation control (OIS)
 	panTilt: true, // Has Pan/Tilt Head control (#P, #T, #PTS, #APC)
@@ -665,6 +668,7 @@ export const SERIES_SPECS = [
 			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
+			lensNotify: { cmd: 'OSM:77:1', transport: 'cam' },
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -753,6 +757,7 @@ export const SERIES_SPECS = [
 			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
+			lensNotify: false, // OSI:18 is pushed unprompted every 300 ms while the lens moves
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -842,6 +847,7 @@ export const SERIES_SPECS = [
 			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
+			lensNotify: false, // OSI:18 is pushed unprompted every 300 ms while the lens moves
 			night: false,
 			ois: false,
 			panTilt: false,
@@ -925,6 +931,7 @@ export const SERIES_SPECS = [
 			irisVolume: { cmd: 'ORV', transport: 'cam', offset: 0x0, max: 0x3ff, step: 0xa, hexlen: 3 },
 			irisF: true,
 			irisFollowPosition: false,
+			lensNotify: false, // OSI:18 is pushed unprompted every 300 ms while the lens moves
 			night: false,
 			ois: false,
 			panTilt: false,

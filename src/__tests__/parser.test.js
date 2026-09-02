@@ -32,6 +32,13 @@ describe('parseUpdate', () => {
 		expect(parse('gf000').focusPosition).toBe(-0x555)
 	})
 
+	// A serial-interface lens answers QZP/QFP itself. The bulk read strips the 0x its own table shows,
+	// so the same value arrives spelled two ways.
+	it('reads the positions a lens reports for itself', () => {
+		expect(parseAs('UBX100', 'OZP', '0xD24').zoomPosition).toBe(0xd24 - 0x555)
+		expect(parseAs('UBX100', 'OFP', 'D24').focusPosition).toBe(0xd24 - 0x555)
+	})
+
 	// Two quantities, two fields: OSI:18 carries where the lens is, ORV the set-point it was told.
 	it('keeps the iris set-point apart from the iris position', () => {
 		const data = parseAs('UB10', 'OSI', '18', '0xFFF', '0x555', '0xD24')
