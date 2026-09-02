@@ -24,6 +24,8 @@ export const MODELS = [
 	{ id: 'AW-HN65', series: 'HE40', label: 'AW-HN65' },
 	{ id: 'AW-HN130', series: 'HE130', label: 'AW-HN130' },
 	{ id: 'AW-HR140', series: 'HR140', label: 'AW-HR140' },
+	{ id: 'AW-UB10', series: 'UB50', label: 'AW-UB10' },
+	{ id: 'AW-UB50', series: 'UB50', label: 'AW-UB50' },
 	{ id: 'AW-UE4', series: 'UE4', label: 'AW-UE4' },
 	{ id: 'AW-UE5', series: 'UE5', label: 'AW-UE5' },
 	{ id: 'AW-UE20', series: 'UE20', label: 'AW-UE20' },
@@ -42,8 +44,6 @@ export const MODELS = [
 	{ id: 'AW-UE160', series: 'UE160', label: 'AW-UE160' },
 	{ id: 'AW-UN70', series: 'UE70', label: 'AW-UN70' },
 	{ id: 'AW-UN145', series: 'UE150', label: 'AW-UN145' },
-	{ id: 'AK-UB10', series: 'UB50', label: 'AK-UB10' },
-	{ id: 'AK-UB50', series: 'UB50', label: 'AK-UB50' },
 	{ id: 'AK-UB300', series: 'UB300', label: 'AK-UB300' },
 	{ id: 'AK-UBX100', series: 'UBX100', label: 'AK-UBX100' },
 	{ id: 'AG-CX350', series: 'CX350', label: 'AG-CX350' },
@@ -761,7 +761,7 @@ export const SERIES_SPECS = [
 		},
 	},
 	{
-		// Specific for the AK-UB50 / AK-UB10 box cameras.
+		// Specific for the AW-UB50 / AW-UB10 box cameras.
 		id: 'UB50',
 		capabilities: {
 			...BASE_CAPABILITIES,

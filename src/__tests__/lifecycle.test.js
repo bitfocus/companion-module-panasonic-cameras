@@ -641,7 +641,7 @@ describe('the status poll loop', () => {
 })
 
 // `poll` is state the camera never reports on its own; `pull` stands in for a disabled subscription.
-// The loop used to start on `poll` alone, so a camera that has only a pull list (AK-UB300, AK-UB50,
+// The loop used to start on `poll` alone, so a camera that has only a pull list (AK-UB300, AW-UB50,
 // AW-HR140) read its state once at connect and then went stale for the rest of the session.
 describe('starting the status poll loop', () => {
 	beforeEach(() => vi.useFakeTimers())
