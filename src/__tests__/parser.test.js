@@ -31,6 +31,13 @@ describe('parseUpdate', () => {
 		expect(parse('OFP', 'D24').focusPosition).toBe(0xd24 - 0x555)
 	})
 
+	// Driving the lens is answered with the value it was given. On the AW-UB10 and AW-UB50 nothing
+	// else answers at all - they have no QFP - so a knob would keep stepping from a stale position.
+	it('takes the position back from the command that set it', () => {
+		expect(parse('LZP', 'D24').zoomPosition).toBe(0xd24 - 0x555)
+		expect(parse('LFP', 'D24').focusPosition).toBe(0xd24 - 0x555)
+	})
+
 	// Two quantities, two fields: OSI:18 carries where the lens stands, ORV the set-point it was told.
 	// They count in different steps, so sharing one field put the iris at the clamp (issue #97).
 	it('keeps the iris set-point apart from the iris position', () => {
