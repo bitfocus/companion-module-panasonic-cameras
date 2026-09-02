@@ -22,6 +22,20 @@ describe('generated enums', () => {
 		}
 	})
 
+	// The box cameras step gain in 2 dB, and the two models stop at different ends of the scale — the
+	// AW-UB10 at 62 dB, the AW-UB50 at 66 dB. Both were wrong before: one shared table, in 1 dB.
+	it.each([
+		['ENUM_GAIN_UB10', e.ENUM_GAIN_UB10, '46', '62 dB', 35],
+		['ENUM_GAIN_UB50', e.ENUM_GAIN_UB50, '4A', '66 dB', 37],
+	])('%s runs from -6 dB to its own maximum, two at a time', (_name, table, lastId, lastLabel, length) => {
+		expect(table.at(0)).toEqual({ id: '02', label: '-6 dB' }) // no auto mode on these cameras
+		expect(table.at(-1)).toEqual({ id: lastId, label: lastLabel })
+		expect(table).toHaveLength(length)
+
+		const steps = table.slice(1).map((entry, i) => parseInt(entry.id, 16) - parseInt(table[i].id, 16))
+		expect(new Set(steps)).toEqual(new Set([2]))
+	})
+
 	it('reads the POVCAM tables straight off their specification pages', () => {
 		// Gain: 0x08 = 0 dB .. 0x26 = 30 dB, 0x80 = AGC ON.
 		expect(e.ENUM_GAIN_POVCAM.at(0)).toEqual({ id: '80', label: 'Auto' })

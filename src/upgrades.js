@@ -297,6 +297,42 @@ function dropRestartCredentials(_context, props) {
 	return result
 }
 
+// The AW-UB10/AW-UB50 gain action lost its Set and Toggle operations: those cameras step the gain and
+// take no value at all. A button still naming one holds a dropdown value outside `choices`, which
+// Companion answers by dropping the whole action - and repairPre201Writes, which would have put the
+// model's default back, sits at an index every existing connection has already passed. Keyed on the
+// action id: gain is the only action whose operations narrowed.
+function repairSteppedGain(context, props) {
+	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
+
+	let field
+	try {
+		const self = {
+			config: configOf(context, props),
+			data: { model: null, modelAuto: null, series: null, presetThumbnails: [] },
+		}
+		field = optionSpecs(getActionDefinitions(self)).gain?.fields.op
+	} catch {
+		return result // unresolvable model: nothing to reconcile against
+	}
+
+	if (!field) return result
+
+	for (const action of props.actions ?? []) {
+		if (action.actionId !== 'gain' || !action.options || !('op' in action.options)) continue
+
+		const option = unwrap(action.options.op)
+		const fixed = option.isExpression ? option : reconcileValue(option, field)
+
+		if (fixed === action.options.op) continue
+
+		action.options.op = fixed
+		result.updatedActions.push(action)
+	}
+
+	return result
+}
+
 export const upgradeScripts = [
 	// Was addSetIncDecVariables. Blanked, not deleted: upgrade progress is tracked by index.
 	EmptyUpgradeScript,
@@ -326,4 +362,5 @@ export const upgradeScripts = [
 	rescaleColorTemperatureStep,
 	renameDebugToTrace,
 	dropRestartCredentials,
+	repairSteppedGain,
 ]

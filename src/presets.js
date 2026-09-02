@@ -692,14 +692,17 @@ export function getPresetDefinitions(self) {
 			elements: layers({ text: 'GAIN\\n$(generic-module:gain)' }),
 			steps: [
 				{
-					down: [
-						{
-							actionId: 'gain',
-							options: {
-								op: 't',
-							},
-						},
-					],
+					// A camera that can only step gain has no toggle to put on the press.
+					down: SERIES.capabilities.gain.inc
+						? []
+						: [
+								{
+									actionId: 'gain',
+									options: {
+										op: 't',
+									},
+								},
+							],
 					up: [],
 					rotate_left: [
 						{

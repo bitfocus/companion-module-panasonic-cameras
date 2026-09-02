@@ -36,7 +36,8 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 
 **Box cameras**
 
-- **UB50:** AW-UB10, AW-UB50
+- **UB10:** AW-UB10
+- **UB50:** AW-UB50
 - **UB300:** AK-UB300
 - **UBX100:** AK-UBX100
 

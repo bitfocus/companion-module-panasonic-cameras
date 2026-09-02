@@ -105,7 +105,8 @@ export const e = {
 	ENUM_GAIN_UE150: gain(-3, 42),
 	ENUM_GAIN_CX350: gain(-6, 42, 1, { manual: true }),
 	ENUM_GAIN_UE160: gain(-6, 12),
-	ENUM_GAIN_UB50: gain(-6, 62, 1, { auto: false }),
+	ENUM_GAIN_UB10: gain(-6, 62, 2, { auto: false }),
+	ENUM_GAIN_UB50: gain(-6, 66, 2, { auto: false }),
 	ENUM_GAIN_UBX100: gain(-6, 18, 3),
 	ENUM_GAIN_POVCAM: gain(0, 30, 1),
 	ENUM_GAIN_UB300: [
