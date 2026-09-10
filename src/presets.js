@@ -1189,6 +1189,41 @@ export function getPresetDefinitions(self) {
 	}
 
 	// #################
+	// #### Housing ####
+	// #################
+
+	if (SERIES.capabilities.housing) {
+		presets['housing-heater'] = togglePreset(
+			'Housing',
+			'Heater',
+			'Heater\\n$(generic-module:heaterMode)',
+			'housingHeater',
+			'housingHeaterState',
+			{ color: colorWhite, bgcolor: colorOrange },
+		)
+
+		presets['housing-defroster'] = togglePreset(
+			'Housing',
+			'Defroster',
+			'Defroster\\n$(generic-module:defrosterMode)',
+			'housingDefroster',
+			'housingDefrosterState',
+			{ color: colorWhite, bgcolor: colorOrange },
+		)
+
+		presets['housing-wiper'] = enumKnobPreset('Housing', 'Wiper', 'Wiper\\n$(generic-module:wiperMode)', 'housingWiper')
+
+		presets['housing-washer'] = togglePreset(
+			'Housing',
+			'Washer',
+			'Washer\\n$(generic-module:washer)',
+			'housingWasher',
+			'housingWasherState',
+			{ color: colorWhite, bgcolor: colorBlue },
+		)
+	}
+
+	// #################
 	// #### Presets ####
 	// #################
 
