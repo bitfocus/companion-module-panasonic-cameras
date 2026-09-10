@@ -172,7 +172,7 @@ export function parseUpdate(self, str, { echo = false, bulk = false } = {}) {
 	}
 
 	if (str[0].substring(0, 3) === 'wIP') {
-		if (str[0].length > 3) self.data.wiper = str[0].substring(3, 4)
+		if (str[0].length > 3) self.data.wiperMode = str[0].substring(3, 4)
 	}
 
 	if (str[0].substring(0, 3) === 'wAS') {
@@ -244,22 +244,22 @@ export function parseUpdate(self, str, { echo = false, bulk = false } = {}) {
 			self.data.nightMode = '1'
 			break
 		case 'd70':
-			self.data.defroster = '0'
+			self.data.defrosterMode = '0'
 			break
 		case 'd71':
-			self.data.defroster = '1'
+			self.data.defrosterMode = '1'
 			break
 		case 'd80':
-			self.data.wiper = '0'
+			self.data.wiperMode = '0'
 			break
 		case 'd81':
-			self.data.wiper = '1'
+			self.data.wiperMode = '1'
 			break
 		case 'd90':
-			self.data.heater = '0'
+			self.data.heaterMode = '0'
 			break
 		case 'd91':
-			self.data.heater = '1'
+			self.data.heaterMode = '1'
 			break
 		case 'ER2':
 			switch (str[1]) {

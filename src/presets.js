@@ -1146,7 +1146,7 @@ export function getPresetDefinitions(self) {
 		presets['housing-heater'] = togglePreset(
 			'Housing',
 			'Heater',
-			'Heater\\n$(generic-module:heater)',
+			'Heater\\n$(generic-module:heaterMode)',
 			'housingHeater',
 			'housingHeaterState',
 			{ color: colorWhite, bgcolor: colorOrange },
@@ -1155,13 +1155,13 @@ export function getPresetDefinitions(self) {
 		presets['housing-defroster'] = togglePreset(
 			'Housing',
 			'Defroster',
-			'Defroster\\n$(generic-module:defroster)',
+			'Defroster\\n$(generic-module:defrosterMode)',
 			'housingDefroster',
 			'housingDefrosterState',
 			{ color: colorWhite, bgcolor: colorOrange },
 		)
 
-		presets['housing-wiper'] = enumKnobPreset('Housing', 'Wiper', 'Wiper\\n$(generic-module:wiper)', 'housingWiper')
+		presets['housing-wiper'] = enumKnobPreset('Housing', 'Wiper', 'Wiper\\n$(generic-module:wiperMode)', 'housingWiper')
 
 		presets['housing-washer'] = togglePreset(
 			'Housing',

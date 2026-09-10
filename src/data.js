@@ -22,7 +22,7 @@ export function initialData() {
 		chromaLevel: null,
 		colorbar: null,
 		colorTemperature: null,
-		defroster: null,
+		defrosterMode: null,
 		defrosterStatus: null,
 		dnr: null,
 		drs: null,
@@ -33,7 +33,7 @@ export function initialData() {
 		filterFollow: null,
 		focusMode: null,
 		gain: null,
-		heater: null,
+		heaterMode: null,
 		heaterStatus: null,
 		installMode: null,
 		irisMode: null,
@@ -58,7 +58,7 @@ export function initialData() {
 		videoFormat: null,
 		washer: null,
 		whiteBalance: null,
-		wiper: null,
+		wiperMode: null,
 
 		// numeric index
 		presetSelectedIdx: null,

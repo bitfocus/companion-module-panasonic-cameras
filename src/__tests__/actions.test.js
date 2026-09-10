@@ -383,15 +383,15 @@ describe('the housing functions (AW-UR100)', () => {
 
 	// Three states, so stepping is what a knob does; the next one is relative to what the camera says.
 	it('steps the wiper on from where the camera is', async () => {
-		expect(await housing('housingWiper', { op: 1 }, { wiper: '0' })).toEqual(['#WIP1'])
-		expect(await housing('housingWiper', { op: 1 }, { wiper: '1' })).toEqual(['#WIP2'])
-		expect(await housing('housingWiper', { op: -1 }, { wiper: '2' })).toEqual(['#WIP1'])
+		expect(await housing('housingWiper', { op: 1 }, { wiperMode: '0' })).toEqual(['#WIP1'])
+		expect(await housing('housingWiper', { op: 1 }, { wiperMode: '1' })).toEqual(['#WIP2'])
+		expect(await housing('housingWiper', { op: -1 }, { wiperMode: '2' })).toEqual(['#WIP1'])
 	})
 
 	it('toggles the heater and defroster against their reported setting', async () => {
-		expect(await housing('housingHeater', { op: 't' }, { heater: '0' })).toEqual(['#D91'])
-		expect(await housing('housingHeater', { op: 't' }, { heater: '1' })).toEqual(['#D90'])
-		expect(await housing('housingDefroster', { op: 't' }, { defroster: '0' })).toEqual(['#D71'])
+		expect(await housing('housingHeater', { op: 't' }, { heaterMode: '0' })).toEqual(['#D91'])
+		expect(await housing('housingHeater', { op: 't' }, { heaterMode: '1' })).toEqual(['#D90'])
+		expect(await housing('housingDefroster', { op: 't' }, { defrosterMode: '0' })).toEqual(['#D71'])
 	})
 
 	it('starts and stops the washer', async () => {

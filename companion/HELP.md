@@ -222,7 +222,7 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 - Housing - Heater Mode
 - Housing - Defroster State
 - Housing - Defroster Mode
-- Housing - Wiper State
+- Housing - Wiper Mode
 - Housing - Washer State
 
 
@@ -311,10 +311,10 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 | `$(autotrackingMode)` | Autotracking Mode |
 | `$(autotrackingAngle)` | Autotracking Angle |
 | `$(autotrackingStatus)` | Autotracking Status |
-| `$(heater)` | Housing Heater |
+| `$(heaterMode)` | Housing Heater Mode |
 | `$(heaterStatus)` | Housing Heater Status |
-| `$(defroster)` | Housing Defroster |
+| `$(defrosterMode)` | Housing Defroster Mode |
 | `$(defrosterStatus)` | Housing Defroster Status |
-| `$(wiper)` | Housing Wiper |
+| `$(wiperMode)` | Housing Wiper Mode |
 | `$(washer)` | Housing Washer |
 | `$(audioVolumeLevel1…N)` | Audio Volume Level per Channel (dB) |

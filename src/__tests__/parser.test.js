@@ -270,23 +270,23 @@ describe('parseUpdate', () => {
 
 	describe('the outdoor housing', () => {
 		it('separates each setting from the status that reports what it is doing', () => {
-			expect(parse('d91').heater).toBe('1')
+			expect(parse('d91').heaterMode).toBe('1')
 			expect(parse('hS0').heaterStatus).toBe('0')
-			expect(parse('d70').defroster).toBe('0')
+			expect(parse('d70').defrosterMode).toBe('0')
 			expect(parse('dS1').defrosterStatus).toBe('1')
 		})
 
 		it('reads all three wiper speeds', () => {
-			expect(parse('wIP0').wiper).toBe('0')
-			expect(parse('wIP1').wiper).toBe('1')
-			expect(parse('wIP2').wiper).toBe('2')
+			expect(parse('wIP0').wiperMode).toBe('0')
+			expect(parse('wIP1').wiperMode).toBe('1')
+			expect(parse('wIP2').wiperMode).toBe('2')
 		})
 
 		// #D8 is the older, coarser wiper command. Its On is #WIP's Fast, so the two share one state
 		// slot and a camera answering either keeps the variable current.
 		it('takes the legacy #D8 wiper reply as the same state', () => {
-			expect(parse('d80').wiper).toBe('0')
-			expect(parse('d81').wiper).toBe('1')
+			expect(parse('d80').wiperMode).toBe('0')
+			expect(parse('d81').wiperMode).toBe('1')
 		})
 
 		it('reads the washer', () => {
@@ -296,7 +296,7 @@ describe('parseUpdate', () => {
 
 		// A truncated notification must not publish an empty label over the last known state.
 		it('ignores a reply carrying no state', () => {
-			expect(parse('wIP').wiper).toBeNull()
+			expect(parse('wIP').wiperMode).toBeNull()
 			expect(parse('hS').heaterStatus).toBeNull()
 		})
 
@@ -332,11 +332,11 @@ describe('parseUpdate', () => {
 			}
 
 			expect(self.data).toMatchObject({
-				heater: '0',
+				heaterMode: '0',
 				heaterStatus: '1',
-				defroster: '0',
+				defrosterMode: '0',
 				defrosterStatus: '0',
-				wiper: '0',
+				wiperMode: '0',
 				focusSpeedValue: 0,
 			})
 		})
