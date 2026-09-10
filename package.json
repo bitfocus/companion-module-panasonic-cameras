@@ -25,7 +25,7 @@
 		"@companion-module/tools": "^3.1.0",
 		"eslint": "^9.39.3",
 		"prettier": "^3.8.1",
-		"vitest": "^4.1.10"
+		"vitest": "^4.1.11"
 	},
 	"prettier": "@companion-module/tools/.prettierrc.json",
 	"packageManager": "yarn@4.13.0",
