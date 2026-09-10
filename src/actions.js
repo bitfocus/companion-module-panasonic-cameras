@@ -1120,9 +1120,15 @@ export function getActionDefinitions(self) {
 	// #########################
 
 	if (caps.housing) {
-		actions.housingHeater = enumAction('Housing - Heater', ptz, 'D9', e.ENUM_AUTO_ON, () => self.data.heater)
-		actions.housingDefroster = enumAction('Housing - Defroster', ptz, 'D7', e.ENUM_AUTO_ON, () => self.data.defroster)
-		actions.housingWiper = enumAction('Housing - Wiper', ptz, 'WIP', e.ENUM_WIPER, () => self.data.wiper, {
+		actions.housingHeater = enumAction('Housing - Heater', ptz, 'D9', e.ENUM_AUTO_ON, () => self.data.heaterMode)
+		actions.housingDefroster = enumAction(
+			'Housing - Defroster',
+			ptz,
+			'D7',
+			e.ENUM_AUTO_ON,
+			() => self.data.defrosterMode,
+		)
+		actions.housingWiper = enumAction('Housing - Wiper', ptz, 'WIP', e.ENUM_WIPER, () => self.data.wiperMode, {
 			nextPrev: true,
 		})
 		actions.housingWasher = enumAction('Housing - Washer', ptz, 'WAS', e.ENUM_OFF_ON, () => self.data.washer)
