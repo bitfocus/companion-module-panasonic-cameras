@@ -1438,7 +1438,7 @@ export function getPresetDefinitions(self) {
 	// #### Auto Tracking ####
 	// #######################
 
-	if (SERIES.capabilities.trackingAuto) {
+	if (SERIES.capabilities.trackingAuto?.control) {
 		presets['autotracking-mode'] = togglePreset(
 			'Auto Tracking',
 			'Auto Tracking Mode',
@@ -1488,6 +1488,31 @@ export function getPresetDefinitions(self) {
 					feedbackId: 'autotrackingStatus',
 					options: {
 						option: e.ENUM_AUTOTRACKING_ANGLE[2].id,
+					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorBlue }),
+				},
+			],
+		}
+	} else if (SERIES.capabilities.trackingAuto) {
+		// Tracking runs outside the camera, so there is nothing to press - only the state it reports.
+		presets['autotracking-status'] = {
+			type: 'layered',
+			category: 'Auto Tracking',
+			name: 'Auto Tracking Status',
+			elements: layers({ text: 'TRACK.\\n$(generic-module:autotrackingStatus)', size: 'auto' }),
+			steps: [],
+			feedbacks: [
+				{
+					feedbackId: 'autotrackingStatus',
+					options: {
+						option: e.ENUM_AUTOTRACKING_STATUS[1].id,
+					},
+					styleOverrides: overrides({ color: colorWhite, bgcolor: colorRed }),
+				},
+				{
+					feedbackId: 'autotrackingStatus',
+					options: {
+						option: e.ENUM_AUTOTRACKING_STATUS[2].id,
 					},
 					styleOverrides: overrides({ color: colorWhite, bgcolor: colorBlue }),
 				},

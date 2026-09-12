@@ -427,6 +427,45 @@ describe('pull coverage', () => {
 		},
 	)
 
+	// The AW-UE160 does the tracking in the Media Production Suite, not in the camera: its spec answers
+	// QSL:B6 and QSL:BB but documents no control for either, and OSL:B7 - OSL:C2 do not exist there. The
+	// state it does report was hidden behind the same flag that gates the commands, so the camera sat
+	// with no tracking readout at all.
+	describe('auto tracking', () => {
+		const self = mockInstance('AW-UE160')
+
+		it('reports the tracking state it cannot command', () => {
+			expect(seriesSpec('UE160').capabilities.trackingAuto.control).toBe(false)
+			expect(setVariables(self).autotrackingMode).toBeDefined()
+			expect(setVariables(self).autotrackingStatus).toBeDefined()
+			expect(getFeedbackDefinitions(self).autotrackingMode).toBeDefined()
+			expect(getFeedbackDefinitions(self).autotrackingStatus).toBeDefined()
+			expect(getPresetDefinitions(self).presets['autotracking-status'].steps).toEqual([])
+		})
+
+		it('offers nothing the AW-UE160 would answer with an error', () => {
+			expect(getActionDefinitions(self).autotrackingMode).toBeUndefined()
+			expect(getActionDefinitions(self).autotrackingAngle).toBeUndefined()
+			expect(getActionDefinitions(self).autotrackingStartStop).toBeUndefined()
+			expect(getFeedbackDefinitions(self).autotrackingAngle).toBeUndefined()
+			expect(setVariables(self).autotrackingAngle).toBeUndefined()
+			expect(getPresetDefinitions(self).presets['autotracking-mode']).toBeUndefined()
+			expect(getPresetDefinitions(self).presets['autotracking-angle']).toBeUndefined()
+		})
+
+		// The cameras that track on their own keep all of it.
+		it('leaves the full set on a camera that tracks by itself', () => {
+			const ue150a = mockInstance('AW-UE150A')
+
+			expect(seriesSpec('UE150A').capabilities.trackingAuto.control).toBe(true)
+			expect(getActionDefinitions(ue150a).autotrackingAngle).toBeDefined()
+			expect(getActionDefinitions(ue150a).autotrackingStartStop).toBeDefined()
+			expect(getFeedbackDefinitions(ue150a).autotrackingAngle).toBeDefined()
+			expect(setVariables(ue150a).autotrackingAngle).toBeDefined()
+			expect(getPresetDefinitions(ue150a).presets['autotracking-angle']).toBeDefined()
+		})
+	})
+
 	// The camera fault state is a bitmask, so the capability has to name both the command that carries
 	// it and what each bit means - QSI:46 has five, the older QER two. A missing bits list would render
 	// the variable as an empty string on a camera that is in fact reporting a fault.
