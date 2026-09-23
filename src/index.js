@@ -6,6 +6,7 @@ import { getPresetDefinitions } from './presets.js'
 import { setVariables, checkVariables } from './variables.js'
 import { ConfigFields, applyConfigDefaults, describeAuth, describeDetectedModel } from './config.js'
 import * as net from 'net'
+import { Agent } from 'http'
 import got from 'got'
 import { Jimp, JimpMime } from 'jimp'
 import EventEmitter from 'events'
@@ -20,6 +21,10 @@ export const UpgradeScripts = upgradeScripts
 
 // Max wait for a goodbye ack before tearing down anyway; a gone camera never answers.
 const UNSUBSCRIBE_GRACE = 1000
+
+// "Keep-Alive cannot be set with HTTP connections" (every interface specification): a reused socket can
+// go unanswered, so each request gets a connection of its own.
+const httpAgent = new Agent({ keepAlive: false })
 
 // Temporary reachability faults worth retrying; the DNS codes cover cameras entered by hostname.
 // Anything not listed is not retried.
@@ -149,6 +154,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 					...gotOptions,
 					headers: { ...gotOptions.headers, ...headers },
 					retry: { limit: 0 },
+					agent: { http: httpAgent },
 					signal: this.aborter.signal,
 				}),
 			{
