@@ -90,7 +90,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.pollImageGen = 0
 
 		// Preset thumbnail and name reads still to be made, keyed so a repeat is not queued twice.
-		this.presetFetches = new Map()
+		this.presetFetches = { pending: new Map(), busy: false }
 
 		// True from the moment a reconnect is committed until it starts, so nothing withdraws it.
 		this.reconnecting = false
@@ -266,7 +266,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.generation++
 		this.aborter.abort()
 		this.aborter = new AbortController() // the goodbye below needs a live one
-		this.presetFetches = new Map()
+		this.presetFetches = { pending: new Map(), busy: false }
 
 		// 3. Tell the old camera to stop pushing (only if subscribed; this.server proves it). Awaited but
 		//    bounded: the stop must land before the next start, yet a gone camera must not stall the panel.
@@ -587,23 +587,29 @@ export default class PanasonicCameraInstance extends InstanceBase {
 	}
 
 	queuePresetFetch(key, task) {
-		if (this.presetFetches.has(key)) return
+		const queue = this.presetFetches
+		if (queue.pending.has(key)) return
 
-		this.presetFetches.set(key, task)
-		if (this.presetFetches.size === 1) this.drainPresetFetches(this.presetFetches, this.generation)
+		queue.pending.set(key, task)
+		if (!queue.busy) this.drainPresetFetches(queue, this.generation)
 	}
 
 	async drainPresetFetches(queue, generation) {
-		for (const [key, task] of queue) {
+		queue.busy = true
+
+		// Taken off before it runs: a change reported while the read is out queues it again.
+		for (const [key, task] of queue.pending) {
 			if (!this.current(generation)) return
+			queue.pending.delete(key)
 
 			try {
 				await task()
 			} catch (err) {
 				this.log('error', `Preset read ${key} failed: ${describeError(err)}`)
 			}
-			queue.delete(key)
 		}
+
+		queue.busy = false
 	}
 
 	async getThumbnail(id) {

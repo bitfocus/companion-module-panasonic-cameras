@@ -58,7 +58,7 @@ function makeInstance(config = {}, { series = 'UE80', capabilities } = {}) {
 	self.imageErrors = 0
 	self.reconnecting = false
 	self.imageSubscribers = new Map()
-	self.presetFetches = new Map()
+	self.presetFetches = { pending: new Map(), busy: false }
 	self.secrets = {}
 	self.auth = null // no login configured: requestWithAuth passes straight through
 	self.reportedAuth = new Set()
@@ -232,7 +232,7 @@ describe('reading the stored presets', () => {
 		return self
 	}
 
-	const drained = (self) => vi.waitFor(() => expect(self.presetFetches.size).toBe(0))
+	const drained = (self) => vi.waitFor(() => expect(self.presetFetches).toEqual({ pending: new Map(), busy: false }))
 
 	it('asks the camera one thing at a time', async () => {
 		const self = cameraWithPresets()
@@ -244,7 +244,8 @@ describe('reading the stored presets', () => {
 		expect(self.mostInFlight).toBe(1)
 	})
 
-	// The pull and the camdata.html that follows it both carry the bank, back to back at connect.
+	// The pull and the camdata.html that follows it both carry the bank, back to back at connect. Only
+	// the read already on its way is asked for again; what still waits is not.
 	it('does not queue a preset twice when the bank reports in again before it is through', async () => {
 		const self = cameraWithPresets()
 
@@ -252,8 +253,21 @@ describe('reading the stored presets', () => {
 		parseUpdate(self, ['pE000000000003'])
 		await drained(self)
 
+		expect(self.requests.filter((u) => u.includes('QSJ:35:00'))).toHaveLength(2)
+		expect(self.requests.filter((u) => u.includes('QSJ:35:01'))).toHaveLength(1)
 		expect(self.requests.filter((u) => u.includes('get_preset_thumbnail'))).toHaveLength(2)
-		expect(self.requests.filter((u) => u.includes('QSJ:35'))).toHaveLength(2)
+	})
+
+	// The read already out may still bring back the picture from before the camera stored the new one.
+	it('reads a thumbnail again when the camera replaces it while the read is out', async () => {
+		const self = cameraWithPresets()
+		self.SERIES.capabilities.presetNames = false
+
+		parseUpdate(self, ['pE000000000001'])
+		parseUpdate(self, ['OSJ', '39', '00'])
+		await drained(self)
+
+		expect(self.requests.filter((u) => u.includes('preset_number=1'))).toHaveLength(2)
 	})
 
 	it('drops what is left when the connection goes', async () => {
