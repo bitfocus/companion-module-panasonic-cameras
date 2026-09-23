@@ -465,7 +465,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 							this.log('debug', 'camdata response: ' + str)
 						}
 
-						this.parseSafely(str, () => parseUpdate(this, str.split(':')))
+						this.parseSafely(str, () => parseUpdate(this, str.split(':'), { bulk: true }))
 					}
 
 					this.checkVariables()

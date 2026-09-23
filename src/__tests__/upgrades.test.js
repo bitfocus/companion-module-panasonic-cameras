@@ -16,6 +16,7 @@ const rescaleColorTemperatureStep = upgradeScripts[5]
 const renameDebugToTrace = upgradeScripts[6]
 const dropRestartCredentials = upgradeScripts[7]
 const repairSteppedGain = upgradeScripts[8]
+const renameInstallStateFeedback = upgradeScripts[9]
 
 // An upgrade script both reads and writes CompanionMigrationOptionValues, so every option in these
 // fixtures — and every option a script writes — is an ExpressionOrValue wrapper, never a bare value.
@@ -34,7 +35,7 @@ const migrate = (props, context = {}) =>
 // re-runs the wrong migration on every existing connection.
 describe('upgradeScripts', () => {
 	it('only ever grows, and blanks a retired script in place', () => {
-		expect(upgradeScripts).toHaveLength(9)
+		expect(upgradeScripts).toHaveLength(10)
 		expect(upgradeScripts[0]).toBe(EmptyUpgradeScript)
 	})
 })
@@ -642,5 +643,44 @@ describe('repairSteppedGain', () => {
 		['a model this module does not know', { model: 'AW-NOT-A-CAMERA' }],
 	])('survives %s', (_name, config) => {
 		expect(() => step({ config, actions: [{ actionId: 'gain', options: { op: val('t') } }] })).not.toThrow()
+	})
+})
+
+// The Install Position feedback was published as `installState` and is now `installPosition`. A button
+// saved against the old id would otherwise point at a feedback that no longer exists.
+describe('renameInstallStateFeedback', () => {
+	const upgrade = (feedbacks) => renameInstallStateFeedback({}, { config: null, actions: [], feedbacks })
+
+	it('moves a saved feedback to the new id and keeps the position it was set to', () => {
+		const feedback = { id: 'f1', controlId: 'c1', feedbackId: 'installState', options: { option: val('1') } }
+
+		const { updatedFeedbacks } = upgrade([feedback])
+
+		expect(updatedFeedbacks).toEqual([
+			{ id: 'f1', controlId: 'c1', feedbackId: 'installPosition', options: { option: val('1') } },
+		])
+	})
+
+	it('leaves every other feedback alone and does not report it as changed', () => {
+		const others = [
+			{ id: 'f2', controlId: 'c1', feedbackId: 'powerState', options: {} },
+			{ id: 'f3', controlId: 'c2', feedbackId: 'installPosition', options: { option: val('0') } },
+		]
+
+		const { updatedFeedbacks } = upgrade(others)
+
+		expect(updatedFeedbacks).toEqual([])
+		expect(others.map((f) => f.feedbackId)).toEqual(['powerState', 'installPosition'])
+	})
+
+	it('survives a connection with no feedbacks at all', () => {
+		expect(renameInstallStateFeedback({}, { config: null, actions: [] }).updatedFeedbacks).toEqual([])
+	})
+
+	it('touches no actions or config', () => {
+		const result = upgrade([{ id: 'f1', controlId: 'c1', feedbackId: 'installState', options: {} }])
+
+		expect(result.updatedActions).toEqual([])
+		expect(result.updatedConfig).toBeNull()
 	})
 })

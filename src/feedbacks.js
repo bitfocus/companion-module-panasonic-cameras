@@ -129,9 +129,9 @@ export function getFeedbackDefinitions(self) {
 	}
 
 	if (caps.install) {
-		feedbacks.installState = selectionFeedback(
+		feedbacks.installPosition = selectionFeedback(
 			'System - Install Position',
-			'Indicates if the selected mounting position is currently active',
+			'Indicates if the selected mounting position is currently set',
 			'Position',
 			e.ENUM_INSTALL_POSITION,
 			() => self.data.installMode,
@@ -516,6 +516,58 @@ export function getFeedbackDefinitions(self) {
 					},
 				],
 			},
+		)
+	}
+
+	// ---- Housing ----
+
+	if (caps.housing) {
+		feedbacks.housingHeaterState = stateFeedback(
+			'Housing - Heater State',
+			'Indicates if the housing heater is currently active',
+			() => self.data.heaterStatus === '1',
+			STYLE_ORANGE,
+		)
+
+		feedbacks.housingHeaterMode = selectionFeedback(
+			'Housing - Heater Mode',
+			'Indicates if the housing heater is set to the selected mode',
+			'Mode',
+			e.ENUM_AUTO_ON,
+			() => self.data.heaterMode,
+			{ defaultIndex: 1, style: STYLE_GREY },
+		)
+
+		feedbacks.housingDefrosterState = stateFeedback(
+			'Housing - Defroster State',
+			'Indicates if the housing defroster is currently active',
+			() => self.data.defrosterStatus === '1',
+			STYLE_ORANGE,
+		)
+
+		feedbacks.housingDefrosterMode = selectionFeedback(
+			'Housing - Defroster Mode',
+			'Indicates if the housing defroster is set to the selected mode',
+			'Mode',
+			e.ENUM_AUTO_ON,
+			() => self.data.defrosterMode,
+			{ defaultIndex: 1, style: STYLE_GREY },
+		)
+
+		feedbacks.housingWiperMode = selectionFeedback(
+			'Housing - Wiper Mode',
+			'Indicates if the selected wiper mode is currently active',
+			'Mode',
+			e.ENUM_WIPER,
+			() => self.data.wiperMode,
+			{ defaultIndex: 1, style: STYLE_BLUE },
+		)
+
+		feedbacks.housingWasherState = stateFeedback(
+			'Housing - Washer',
+			'Indicates if the washer is currently active',
+			() => self.data.washer === '1',
+			STYLE_BLUE,
 		)
 	}
 
