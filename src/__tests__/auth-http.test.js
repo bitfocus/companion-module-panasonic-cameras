@@ -33,7 +33,7 @@ function camera({
 
 	const server = createServer((req, res) => {
 		const authorization = req.headers.authorization ?? null
-		requests.push({ url: req.url, authorization })
+		requests.push({ url: req.url, authorization, connection: req.headers.connection })
 
 		const deny = (which = scheme, extra = '') => {
 			const challenge =
@@ -86,8 +86,12 @@ function camera({
 		res.end(body)
 	})
 
+	let connections = 0
+	server.on('connection', () => connections++)
+
 	return {
 		requests,
+		connections: () => connections,
 		rotateNonceOnce: () => (staleOnce = true),
 		// "User auth." being switched on at the camera while the connection is already running.
 		demandAuth: (which) => (scheme = which),
@@ -714,6 +718,23 @@ describe('requests that the camera turns down', () => {
 		await self.getWeb('get_basic')
 
 		expect(server.requests).toHaveLength(1)
+		await server.close()
+	})
+})
+
+// The interface specifications rule out Keep-Alive, and a camera left holding a reused socket can
+// leave the next request unanswered until it times out (issue #110, AG-CX350).
+describe('connections to the camera', () => {
+	it('are never reused', async () => {
+		const server = camera({ scheme: 'none' })
+		const port = await server.listen()
+		const self = instance(port, {})
+
+		await self.httpGet(`http://127.0.0.1:${port}/cgi-bin/aw_cam?cmd=QID&res=1`)
+		await self.httpGet(`http://127.0.0.1:${port}/cgi-bin/aw_ptz?cmd=%23GZ&res=1`)
+
+		expect(server.connections()).toBe(2)
+		expect(server.requests.map((r) => r.connection)).toEqual(['close', 'close'])
 		await server.close()
 	})
 })
