@@ -89,6 +89,9 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.pollImage = false
 		this.pollImageGen = 0
 
+		// Preset thumbnail and name reads still to be made, keyed so a repeat is not queued twice.
+		this.presetFetches = new Map()
+
 		// True from the moment a reconnect is committed until it starts, so nothing withdraws it.
 		this.reconnecting = false
 
@@ -263,6 +266,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		this.generation++
 		this.aborter.abort()
 		this.aborter = new AbortController() // the goodbye below needs a live one
+		this.presetFetches = new Map()
 
 		// 3. Tell the old camera to stop pushing (only if subscribed; this.server proves it). Awaited but
 		//    bounded: the stop must land before the next start, yet a gone camera must not stall the panel.
@@ -488,7 +492,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 				// A refusal is not an update; it answers 200 all the same.
 				const refusal = parseRefusal(str)
-				if (refusal) this.reportRefusal(refusal)
+				if (refusal) this.reportRefusal({ ...refusal, command: cmd })
 				this.parseSafely(str, () => parseUpdate(this, str.split(':')))
 
 				this.checkVariables()
@@ -527,7 +531,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 				// A refusal is not an update; it answers 200 all the same.
 				const refusal = parseRefusal(str)
-				if (refusal) this.reportRefusal(refusal)
+				if (refusal) this.reportRefusal({ ...refusal, command: cmd })
 				this.parseSafely(str, () => parseUpdate(this, str.split(':'), { echo }))
 
 				this.checkVariables()
@@ -579,6 +583,26 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		} catch (err) {
 			if (!this.current(generation)) return
 			this.logConnectionError(err, 'Web request ' + url + ' failed: ' + String(err))
+		}
+	}
+
+	queuePresetFetch(key, task) {
+		if (this.presetFetches.has(key)) return
+
+		this.presetFetches.set(key, task)
+		if (this.presetFetches.size === 1) this.drainPresetFetches(this.presetFetches, this.generation)
+	}
+
+	async drainPresetFetches(queue, generation) {
+		for (const [key, task] of queue) {
+			if (!this.current(generation)) return
+
+			try {
+				await task()
+			} catch (err) {
+				this.log('error', `Preset read ${key} failed: ${describeError(err)}`)
+			}
+			queue.delete(key)
 		}
 	}
 

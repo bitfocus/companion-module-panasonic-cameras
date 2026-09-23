@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as net from 'net'
 import PanasonicCameraInstance, { REACHABILITY_ERRORS, describeError } from '../index.js'
 import { pollCameraStatus } from '../polling.js'
+import { parseUpdate } from '../parser.js'
 import { initialData } from '../data.js'
 
 // init_tcp() is the one path that reaches a real socket, so the listener is stubbed. `emitError`
@@ -57,6 +58,7 @@ function makeInstance(config = {}, { series = 'UE80', capabilities } = {}) {
 	self.imageErrors = 0
 	self.reconnecting = false
 	self.imageSubscribers = new Map()
+	self.presetFetches = new Map()
 	self.secrets = {}
 	self.auth = null // no login configured: requestWithAuth passes straight through
 	self.reportedAuth = new Set()
@@ -208,6 +210,60 @@ describe('an answer that arrives after the connection has moved on', () => {
 		// A failure of the camera we left is not a reason to reconnect to the one we are on.
 		expect(vi.getTimerCount()).toBe(0)
 		vi.useRealTimers()
+	})
+})
+
+// A stored preset costs a thumbnail and a name read. Sent all at once, an AW-UE150 answered part of them
+// with HTTP 500, and the burst starved the poll loop into ER2 and timeouts (issue #111).
+describe('reading the stored presets', () => {
+	const cameraWithPresets = () => {
+		const self = makeInstance({}, { capabilities: { presetNames: true, presetThumbnails: true } })
+
+		self.inFlight = 0
+		self.mostInFlight = 0
+		self.httpGet = vi.fn(async (url) => {
+			self.requests.push(url)
+			self.mostInFlight = Math.max(self.mostInFlight, ++self.inFlight)
+			await new Promise((resolve) => setTimeout(resolve))
+			self.inFlight--
+			return { body: '', rawBody: new Uint8Array(), statusCode: 200 }
+		})
+
+		return self
+	}
+
+	const drained = (self) => vi.waitFor(() => expect(self.presetFetches.size).toBe(0))
+
+	it('asks the camera one thing at a time', async () => {
+		const self = cameraWithPresets()
+
+		parseUpdate(self, ['pE000000007FFF']) // presets 1-15
+		await drained(self)
+
+		expect(self.requests).toHaveLength(30)
+		expect(self.mostInFlight).toBe(1)
+	})
+
+	// The pull and the camdata.html that follows it both carry the bank, back to back at connect.
+	it('does not queue a preset twice when the bank reports in again before it is through', async () => {
+		const self = cameraWithPresets()
+
+		parseUpdate(self, ['pE000000000003'])
+		parseUpdate(self, ['pE000000000003'])
+		await drained(self)
+
+		expect(self.requests.filter((u) => u.includes('get_preset_thumbnail'))).toHaveLength(2)
+		expect(self.requests.filter((u) => u.includes('QSJ:35'))).toHaveLength(2)
+	})
+
+	it('drops what is left when the connection goes', async () => {
+		const self = cameraWithPresets()
+
+		parseUpdate(self, ['pE000000007FFF'])
+		await self.teardown()
+		await new Promise((resolve) => setTimeout(resolve, 10))
+
+		expect(self.requests).toHaveLength(1) // the one already on its way
 	})
 })
 
@@ -855,7 +911,16 @@ describe('a command the camera refuses', () => {
 		const self = answering('ER3:OGU\r\n')
 		await self.getCam('OGU:90')
 
-		expect(logs(self)).toEqual([['error', 'Camera rejected "OGU": value outside the acceptable range']])
+		expect(logs(self)).toEqual([['error', 'Camera rejected "OGU:90": value outside the acceptable range']])
+	})
+
+	// The camera echoes only the command's head, and a model polls several QSJ:xx - "QSJ" alone left the
+	// refused one to guesswork (issue #111).
+	it('names the command as it was sent, not as the camera echoes it', async () => {
+		const self = answering('ER3:QSJ\r\n')
+		await self.getCam('QSJ:4A', { polled: true })
+
+		expect(logs(self)).toEqual([['error', 'Camera rejected "QSJ:4A": value outside the acceptable range']])
 	})
 })
 
