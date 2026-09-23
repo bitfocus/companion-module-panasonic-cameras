@@ -19,10 +19,16 @@ function presetIndex(value) {
 
 function clearPresetThumbnail(self, idx) {
 	self.data.presetThumbnails[idx] = undefined
+	self.dropPresetFetch('thumbnail:' + idx)
 }
 
 function readPresetName(self, idx) {
-	if (self.SERIES?.capabilities.presetNames) self.getCam('QSJ:35:' + idx.toString(10).padStart(2, '0'))
+	if (self.SERIES?.capabilities.presetNames)
+		self.queuePresetFetch('name:' + idx, () => self.getCam('QSJ:35:' + idx.toString(10).padStart(2, '0')))
+}
+
+function readPresetThumbnail(self, idx) {
+	self.queuePresetFetch('thumbnail:' + idx, () => self.getThumbnail(idx))
 }
 
 // Reads a camera reply as a refusal, or returns null if it is an ordinary answer.
@@ -119,7 +125,7 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 				if (self.data.presetNames[idx] === undefined) readPresetName(self, idx)
 
 				if (settled && p === previous[i]) return // skip unchanged entries without subscription
-				self.getThumbnail(idx)
+				readPresetThumbnail(self, idx)
 			})
 		}
 
@@ -437,16 +443,16 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 					break
 				case '39': {
 					const idx = presetIndex(str[2])
-					if (idx !== null) self.getThumbnail(idx)
+					if (idx !== null) readPresetThumbnail(self, idx)
 					break
 				}
 				case '3A': {
 					const idx = presetIndex(str[2])
-					if (idx !== null) self.data.presetThumbnails[idx] = undefined
+					if (idx !== null) clearPresetThumbnail(self, idx)
 					break
 				}
 				case '3B':
-					self.data.presetThumbnails.fill(undefined)
+					for (let idx = 0; idx < self.data.presetThumbnails.length; idx++) clearPresetThumbnail(self, idx)
 					break
 				case '4A':
 					self.data.awbColorTempLabel =
