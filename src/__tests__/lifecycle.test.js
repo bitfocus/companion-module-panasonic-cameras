@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as net from 'net'
+import { Jimp, JimpMime } from 'jimp'
 import PanasonicCameraInstance, { REACHABILITY_ERRORS, describeError } from '../index.js'
 import { pollCameraStatus } from '../polling.js'
 import { parseUpdate } from '../parser.js'
@@ -268,6 +269,33 @@ describe('reading the stored presets', () => {
 		await drained(self)
 
 		expect(self.requests.filter((u) => u.includes('preset_number=1'))).toHaveLength(2)
+	})
+
+	// Deleting a preset while its thumbnail is still to come must not bring the old picture back.
+	it('forgets a thumbnail that waits for a preset since cleared', async () => {
+		const self = cameraWithPresets()
+		self.SERIES.capabilities.presetNames = false
+
+		parseUpdate(self, ['pE000000000003']) // presets 1 and 2
+		parseUpdate(self, ['pE000000000001']) // preset 2 cleared while preset 1 is being read
+		await drained(self)
+
+		expect(self.requests.filter((u) => u.includes('preset_number=2'))).toHaveLength(0)
+	})
+
+	it('discards a thumbnail whose preset was cleared while the read was out', async () => {
+		const self = cameraWithPresets()
+		self.SERIES.capabilities.presetNames = false
+		self.httpGet = vi.fn(async () => {
+			parseUpdate(self, ['pE000000000000']) // cleared while the camera answers
+			return { rawBody: await new Jimp({ width: 16, height: 9 }).getBuffer(JimpMime.png) }
+		})
+
+		parseUpdate(self, ['pE000000000001'])
+		await drained(self)
+
+		expect(self.httpGet).toHaveBeenCalledOnce()
+		expect(self.data.presetThumbnails[0]).toBeUndefined()
 	})
 
 	it('drops what is left when the connection goes', async () => {

@@ -19,6 +19,7 @@ function presetIndex(value) {
 
 function clearPresetThumbnail(self, idx) {
 	self.data.presetThumbnails[idx] = undefined
+	self.dropPresetFetch('thumbnail:' + idx)
 }
 
 function readPresetName(self, idx) {
@@ -447,11 +448,11 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 				}
 				case '3A': {
 					const idx = presetIndex(str[2])
-					if (idx !== null) self.data.presetThumbnails[idx] = undefined
+					if (idx !== null) clearPresetThumbnail(self, idx)
 					break
 				}
 				case '3B':
-					self.data.presetThumbnails.fill(undefined)
+					for (let idx = 0; idx < self.data.presetThumbnails.length; idx++) clearPresetThumbnail(self, idx)
 					break
 				case '4A':
 					self.data.awbColorTempLabel =

@@ -612,6 +612,10 @@ export default class PanasonicCameraInstance extends InstanceBase {
 		queue.busy = false
 	}
 
+	dropPresetFetch(key) {
+		this.presetFetches.pending.delete(key)
+	}
+
 	async getThumbnail(id) {
 		if (this.SERIES?.capabilities.presetThumbnails) {
 			const generation = this.generation
@@ -629,6 +633,7 @@ export default class PanasonicCameraInstance extends InstanceBase {
 
 				// Re-checked after the slow decode: a config change may have landed while Jimp worked.
 				if (!this.current(generation)) return
+				if (this.data.presetEntries[id] !== '1') return // cleared while the read was out
 
 				this.data.presetThumbnails[id] = png64
 

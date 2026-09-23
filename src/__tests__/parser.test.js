@@ -579,6 +579,7 @@ describe('the preset entry bitmap', () => {
 			getThumbnail: (idx) => self.thumbnails.push(idx),
 			getCam: (cmd) => self.queries.push(cmd),
 			queuePresetFetch: (key, task) => task(), // the order is the queue's business, see lifecycle.test.js
+			dropPresetFetch() {},
 			log() {},
 		}
 		return self
@@ -741,6 +742,7 @@ describe('the preset name and thumbnail notifications', () => {
 			getThumbnail: (idx) => self.thumbnails.push(idx),
 			getCam: (cmd) => self.queries.push(cmd),
 			queuePresetFetch: (key, task) => task(), // the order is the queue's business, see lifecycle.test.js
+			dropPresetFetch() {},
 			log() {},
 		}
 		return self
