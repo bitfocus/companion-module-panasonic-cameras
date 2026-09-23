@@ -189,7 +189,7 @@ describe('applyConfigDefaults', () => {
 		// reconnect timer), so a hidden field must still hold a usable value.
 		const filled = applyConfigDefaults({ pollAllow: false, imageEnable: false, subscriptionEnable: false })
 
-		expect(filled.pollDelay).toBe(100)
+		expect(filled.pollDelay).toBe(130)
 		expect(filled.imageInterval).toBe(1000)
 		expect(filled.tcpPort).toBe(31004)
 	})
