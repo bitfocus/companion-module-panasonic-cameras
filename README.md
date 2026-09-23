@@ -224,7 +224,7 @@ and the "POVCAM Interface Specifications" (Menu / Camera Operation, and Video Tr
 - Housing - Defroster State
 - Housing - Defroster Mode
 - Housing - Wiper Mode
-- Housing - Washer State
+- Housing - Washer
 
 
 ## Variables
