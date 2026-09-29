@@ -128,7 +128,7 @@ const BASE_CAPABILITIES = {
 	tally: true, // Has Red Tally (TLR or DAx)
 	tally2: true, // Has Green Tally (TLG)
 	tally3: true, // Has Yellow Tally (TLY)
-	trackingAuto: true, // Has internal Autotracking features (OSL:B6 - OSL:C2)
+	trackingAuto: { control: true }, // Has Autotracking states (QSL:B6, QSL:BB); control: commands too (OSL:B6 - OSL:C2)
 	version: true, // Camera provides software version (from initial getinfo or QSV, OSV)
 	videoFormat: true, // Camera reports current video format (OSA:87)
 	whiteBalance: { dropdown: e.ENUM_WHITEBALANCE, confirm: { 2: '1', 3: '2' } }, // Has White Balance Modes (OAW)
@@ -1704,12 +1704,16 @@ export const SERIES_SPECS = [
 					'QSL:36',
 					'QSL:37',
 					'QSL:38',
+					'QSL:B6',
+					'QSL:BB',
 				],
 				web: false,
 			},
 			recordSD: false,
 			shootingMode: { cmd: 'OSI:30', dropdown: e.ENUM_SHOOTING_MODE },
-			trackingAuto: false,
+			// The UE160 tracks in the Media Production Suite, so it answers QSL:B6 and QSL:BB but takes no
+			// tracking command: OSL:B6 is query only and OSL:B7 - OSL:C2 are absent from its specification.
+			trackingAuto: { control: false },
 		},
 	},
 	{
