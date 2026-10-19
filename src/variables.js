@@ -132,10 +132,10 @@ export function setVariables(self) {
 			'trackingAuto',
 			{
 				autotrackingMode: 'Autotracking Mode',
-				autotrackingAngle: 'Autotracking Angle',
 				autotrackingStatus: 'Autotracking Status',
 			},
 		],
+		[(c) => c.trackingAuto && c.trackingAuto.control, { autotrackingAngle: 'Autotracking Angle' }],
 	]
 
 	const variables = {}
@@ -166,7 +166,7 @@ export function checkVariables(self) {
 
 	// [variable, capability, choices or fn(capability), data key if it differs]
 	const LABELLED = [
-		['autotrackingAngle', 'trackingAuto', e.ENUM_AUTOTRACKING_ANGLE],
+		['autotrackingAngle', 'trackingAuto', (cap) => (cap.control ? e.ENUM_AUTOTRACKING_ANGLE : undefined)],
 		['autotrackingMode', 'trackingAuto', e.ENUM_OFF_ON],
 		['autotrackingStatus', 'trackingAuto', e.ENUM_AUTOTRACKING_STATUS],
 		['chromaLevel', 'chromaLevel', (cap) => cap.dropdown],

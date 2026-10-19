@@ -987,7 +987,7 @@ export function getActionDefinitions(self) {
 	// #### Autotracking Actions ####
 	// ##############################
 
-	if (caps.trackingAuto) {
+	if (caps.trackingAuto?.control) {
 		actions.autotrackingMode = enumAction(
 			'Auto Tracking - Mode',
 			cam,
