@@ -86,6 +86,7 @@ const BASE_CAPABILITIES = {
 	focusAuto: true, // Has (switchable) Auto Focus (OAF)
 	focusPushAuto: true, // Has Push Auto Focus feature (OSE:69:1)
 	gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_CX350 }, // Has Gain (OGU or OGS)
+	housing: false, // Has outdoor housing functions: heater (#D9/#HS), defroster (#D7/#DS), wiper (#WIP, #D8), washer (#WAS)
 	imageTransmission: { cmd: 'view.cgi?action=snapshot' }, // Has a JPEG one-shot image request (view.cgi)
 	install: true, // Has support for Desktop or Hanging Install Position (iNSx)
 	iris: {
@@ -548,17 +549,22 @@ export const SERIES_SPECS = [
 			errorCamera: { cmd: 'QER', bits: ['Fan'] },
 			filter: { dropdown: e.ENUM_FILTER_2 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_HR140 },
+			housing: true,
 			imageTransmission: { cmd: 'camera?resolution=320' }, // no view.cgi, see HE130
 			ois: { dropdown: e.ENUM_OIS_HR140 },
 			pedestal: { cmd: 'OTP', offset: 0x96, limit: 150, step: 1, hexlen: 3 },
 			presetTime: false,
-			poll: { ptz: false, cam: ['QSD:4F'], web: false },
+			poll: { ptz: ['WAS'], cam: ['QSD:4F'], web: false },
 			pull: {
 				ptz: [
 					'APC',
 					'O',
 					'D6',
+					'D7',
+					'D9',
 					'DA',
+					'DS',
+					'HS',
 					'INS',
 					'LC1',
 					'LC2',
@@ -572,6 +578,7 @@ export const SERIES_SPECS = [
 					'RER',
 					'S',
 					'UPVS',
+					'WIP',
 				],
 				cam: [
 					'QAF',
@@ -1410,10 +1417,11 @@ export const SERIES_SPECS = [
 			filter: { dropdown: e.ENUM_FILTER_3A },
 			filterFollow: { dropdown: e.ENUM_FILTER_3 },
 			gain: { cmd: 'OGU', dropdown: e.ENUM_GAIN_UE100 },
+			housing: true,
 			irisF: true,
 			ois: { dropdown: e.ENUM_OIS_UE100 },
 			poll: {
-				ptz: false,
+				ptz: ['WAS'],
 				cam: ['QIF', 'QSD:4F', 'QSD:B0', 'QSI:46', 'QSJ:10'],
 				web: ['get_rtmp_status', 'get_srt_status', 'get_ts_status'],
 			},
@@ -1423,6 +1431,10 @@ export const SERIES_SPECS = [
 				ptz: [
 					'O',
 					'D6',
+					'D7',
+					'D9',
+					'DS',
+					'HS',
 					'INS',
 					'LC1',
 					'LC2',
@@ -1438,6 +1450,7 @@ export const SERIES_SPECS = [
 					'S',
 					'TAA',
 					'UPVS',
+					'WIP',
 				],
 				cam: [
 					'QAF',
