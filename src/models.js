@@ -231,7 +231,6 @@ export const SERIES_SPECS = [
 			focusAuto: false,
 			focusPushAuto: false,
 			gain: false,
-			imageTransmission: false,
 			install: false,
 			iris: false,
 			night: false,
