@@ -223,7 +223,7 @@ export const SERIES_SPECS = [
 			colorPedestal: false,
 			colorTemperature: false,
 			dnr: false,
-			drs: false,
+			drs: { dropdown: e.ENUM_OFF_ON },
 			error: false,
 			errorCamera: false,
 			filter: false,
