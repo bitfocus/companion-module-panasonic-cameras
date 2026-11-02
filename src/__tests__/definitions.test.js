@@ -287,8 +287,9 @@ describe('pull coverage', () => {
 		Other: '*',
 		// The AW-HE2 is the only camera that pushes OSD:4F and offers no query for it — "QSD:4F" appears
 		// nowhere in its specification. Its notification table carries Iris Follow, so the variable fills
-		// itself; asking would earn an ER1.
-		HE2: ['irisFollowPosition'],
+		// itself; asking would earn an ER1. Likewise #PE: its preset entries come only with camdata.html,
+		// which runs on every connect, and with the notifications.
+		HE2: ['irisFollowPosition', 'preset'],
 		// POVCAM documents no QSA:87. Its camdata.html table carries OSA:87, and the bulk read runs on
 		// every connect, which is often enough for a format that only changes with the system frequency.
 		POVCAM: ['videoFormat'],
