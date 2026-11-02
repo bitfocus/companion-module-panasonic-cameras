@@ -217,7 +217,7 @@ export const SERIES_SPECS = [
 		capabilities: {
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
-			chromaLevel: false,
+			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_HE2 },
 			chromaPhase: false,
 			colorGain: false,
 			colorPedestal: false,
@@ -240,11 +240,12 @@ export const SERIES_SPECS = [
 			panTiltPosition: false,
 			pedestal: false,
 			preset: 9,
+			presetScope: false,
 			presetSpeed: false,
 			presetTime: false,
 			pull: {
-				ptz: ['O', 'DA', 'D3', 'PD', 'S'],
-				cam: ['QAW', 'QBR', 'QCR', 'QRS', 'QSA:87', 'QSD:48', 'QSE:32', 'QSE:33', 'QSE:73'],
+				ptz: ['O', 'DA', 'S'],
+				cam: ['QAW', 'QBR', 'QCG', 'QRS', 'QSA:87', 'QSE:33', 'QSV'],
 				web: false,
 			},
 			recordSD: false,
