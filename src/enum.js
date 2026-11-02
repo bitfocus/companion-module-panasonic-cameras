@@ -315,6 +315,7 @@ export const e = {
 	// ###############################
 	ENUM_CHROMA_LEVEL_3: chromaSteps(-3, 3),
 	ENUM_CHROMA_LEVEL_10: chromaSteps(0, 10),
+	ENUM_CHROMA_LEVEL_HE2: [-5, -3, -1, 0, 1, 3, 5].map((v, i) => ({ id: hex(i, 2), label: signed(v) })),
 	ENUM_CHROMA_PCT_40: chromaPercent(-99, 40),
 	ENUM_CHROMA_PCT_99: chromaPercent(-99, 99),
 	ENUM_CHROMA_PCT_UBX100: chromaPercent(-100, 80),
