@@ -243,7 +243,7 @@ export const SERIES_SPECS = [
 			presetSpeed: false,
 			presetTime: false,
 			pull: {
-				ptz: ['O', 'DA', 'S'],
+				ptz: ['O', 'DA', 'D3', 'S'],
 				cam: ['QAW', 'QBR', 'QCG', 'QRS', 'QSA:87', 'QSE:33', 'QSV'],
 				web: false,
 			},
