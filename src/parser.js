@@ -260,6 +260,10 @@ export function parseUpdate(self, str, { echo = false } = {}) {
 		case 'OCG':
 			self.data.chromaLevel = str[1].replace('0x', '')
 			break
+		case 'OCR':
+			// AW-HE2 only
+			self.data.chromaLevel = str[1].replace('0x', '')
+			break
 		case 'OID':
 			self.data.modelAuto = str[1]
 			if (self.data.modelAuto !== self.data.model) {
