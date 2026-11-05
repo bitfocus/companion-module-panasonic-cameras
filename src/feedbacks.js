@@ -213,14 +213,16 @@ export function getFeedbackDefinitions(self) {
 			() => self.data.autotrackingMode === '1',
 		)
 
-		feedbacks.autotrackingAngle = selectionFeedback(
-			'Auto Tracking - Angle',
-			'Indicates if the selected angle is currently active',
-			'State',
-			e.ENUM_AUTOTRACKING_ANGLE,
-			() => self.data.autotrackingAngle,
-			{ defaultIndex: 2 },
-		)
+		if (caps.trackingAuto.control) {
+			feedbacks.autotrackingAngle = selectionFeedback(
+				'Auto Tracking - Angle',
+				'Indicates if the selected angle is currently active',
+				'State',
+				e.ENUM_AUTOTRACKING_ANGLE,
+				() => self.data.autotrackingAngle,
+				{ defaultIndex: 2 },
+			)
+		}
 
 		feedbacks.autotrackingStatus = selectionFeedback(
 			'Auto Tracking - Status',
