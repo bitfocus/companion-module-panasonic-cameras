@@ -333,6 +333,18 @@ function repairSteppedGain(context, props) {
 	return result
 }
 
+function renameInstallStateFeedback(_context, props) {
+	const result = { updatedActions: [], updatedConfig: null, updatedFeedbacks: [] }
+
+	for (const feedback of props.feedbacks ?? []) {
+		if (feedback.feedbackId !== 'installState') continue
+		feedback.feedbackId = 'installPosition'
+		result.updatedFeedbacks.push(feedback)
+	}
+
+	return result
+}
+
 export const upgradeScripts = [
 	// Was addSetIncDecVariables. Blanked, not deleted: upgrade progress is tracked by index.
 	EmptyUpgradeScript,
@@ -363,4 +375,5 @@ export const upgradeScripts = [
 	renameDebugToTrace,
 	dropRestartCredentials,
 	repairSteppedGain,
+	renameInstallStateFeedback,
 ]
