@@ -464,11 +464,10 @@ export const e = {
 	],
 	ENUM_WHITEBALANCE_HE2: [
 		{ id: '0', label: 'ATW' },
-		{ id: '1', label: 'AWC A' },
-		{ id: '2', label: 'AWC B' },
+		{ id: '1', label: 'AWB A' },
+		{ id: '2', label: 'AWB B' },
 		{ id: '4', label: 'Preset 3200K' },
 		{ id: '5', label: 'Preset 5600K' },
-		{ id: '6', label: 'Preset 4500K' },
 		{ id: '7', label: 'Preset 6000K' },
 		{ id: '8', label: 'Preset 2800K' },
 	],
