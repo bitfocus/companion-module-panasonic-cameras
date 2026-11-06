@@ -135,6 +135,7 @@ export async function getAllCameraStatus(self) {
 			'QGB', // B Gain
 			'QBD', // B Pedestal
 			'QCG', // Chroma Level
+			'QCR', // Chroma Level (HE2 only)
 			'QER', // Error Information
 			'QFT', // ND Filter
 			'QGS', // Gain Select (UB300 only)

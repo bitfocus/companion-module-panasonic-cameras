@@ -218,7 +218,7 @@ export const SERIES_SPECS = [
 			...BASE_CAPABILITIES,
 			audioVolumeLevel: false,
 			blackBalance: false, // OAS is always answered OK, but the AW-HE2 has no ABB
-			chromaLevel: { cmd: 'OCG', dropdown: e.ENUM_CHROMA_LEVEL_HE2 },
+			chromaLevel: { cmd: 'OCR', dropdown: e.ENUM_CHROMA_LEVEL_HE2 },
 			chromaPhase: false,
 			colorGain: false,
 			colorPedestal: false,
@@ -245,7 +245,7 @@ export const SERIES_SPECS = [
 			presetTime: false,
 			pull: {
 				ptz: ['O', 'DA', 'S'],
-				cam: ['QAW', 'QBR', 'QCG', 'QRS', 'QSA:87', 'QSE:33', 'QSV'],
+				cam: ['QAW', 'QBR', 'QCR', 'QRS', 'QSA:87', 'QSE:33', 'QSV'],
 				web: false,
 			},
 			recordSD: false,
